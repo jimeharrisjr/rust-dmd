@@ -1,0 +1,16 @@
+[package]
+name = "koopman-dmd-py"
+version = "0.1.0"
+edition = "2021"
+description = "Python bindings for koopman-dmd"
+license = "MIT"
+
+[lib]
+name = "koopman_dmd"
+crate-type = ["cdylib"]
+
+[dependencies]
+faer = "0.22"
+koopman-dmd = { path = "../koopman-dmd" }
+pyo3 = { version = "0.23", features = ["extension-module"] }
+numpy = "0.23"

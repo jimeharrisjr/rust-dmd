@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  rust:
+    name: Rust (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+      - name: Clippy
+        run: cargo clippy -p koopman-dmd -- -D warnings --allow clippy::needless_range_loop --allow clippy::manual_clamp --allow clippy::too_many_arguments
+      - name: Build
+        run: cargo build -p koopman-dmd
+      - name: Test
+        run: cargo test -p koopman-dmd
+      - name: Doc
+        run: cargo doc -p koopman-dmd --no-deps
+
+  python:
+    name: Python Bindings
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install maturin
+        run: pip install maturin pytest numpy
+      - name: Build and install
+        working-directory: koopman-dmd-py
+        run: maturin develop
+      - name: Test
+        working-directory: koopman-dmd-py
+        run: pytest tests/ -v
+
+  r:
+    name: R Bindings
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: r-lib/actions/setup-r@v2
+      - name: Install R dependencies
+        run: Rscript -e 'install.packages("testthat", repos="https://cloud.r-project.org")'
+      - name: Install package
+        run: R CMD INSTALL koopman-dmd-r
+      - name: Test
+        working-directory: koopman-dmd-r
+        run: Rscript -e 'library(testthat); library(koopman.dmd); test_dir("tests/testthat")'

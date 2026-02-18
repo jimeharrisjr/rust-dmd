@@ -1,0 +1,14 @@
+/target/
+**/*.o
+**/*.so
+**/*.dylib
+**/*.dll
+*.pyc
+__pycache__/
+*.egg-info/
+.venv/
+koopman-dmd-r/src/rust/target/
+koopman-dmd-r/src/*.o
+koopman-dmd-r/src/*.so
+koopman-dmd-r/src/*.dylib
+koopman-dmd-r/src/koopman.dmd.a

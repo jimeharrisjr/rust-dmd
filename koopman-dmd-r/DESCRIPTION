@@ -1,0 +1,16 @@
+Package: koopman.dmd
+Type: Package
+Title: Koopman Operator and Dynamic Mode Decomposition for Dynamical Systems
+Version: 0.1.0
+Authors@R: person("James", "Harris", email = "jimeharrisjr@gmail.com", role = c("aut", "cre"))
+Description: Dynamic Mode Decomposition (DMD) with Koopman operator theory extensions,
+    powered by a Rust backend via extendr. Includes standard DMD, Extended DMD with
+    lifting functions, Hankel-DMD, Generalized Laplace Analysis (GLA), harmonic time
+    averages, and mesochronic harmonic plots for phase space analysis.
+License: MIT + file LICENSE
+Encoding: UTF-8
+SystemRequirements: Cargo (Rust's package manager), rustc
+Depends: R (>= 4.0)
+Imports: stats, graphics, grDevices
+Suggests: testthat (>= 3.0.0)
+Config/rextendr/version: 0.3.1

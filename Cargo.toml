@@ -1,0 +1,3 @@
+[workspace]
+members = ["koopman-dmd", "koopman-dmd-py", "koopman-dmd-r/src/rust"]
+resolver = "2"
