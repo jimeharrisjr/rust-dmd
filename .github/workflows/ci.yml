@@ -41,14 +41,21 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Install maturin
-        run: pip install maturin pytest numpy
+      - name: Create virtualenv and install dependencies
+        run: |
+          python -m venv .venv
+          . .venv/bin/activate
+          pip install maturin pytest numpy
       - name: Build and install
         working-directory: koopman-dmd-py
-        run: maturin develop
+        run: |
+          . ../.venv/bin/activate
+          maturin develop
       - name: Test
         working-directory: koopman-dmd-py
-        run: pytest tests/ -v
+        run: |
+          . ../.venv/bin/activate
+          pytest tests/ -v
 
   r:
     name: R Bindings
