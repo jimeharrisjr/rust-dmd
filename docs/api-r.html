@@ -1,0 +1,1738 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>R API Reference - koopman-dmd</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- Top navigation -->
+<header class="topnav">
+  <a class="logo" href="index.html">koopman<span>-dmd</span></a>
+  <nav>
+    <a href="index.html">Home</a>
+    <a href="getting-started.html">Guide</a>
+    <a href="api-rust.html">API</a>
+  </nav>
+  <a class="gh-link" href="https://github.com/jimeharrisjr/rust-dmd">GitHub</a>
+</header>
+
+<div class="page-layout">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <h3>Getting Started</h3>
+    <a href="getting-started.html">Installation</a>
+
+    <h3>Features</h3>
+    <a href="core-dmd.html">Core DMD</a>
+    <a href="extended-dmd.html">Extended DMD</a>
+    <a href="hankel-dmd.html">Hankel-DMD</a>
+    <a href="gla.html">GLA</a>
+    <a href="harmonic.html">Harmonic Analysis</a>
+    <a href="maps.html">Dynamical Maps</a>
+    <a href="analysis.html">Analysis Tools</a>
+
+    <h3>API Reference</h3>
+    <a href="api-rust.html">Rust API</a>
+    <a href="api-python.html">Python API</a>
+    <a href="api-r.html" class="active">R API</a>
+  </aside>
+
+  <!-- Main content -->
+  <main class="content">
+    <h1>R API Reference</h1>
+    <p class="subtitle">Complete reference for the <code>koopman.dmd</code> R package -- Rust-powered Koopman DMD with idiomatic S3 classes.</p>
+
+    <!-- ============================================================
+         1. Installation
+         ============================================================ -->
+    <h2 id="installation">Installation</h2>
+
+    <p>The <code>koopman.dmd</code> package is an R wrapper around the Rust
+    <code>koopman-dmd</code> library. Building from source requires a working Rust
+    toolchain (<code>cargo</code> and <code>rustc</code>) in addition to the
+    standard R development tools.</p>
+
+<pre><code><span class="cm"># Install from the local source directory</span>
+R CMD INSTALL koopman-dmd-r</code></pre>
+
+    <p>Verify the installation by loading the package in an R session:</p>
+
+<pre><code><span class="kw">library</span>(koopman.dmd)
+<span class="fn">cat</span>(<span class="st">"koopman.dmd loaded successfully\n"</span>)</code></pre>
+
+    <div class="info-box">
+      <strong>Requirements.</strong> You need <code>cargo</code> and
+      <code>rustc</code> installed and available on your <code>PATH</code>. The
+      package build process compiles the Rust library automatically using Cargo.
+      On Linux, ensure <code>libR-dev</code> (Debian/Ubuntu) or
+      <code>R-devel</code> (Fedora/RHEL) is installed.
+    </div>
+
+    <!-- ============================================================
+         2. DMD Functions
+         ============================================================ -->
+    <h2 id="dmd-functions">DMD Functions</h2>
+
+    <h3 id="dmd">dmd</h3>
+
+    <p>Perform Dynamic Mode Decomposition on a numeric matrix. This is the
+    primary entry point for standard and extended DMD analysis. Returns an S3
+    object of class <code>"dmd"</code>.</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Argument</th>
+          <th>Type</th>
+          <th>Default</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>data</code></td>
+          <td><code>numeric matrix</code></td>
+          <td>--</td>
+          <td>Data matrix with dimensions <code>n_vars x n_time</code>. Each
+          row is a state variable; each column is a time snapshot.</td>
+        </tr>
+        <tr>
+          <td><code>rank</code></td>
+          <td><code>integer</code> or <code>NULL</code></td>
+          <td><code>NULL</code></td>
+          <td>Truncation rank for the SVD. <code>NULL</code> selects rank
+          automatically via singular-value threshold.</td>
+        </tr>
+        <tr>
+          <td><code>center</code></td>
+          <td><code>logical</code></td>
+          <td><code>FALSE</code></td>
+          <td>If <code>TRUE</code>, subtract the temporal mean from each row
+          before decomposition. The mean is stored and added back during
+          reconstruction.</td>
+        </tr>
+        <tr>
+          <td><code>lifting</code></td>
+          <td><code>character</code> or <code>NULL</code></td>
+          <td><code>NULL</code></td>
+          <td>Optional nonlinear lifting function. One of
+          <code>"polynomial"</code>, <code>"trigonometric"</code>, or
+          <code>"delay"</code>.</td>
+        </tr>
+        <tr>
+          <td><code>lifting_param</code></td>
+          <td><code>integer</code> or <code>NULL</code></td>
+          <td><code>NULL</code></td>
+          <td>Parameter for the lifting function: polynomial degree, number of
+          harmonics, or number of delay embeddings.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p><strong>Return value.</strong> An S3 object of class <code>"dmd"</code>
+    with the following components:</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Component</th>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>eigenvalues_re</code></td>
+          <td><code>numeric vector</code></td>
+          <td>Real parts of the DMD eigenvalues.</td>
+        </tr>
+        <tr>
+          <td><code>eigenvalues_im</code></td>
+          <td><code>numeric vector</code></td>
+          <td>Imaginary parts of the DMD eigenvalues.</td>
+        </tr>
+        <tr>
+          <td><code>rank</code></td>
+          <td><code>integer</code></td>
+          <td>Truncation rank used in the decomposition.</td>
+        </tr>
+        <tr>
+          <td><code>n_vars</code></td>
+          <td><code>integer</code></td>
+          <td>Number of state variables (rows of the input).</td>
+        </tr>
+        <tr>
+          <td><code>n_time</code></td>
+          <td><code>integer</code></td>
+          <td>Number of time snapshots (columns of the input).</td>
+        </tr>
+        <tr>
+          <td><code>.result_ptr</code></td>
+          <td><code>externalptr</code></td>
+          <td>Internal pointer to the Rust result object. Used by downstream
+          functions; do not modify.</td>
+        </tr>
+      </tbody>
+    </table>
+
+<pre><code><span class="kw">library</span>(koopman.dmd)
+
+<span class="cm"># Generate sample data: 3 variables, 100 time steps</span>
+t <span class="op">&lt;-</span> <span class="fn">seq</span>(<span class="nu">0</span>, <span class="nu">2</span> <span class="op">*</span> pi, length.out = <span class="nu">100</span>)
+data <span class="op">&lt;-</span> <span class="fn">rbind</span>(
+  <span class="fn">sin</span>(t),
+  <span class="fn">cos</span>(t),
+  <span class="fn">sin</span>(<span class="nu">2</span> <span class="op">*</span> t)
+)
+
+<span class="cm"># Standard DMD with auto-rank</span>
+result <span class="op">&lt;-</span> <span class="fn">dmd</span>(data)
+
+<span class="cm"># DMD with explicit rank and centering</span>
+result <span class="op">&lt;-</span> <span class="fn">dmd</span>(data, rank = <span class="nu">4</span>, center = <span class="kw">TRUE</span>)
+
+<span class="cm"># Extended DMD with polynomial lifting</span>
+result <span class="op">&lt;-</span> <span class="fn">dmd</span>(data, lifting = <span class="st">"polynomial"</span>, lifting_param = <span class="nu">3L</span>)
+
+<span class="cm"># Extended DMD with trigonometric lifting</span>
+result <span class="op">&lt;-</span> <span class="fn">dmd</span>(data, lifting = <span class="st">"trigonometric"</span>, lifting_param = <span class="nu">5L</span>)
+
+<span class="cm"># Extended DMD with delay embedding</span>
+result <span class="op">&lt;-</span> <span class="fn">dmd</span>(data, lifting = <span class="st">"delay"</span>, lifting_param = <span class="nu">10L</span>)</code></pre>
+
+    <!-- ============================================================ -->
+    <h3 id="print-dmd">print.dmd</h3>
+
+    <p>S3 print method for <code>"dmd"</code> objects. Displays a concise
+    summary including the rank, number of variables, and number of time
+    steps.</p>
+
+<pre><code><span class="fn">print</span>(result)
+<span class="cm"># DMD Result</span>
+<span class="cm">#   Rank:       4</span>
+<span class="cm">#   Variables:  3</span>
+<span class="cm">#   Time steps: 100</span></code></pre>
+
+    <!-- ============================================================ -->
+    <h3 id="summary-dmd">summary.dmd</h3>
+
+    <p>S3 summary method for <code>"dmd"</code> objects. Prints a table of
+    eigenvalues with their real parts, imaginary parts, moduli, and
+    frequencies.</p>
+
+<pre><code><span class="fn">summary</span>(result)
+<span class="cm"># DMD Eigenvalues:</span>
+<span class="cm">#   Re(lambda)  Im(lambda)  |lambda|  Frequency</span>
+<span class="cm">#   0.9998      0.0175      1.0000    0.0028</span>
+<span class="cm">#   0.9998     -0.0175      1.0000   -0.0028</span>
+<span class="cm">#   ...</span></code></pre>
+
+    <!-- ============================================================ -->
+    <h3 id="predict-dmd">predict.dmd</h3>
+
+    <p>S3 predict method for <code>"dmd"</code> objects. Extrapolates the
+    fitted DMD model forward in time.</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Argument</th>
+          <th>Type</th>
+          <th>Default</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>object</code></td>
+          <td><code>dmd</code></td>
+          <td>--</td>
+          <td>A fitted DMD result.</td>
+        </tr>
+        <tr>
+          <td><code>n_ahead</code></td>
+          <td><code>integer</code></td>
+          <td>--</td>
+          <td>Number of future time steps to predict.</td>
+        </tr>
+        <tr>
+          <td><code>x0</code></td>
+          <td><code>numeric vector</code> or <code>NULL</code></td>
+          <td><code>NULL</code></td>
+          <td>Optional initial condition. If <code>NULL</code>, uses the first
+          snapshot from the original data.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p><strong>Return value.</strong> A numeric matrix of dimensions
+    <code>n_vars x n_ahead</code> containing the predicted states.</p>
+
+<pre><code><span class="cm"># Predict 50 future time steps</span>
+forecast <span class="op">&lt;-</span> <span class="fn">predict</span>(result, n_ahead = <span class="nu">50</span>)
+<span class="fn">cat</span>(<span class="st">"Forecast dimensions:"</span>, <span class="fn">dim</span>(forecast), <span class="st">"\n"</span>)
+
+<span class="cm"># Predict from a custom initial condition</span>
+x0 <span class="op">&lt;-</span> <span class="fn">c</span>(<span class="nu">0.5</span>, <span class="nu">0.5</span>, <span class="nu">0.5</span>)
+forecast <span class="op">&lt;-</span> <span class="fn">predict</span>(result, n_ahead = <span class="nu">50</span>, x0 = x0)</code></pre>
+
+    <!-- ============================================================ -->
+    <h3 id="dmd-reconstruct">dmd_reconstruct</h3>
+
+    <p>Reconstruct the original data from the DMD decomposition. Produces the
+    fitted values by combining modes, eigenvalues, and amplitudes. If centering
+    was used, the stored mean is added back automatically.</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Argument</th>
+          <th>Type</th>
+          <th>Default</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>result</code></td>
+          <td><code>dmd</code></td>
+          <td>--</td>
+          <td>A fitted DMD result.</td>
+        </tr>
+        <tr>
+          <td><code>n_time</code></td>
+          <td><code>integer</code></td>
+          <td>--</td>
+          <td>Number of time steps to reconstruct.</td>
+        </tr>
+        <tr>
+          <td><code>x0</code></td>
+          <td><code>numeric vector</code> or <code>NULL</code></td>
+          <td><code>NULL</code></td>
+          <td>Optional initial condition. If <code>NULL</code>, uses the first
+          snapshot from the original data.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p><strong>Return value.</strong> A numeric matrix of dimensions
+    <code>n_vars x n_time</code> containing the reconstructed data.</p>
+
+<pre><code><span class="cm"># Reconstruct the original 100 time steps</span>
+recon <span class="op">&lt;-</span> <span class="fn">dmd_reconstruct</span>(result, n_time = <span class="nu">100</span>)
+<span class="fn">cat</span>(<span class="st">"Reconstruction dimensions:"</span>, <span class="fn">dim</span>(recon), <span class="st">"\n"</span>)</code></pre>
+
+    <!-- ============================================================ -->
+    <h3 id="dmd-spectrum">dmd_spectrum</h3>
+
+    <p>Compute the spectral properties of the DMD decomposition. Returns a
+    data frame summarizing the frequency content, growth rates, damping, and
+    stability of each mode.</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Argument</th>
+          <th>Type</th>
+          <th>Default</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>result</code></td>
+          <td><code>dmd</code></td>
+          <td>--</td>
+          <td>A fitted DMD result.</td>
+        </tr>
+        <tr>
+          <td><code>dt</code></td>
+          <td><code>numeric</code></td>
+          <td><code>1.0</code></td>
+          <td>Time step between snapshots. Used to convert discrete eigenvalues
+          to continuous-time frequencies.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p><strong>Return value.</strong> A <code>data.frame</code> with the
+    following columns:</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Column</th>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>frequency</code></td>
+          <td><code>numeric</code></td>
+          <td>Angular frequency of each mode (radians per unit time).</td>
+        </tr>
+        <tr>
+          <td><code>magnitude</code></td>
+          <td><code>numeric</code></td>
+          <td>Modulus of the eigenvalue (distance from origin).</td>
+        </tr>
+        <tr>
+          <td><code>growth_rate</code></td>
+          <td><code>numeric</code></td>
+          <td>Continuous-time growth rate (log of modulus divided by dt).</td>
+        </tr>
+        <tr>
+          <td><code>damping_ratio</code></td>
+          <td><code>numeric</code></td>
+          <td>Damping ratio of each mode.</td>
+        </tr>
+        <tr>
+          <td><code>stability</code></td>
+          <td><code>character</code></td>
+          <td>One of <code>"stable"</code>, <code>"unstable"</code>, or
+          <code>"neutral"</code>.</td>
+        </tr>
+      </tbody>
+    </table>
+
+<pre><code><span class="cm"># Compute spectrum with default time step</span>
+spec <span class="op">&lt;-</span> <span class="fn">dmd_spectrum</span>(result)
+<span class="fn">print</span>(spec)
+
+<span class="cm"># Compute spectrum with explicit time step</span>
+spec <span class="op">&lt;-</span> <span class="fn">dmd_spectrum</span>(result, dt = <span class="nu">0.01</span>)
+<span class="fn">print</span>(spec)</code></pre>
+
+    <!-- ============================================================ -->
+    <h3 id="dmd-stability">dmd_stability</h3>
+
+    <p>Assess the stability of the DMD model by examining the eigenvalue
+    spectrum.</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Argument</th>
+          <th>Type</th>
+          <th>Default</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>result</code></td>
+          <td><code>dmd</code></td>
+          <td>--</td>
+          <td>A fitted DMD result.</td>
+        </tr>
+        <tr>
+          <td><code>tol</code></td>
+          <td><code>numeric</code></td>
+          <td><code>1e-6</code></td>
+          <td>Tolerance for classifying eigenvalues as neutral (on the unit
+          circle).</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p><strong>Return value.</strong> A list with the following components:</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Component</th>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>spectral_radius</code></td>
+          <td><code>numeric</code></td>
+          <td>Maximum modulus among all eigenvalues.</td>
+        </tr>
+        <tr>
+          <td><code>is_stable</code></td>
+          <td><code>logical</code></td>
+          <td><code>TRUE</code> if all eigenvalues lie inside or on the unit
+          circle (within tolerance).</td>
+        </tr>
+        <tr>
+          <td><code>is_unstable</code></td>
+          <td><code>logical</code></td>
+          <td><code>TRUE</code> if any eigenvalue lies outside the unit
+          circle.</td>
+        </tr>
+        <tr>
+          <td><code>n_growing</code></td>
+          <td><code>integer</code></td>
+          <td>Number of eigenvalues with modulus greater than 1 + tol.</td>
+        </tr>
+        <tr>
+          <td><code>n_decaying</code></td>
+          <td><code>integer</code></td>
+          <td>Number of eigenvalues with modulus less than 1 - tol.</td>
+        </tr>
+        <tr>
+          <td><code>n_neutral</code></td>
+          <td><code>integer</code></td>
+          <td>Number of eigenvalues with modulus within tol of 1.</td>
+        </tr>
+      </tbody>
+    </table>
+
+<pre><code>stab <span class="op">&lt;-</span> <span class="fn">dmd_stability</span>(result)
+<span class="fn">cat</span>(<span class="st">"Spectral radius:"</span>, stab<span class="op">$</span>spectral_radius, <span class="st">"\n"</span>)
+<span class="fn">cat</span>(<span class="st">"Stable:"</span>, stab<span class="op">$</span>is_stable, <span class="st">"\n"</span>)
+<span class="fn">cat</span>(<span class="st">"Growing modes:"</span>, stab<span class="op">$</span>n_growing, <span class="st">"\n"</span>)
+<span class="fn">cat</span>(<span class="st">"Decaying modes:"</span>, stab<span class="op">$</span>n_decaying, <span class="st">"\n"</span>)
+<span class="fn">cat</span>(<span class="st">"Neutral modes:"</span>, stab<span class="op">$</span>n_neutral, <span class="st">"\n"</span>)</code></pre>
+
+    <!-- ============================================================ -->
+    <h3 id="dmd-error">dmd_error</h3>
+
+    <p>Compute reconstruction error metrics for a DMD result against the
+    original data.</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Argument</th>
+          <th>Type</th>
+          <th>Default</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>result</code></td>
+          <td><code>dmd</code></td>
+          <td>--</td>
+          <td>A fitted DMD result.</td>
+        </tr>
+        <tr>
+          <td><code>data</code></td>
+          <td><code>numeric matrix</code></td>
+          <td>--</td>
+          <td>The original data matrix used for fitting.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p><strong>Return value.</strong> A list with the following components:</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Component</th>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>rmse</code></td>
+          <td><code>numeric</code></td>
+          <td>Root mean squared error across all entries.</td>
+        </tr>
+        <tr>
+          <td><code>relative_error</code></td>
+          <td><code>numeric</code></td>
+          <td>Frobenius norm of the residual divided by the Frobenius norm
+          of the original data.</td>
+        </tr>
+        <tr>
+          <td><code>max_error</code></td>
+          <td><code>numeric</code></td>
+          <td>Maximum absolute error across all entries.</td>
+        </tr>
+      </tbody>
+    </table>
+
+<pre><code>err <span class="op">&lt;-</span> <span class="fn">dmd_error</span>(result, data)
+<span class="fn">cat</span>(<span class="st">"RMSE:          "</span>, err<span class="op">$</span>rmse, <span class="st">"\n"</span>)
+<span class="fn">cat</span>(<span class="st">"Relative error:"</span>, err<span class="op">$</span>relative_error, <span class="st">"\n"</span>)
+<span class="fn">cat</span>(<span class="st">"Max error:     "</span>, err<span class="op">$</span>max_error, <span class="st">"\n"</span>)</code></pre>
+
+    <!-- ============================================================ -->
+    <h3 id="dmd-dominant-modes">dmd_dominant_modes</h3>
+
+    <p>Extract the dominant DMD modes ranked by a specified criterion.</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Argument</th>
+          <th>Type</th>
+          <th>Default</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>result</code></td>
+          <td><code>dmd</code></td>
+          <td>--</td>
+          <td>A fitted DMD result.</td>
+        </tr>
+        <tr>
+          <td><code>criterion</code></td>
+          <td><code>character</code></td>
+          <td><code>"amplitude"</code></td>
+          <td>Ranking criterion. One of <code>"amplitude"</code> (mode
+          amplitude) or other supported criteria.</td>
+        </tr>
+        <tr>
+          <td><code>n</code></td>
+          <td><code>integer</code></td>
+          <td><code>3</code></td>
+          <td>Number of top modes to return.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p><strong>Return value.</strong> A <code>data.frame</code> with one row
+    per dominant mode, including eigenvalue, frequency, amplitude, and growth
+    rate columns.</p>
+
+<pre><code><span class="cm"># Get top 3 modes by amplitude</span>
+top <span class="op">&lt;-</span> <span class="fn">dmd_dominant_modes</span>(result, criterion = <span class="st">"amplitude"</span>, n = <span class="nu">3</span>)
+<span class="fn">print</span>(top)</code></pre>
+
+    <!-- ============================================================ -->
+    <h3 id="dmd-residual">dmd_residual</h3>
+
+    <p>Compute residuals for each DMD mode, measuring how well each mode
+    satisfies the linear operator relationship.</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Argument</th>
+          <th>Type</th>
+          <th>Default</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>result</code></td>
+          <td><code>dmd</code></td>
+          <td>--</td>
+          <td>A fitted DMD result.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p><strong>Return value.</strong> A list with the following components:</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Component</th>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>mode_residuals</code></td>
+          <td><code>numeric vector</code></td>
+          <td>Residual norm for each individual mode.</td>
+        </tr>
+        <tr>
+          <td><code>max_residual</code></td>
+          <td><code>numeric</code></td>
+          <td>Maximum residual across all modes.</td>
+        </tr>
+        <tr>
+          <td><code>mean_residual</code></td>
+          <td><code>numeric</code></td>
+          <td>Mean residual across all modes.</td>
+        </tr>
+      </tbody>
+    </table>
+
+<pre><code>resid <span class="op">&lt;-</span> <span class="fn">dmd_residual</span>(result)
+<span class="fn">cat</span>(<span class="st">"Max residual: "</span>, resid<span class="op">$</span>max_residual, <span class="st">"\n"</span>)
+<span class="fn">cat</span>(<span class="st">"Mean residual:"</span>, resid<span class="op">$</span>mean_residual, <span class="st">"\n"</span>)
+<span class="fn">print</span>(resid<span class="op">$</span>mode_residuals)</code></pre>
+
+    <!-- ============================================================
+         3. Hankel-DMD Functions
+         ============================================================ -->
+    <h2 id="hankel-dmd-functions">Hankel-DMD Functions</h2>
+
+    <h3 id="hankel-dmd">hankel_dmd</h3>
+
+    <p>Perform Hankel-DMD, which augments the data with time-delay embeddings
+    before applying DMD. This is particularly effective for scalar time series
+    or systems where a single observable does not fully capture the underlying
+    dynamics. Returns an S3 object of class <code>"hankel_dmd"</code>.</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Argument</th>
+          <th>Type</th>
+          <th>Default</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>data</code></td>
+          <td><code>numeric matrix</code></td>
+          <td>--</td>
+          <td>Data matrix with dimensions <code>n_vars x n_time</code>.</td>
+        </tr>
+        <tr>
+          <td><code>delays</code></td>
+          <td><code>integer</code> or <code>NULL</code></td>
+          <td><code>NULL</code></td>
+          <td>Number of delay embeddings. <code>NULL</code> selects
+          automatically.</td>
+        </tr>
+        <tr>
+          <td><code>rank</code></td>
+          <td><code>integer</code> or <code>NULL</code></td>
+          <td><code>NULL</code></td>
+          <td>Truncation rank. <code>NULL</code> selects automatically.</td>
+        </tr>
+        <tr>
+          <td><code>dt</code></td>
+          <td><code>numeric</code></td>
+          <td><code>1.0</code></td>
+          <td>Time step between snapshots.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p><strong>Return value.</strong> An S3 object of class
+    <code>"hankel_dmd"</code> with components similar to the standard
+    <code>"dmd"</code> class, plus delay embedding metadata.</p>
+
+<pre><code><span class="kw">library</span>(koopman.dmd)
+
+<span class="cm"># Scalar time series: 1 x 500 matrix</span>
+t <span class="op">&lt;-</span> <span class="fn">seq</span>(<span class="nu">0</span>, <span class="nu">10</span> <span class="op">*</span> pi, length.out = <span class="nu">500</span>)
+data <span class="op">&lt;-</span> <span class="fn">matrix</span>(<span class="fn">sin</span>(t) + <span class="nu">0.5</span> <span class="op">*</span> <span class="fn">sin</span>(<span class="nu">3</span> <span class="op">*</span> t), nrow = <span class="nu">1</span>)
+
+<span class="cm"># Hankel-DMD with 20 delays</span>
+hresult <span class="op">&lt;-</span> <span class="fn">hankel_dmd</span>(data, delays = <span class="nu">20</span>)
+<span class="fn">print</span>(hresult)</code></pre>
+
+    <!-- ============================================================ -->
+    <h3 id="print-hankel-dmd">print.hankel_dmd</h3>
+
+    <p>S3 print method for <code>"hankel_dmd"</code> objects. Displays a
+    concise summary including the rank, delay embedding depth, and data
+    dimensions.</p>
+
+<pre><code><span class="fn">print</span>(hresult)
+<span class="cm"># Hankel-DMD Result</span>
+<span class="cm">#   Rank:    10</span>
+<span class="cm">#   Delays:  20</span>
+<span class="cm">#   Vars:    1</span>
+<span class="cm">#   Steps:   500</span></code></pre>
+
+    <!-- ============================================================ -->
+    <h3 id="predict-hankel-dmd">predict.hankel_dmd</h3>
+
+    <p>S3 predict method for <code>"hankel_dmd"</code> objects. Extrapolates
+    the fitted Hankel-DMD model forward in time.</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Argument</th>
+          <th>Type</th>
+          <th>Default</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>object</code></td>
+          <td><code>hankel_dmd</code></td>
+          <td>--</td>
+          <td>A fitted Hankel-DMD result.</td>
+        </tr>
+        <tr>
+          <td><code>n_ahead</code></td>
+          <td><code>integer</code></td>
+          <td>--</td>
+          <td>Number of future time steps to predict.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p><strong>Return value.</strong> A numeric matrix containing the predicted
+    states in the original (non-embedded) variable space.</p>
+
+<pre><code><span class="cm"># Predict 100 steps ahead</span>
+hforecast <span class="op">&lt;-</span> <span class="fn">predict</span>(hresult, n_ahead = <span class="nu">100</span>)
+<span class="fn">cat</span>(<span class="st">"Forecast dimensions:"</span>, <span class="fn">dim</span>(hforecast), <span class="st">"\n"</span>)</code></pre>
+
+    <!-- ============================================================ -->
+    <h3 id="hankel-reconstruct">hankel_reconstruct</h3>
+
+    <p>Reconstruct the original data from the Hankel-DMD decomposition,
+    projecting back from the delay-embedded space to the original variable
+    space.</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Argument</th>
+          <th>Type</th>
+          <th>Default</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>result</code></td>
+          <td><code>hankel_dmd</code></td>
+          <td>--</td>
+          <td>A fitted Hankel-DMD result.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p><strong>Return value.</strong> A numeric matrix containing the
+    reconstructed data.</p>
+
+<pre><code>hrecon <span class="op">&lt;-</span> <span class="fn">hankel_reconstruct</span>(hresult)
+<span class="fn">cat</span>(<span class="st">"Reconstruction dimensions:"</span>, <span class="fn">dim</span>(hrecon), <span class="st">"\n"</span>)</code></pre>
+
+    <!-- ============================================================
+         4. GLA Functions
+         ============================================================ -->
+    <h2 id="gla-functions">GLA Functions</h2>
+
+    <h3 id="gla">gla</h3>
+
+    <p>Perform Generalized Laplace Analysis (GLA) to extract Koopman
+    eigenvalues and eigenfunctions from trajectory data. GLA is an iterative
+    algorithm that converges to the dominant Koopman modes. Returns an S3
+    object of class <code>"gla"</code>.</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Argument</th>
+          <th>Type</th>
+          <th>Default</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>data</code></td>
+          <td><code>numeric matrix</code></td>
+          <td>--</td>
+          <td>Data matrix with dimensions <code>n_vars x n_time</code>.</td>
+        </tr>
+        <tr>
+          <td><code>n_eigenvalues</code></td>
+          <td><code>integer</code></td>
+          <td><code>2</code></td>
+          <td>Number of Koopman eigenvalues to extract.</td>
+        </tr>
+        <tr>
+          <td><code>tol</code></td>
+          <td><code>numeric</code></td>
+          <td><code>1e-6</code></td>
+          <td>Convergence tolerance for the iterative algorithm.</td>
+        </tr>
+        <tr>
+          <td><code>max_iter</code></td>
+          <td><code>integer</code> or <code>NULL</code></td>
+          <td><code>NULL</code></td>
+          <td>Maximum number of iterations. <code>NULL</code> uses a
+          library default.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p><strong>Return value.</strong> An S3 object of class <code>"gla"</code>
+    containing the extracted Koopman eigenvalues and associated data.</p>
+
+<pre><code><span class="kw">library</span>(koopman.dmd)
+
+<span class="cm"># Generate trajectory data</span>
+t <span class="op">&lt;-</span> <span class="fn">seq</span>(<span class="nu">0</span>, <span class="nu">4</span> <span class="op">*</span> pi, length.out = <span class="nu">200</span>)
+data <span class="op">&lt;-</span> <span class="fn">rbind</span>(<span class="fn">sin</span>(t), <span class="fn">cos</span>(t))
+
+<span class="cm"># Extract 4 Koopman eigenvalues</span>
+gresult <span class="op">&lt;-</span> <span class="fn">gla</span>(data, n_eigenvalues = <span class="nu">4</span>, tol = <span class="nu">1e-8</span>)
+<span class="fn">print</span>(gresult)</code></pre>
+
+    <!-- ============================================================ -->
+    <h3 id="print-gla">print.gla</h3>
+
+    <p>S3 print method for <code>"gla"</code> objects. Displays a summary
+    of the GLA result including the number of extracted eigenvalues and
+    convergence information.</p>
+
+<pre><code><span class="fn">print</span>(gresult)
+<span class="cm"># GLA Result</span>
+<span class="cm">#   Eigenvalues: 4</span>
+<span class="cm">#   Converged:   TRUE</span></code></pre>
+
+    <!-- ============================================================ -->
+    <h3 id="predict-gla">predict.gla</h3>
+
+    <p>S3 predict method for <code>"gla"</code> objects. Extrapolates the
+    fitted GLA model forward in time using the extracted Koopman modes.</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Argument</th>
+          <th>Type</th>
+          <th>Default</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>object</code></td>
+          <td><code>gla</code></td>
+          <td>--</td>
+          <td>A fitted GLA result.</td>
+        </tr>
+        <tr>
+          <td><code>n_ahead</code></td>
+          <td><code>integer</code></td>
+          <td>--</td>
+          <td>Number of future time steps to predict.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p><strong>Return value.</strong> A numeric matrix containing the
+    predicted states.</p>
+
+<pre><code><span class="cm"># Predict 50 steps ahead</span>
+gforecast <span class="op">&lt;-</span> <span class="fn">predict</span>(gresult, n_ahead = <span class="nu">50</span>)
+<span class="fn">cat</span>(<span class="st">"Forecast dimensions:"</span>, <span class="fn">dim</span>(gforecast), <span class="st">"\n"</span>)</code></pre>
+
+    <!-- ============================================================ -->
+    <h3 id="gla-reconstruct">gla_reconstruct</h3>
+
+    <p>Reconstruct the original data from the GLA decomposition.</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Argument</th>
+          <th>Type</th>
+          <th>Default</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>result</code></td>
+          <td><code>gla</code></td>
+          <td>--</td>
+          <td>A fitted GLA result.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p><strong>Return value.</strong> A numeric matrix containing the
+    reconstructed data.</p>
+
+<pre><code>grecon <span class="op">&lt;-</span> <span class="fn">gla_reconstruct</span>(gresult)
+<span class="fn">cat</span>(<span class="st">"Reconstruction dimensions:"</span>, <span class="fn">dim</span>(grecon), <span class="st">"\n"</span>)</code></pre>
+
+    <!-- ============================================================
+         5. Map Functions
+         ============================================================ -->
+    <h2 id="map-functions">Map Functions</h2>
+
+    <h3 id="generate-trajectory">generate_trajectory</h3>
+
+    <p>Iterate a dynamical map from a given initial condition and return a
+    matrix of states. Each column of the returned matrix is a snapshot of the
+    system state at a single time step.</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Argument</th>
+          <th>Type</th>
+          <th>Default</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>ic</code></td>
+          <td><code>numeric vector</code></td>
+          <td>--</td>
+          <td>Initial condition vector. Length must match the dimensionality
+          of the selected map.</td>
+        </tr>
+        <tr>
+          <td><code>map</code></td>
+          <td><code>character</code></td>
+          <td>--</td>
+          <td>Map name. One of <code>"standard"</code>,
+          <code>"froeschle"</code>, <code>"extended_standard"</code>,
+          <code>"henon"</code>, or <code>"logistic"</code>.</td>
+        </tr>
+        <tr>
+          <td><code>n_steps</code></td>
+          <td><code>integer</code></td>
+          <td>--</td>
+          <td>Number of iterations to compute.</td>
+        </tr>
+        <tr>
+          <td><code>...</code></td>
+          <td>various</td>
+          <td>--</td>
+          <td>Map-specific parameters. See helper constructors below.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p><strong>Return value.</strong> A numeric matrix of dimensions
+    <code>n_dim x n_steps</code> where <code>n_dim</code> is the
+    dimensionality of the map.</p>
+
+<pre><code><span class="kw">library</span>(koopman.dmd)
+
+<span class="cm"># Standard map</span>
+traj <span class="op">&lt;-</span> <span class="fn">generate_trajectory</span>(
+  ic = <span class="fn">c</span>(<span class="nu">0.1</span>, <span class="nu">0.2</span>),
+  map = <span class="st">"standard"</span>,
+  n_steps = <span class="nu">1000</span>,
+  epsilon = <span class="nu">0.12</span>
+)
+<span class="fn">cat</span>(<span class="st">"Trajectory shape:"</span>, <span class="fn">dim</span>(traj), <span class="st">"\n"</span>)  <span class="cm"># 2 x 1000</span>
+
+<span class="cm"># Henon map</span>
+traj <span class="op">&lt;-</span> <span class="fn">generate_trajectory</span>(
+  ic = <span class="fn">c</span>(<span class="nu">0.0</span>, <span class="nu">0.0</span>),
+  map = <span class="st">"henon"</span>,
+  n_steps = <span class="nu">5000</span>,
+  a = <span class="nu">1.4</span>,
+  b = <span class="nu">0.3</span>
+)
+
+<span class="cm"># Logistic map</span>
+traj <span class="op">&lt;-</span> <span class="fn">generate_trajectory</span>(
+  ic = <span class="nu">0.4</span>,
+  map = <span class="st">"logistic"</span>,
+  n_steps = <span class="nu">500</span>,
+  r = <span class="nu">3.9</span>
+)</code></pre>
+
+    <!-- ============================================================ -->
+    <h3 id="helper-constructors">Helper Constructors</h3>
+
+    <p>Convenience functions that return named lists of map parameters with
+    sensible defaults. These can be expanded with <code>do.call</code> or
+    used for documentation purposes.</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Function</th>
+          <th>Parameters</th>
+          <th>Defaults</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>standard_map(epsilon)</code></td>
+          <td><code>epsilon</code></td>
+          <td><code>0.12</code></td>
+        </tr>
+        <tr>
+          <td><code>froeschle_map(epsilon1, epsilon2, epsilon3)</code></td>
+          <td><code>epsilon1</code>, <code>epsilon2</code>, <code>epsilon3</code></td>
+          <td><code>0.12</code>, <code>0.12</code>, <code>0.05</code></td>
+        </tr>
+        <tr>
+          <td><code>extended_standard_map(epsilon, alpha)</code></td>
+          <td><code>epsilon</code>, <code>alpha</code></td>
+          <td>--</td>
+        </tr>
+        <tr>
+          <td><code>henon_map(a, b)</code></td>
+          <td><code>a</code>, <code>b</code></td>
+          <td><code>1.4</code>, <code>0.3</code></td>
+        </tr>
+        <tr>
+          <td><code>logistic_map(r)</code></td>
+          <td><code>r</code></td>
+          <td><code>3.9</code></td>
+        </tr>
+      </tbody>
+    </table>
+
+<pre><code><span class="cm"># Using helper constructors</span>
+params <span class="op">&lt;-</span> <span class="fn">standard_map</span>(epsilon = <span class="nu">0.25</span>)
+<span class="fn">print</span>(params)
+<span class="cm"># $map</span>
+<span class="cm"># [1] "standard"</span>
+<span class="cm"># $epsilon</span>
+<span class="cm"># [1] 0.25</span>
+
+params <span class="op">&lt;-</span> <span class="fn">henon_map</span>()  <span class="cm"># uses defaults a=1.4, b=0.3</span>
+params <span class="op">&lt;-</span> <span class="fn">logistic_map</span>(r = <span class="nu">3.7</span>)
+
+<span class="cm"># Use with do.call</span>
+traj <span class="op">&lt;-</span> <span class="fn">do.call</span>(generate_trajectory, <span class="fn">c</span>(
+  <span class="fn">list</span>(ic = <span class="fn">c</span>(<span class="nu">0.1</span>, <span class="nu">0.2</span>), n_steps = <span class="nu">1000</span>),
+  <span class="fn">standard_map</span>(epsilon = <span class="nu">0.3</span>)
+))</code></pre>
+
+    <!-- ============================================================
+         6. Harmonic Analysis Functions
+         ============================================================ -->
+    <h2 id="harmonic-functions">Harmonic Analysis Functions</h2>
+
+    <h3 id="harmonic-time-average">harmonic_time_average</h3>
+
+    <p>Compute the harmonic time average (HTA) of an observable along a
+    trajectory generated by a dynamical map. The HTA is a key tool in
+    Koopman operator theory for extracting frequency-specific information
+    from orbits.</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Argument</th>
+          <th>Type</th>
+          <th>Default</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>ic</code></td>
+          <td><code>numeric vector</code></td>
+          <td>--</td>
+          <td>Initial condition for the trajectory.</td>
+        </tr>
+        <tr>
+          <td><code>map</code></td>
+          <td><code>character</code></td>
+          <td>--</td>
+          <td>Map name (same choices as <code>generate_trajectory</code>).</td>
+        </tr>
+        <tr>
+          <td><code>observable</code></td>
+          <td><code>character</code></td>
+          <td>--</td>
+          <td>Observable function. One of <code>"identity"</code>,
+          <code>"sin_pi"</code>, <code>"cos_pi"</code>,
+          <code>"sin_pi_xy"</code>, or <code>"quadratic"</code>.</td>
+        </tr>
+        <tr>
+          <td><code>omega</code></td>
+          <td><code>numeric</code></td>
+          <td>--</td>
+          <td>Frequency parameter for the harmonic average.</td>
+        </tr>
+        <tr>
+          <td><code>n_iter</code></td>
+          <td><code>integer</code></td>
+          <td>--</td>
+          <td>Number of iterations for the time average.</td>
+        </tr>
+        <tr>
+          <td><code>...</code></td>
+          <td>various</td>
+          <td>--</td>
+          <td>Map-specific parameters (e.g., <code>epsilon</code>).</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p><strong>Return value.</strong> A list with the following components:</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Component</th>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>magnitude</code></td>
+          <td><code>numeric</code></td>
+          <td>Magnitude (absolute value) of the harmonic time average.</td>
+        </tr>
+        <tr>
+          <td><code>phase</code></td>
+          <td><code>numeric</code></td>
+          <td>Phase angle of the harmonic time average (radians).</td>
+        </tr>
+        <tr>
+          <td><code>real</code></td>
+          <td><code>numeric</code></td>
+          <td>Real part of the harmonic time average.</td>
+        </tr>
+        <tr>
+          <td><code>imag</code></td>
+          <td><code>numeric</code></td>
+          <td>Imaginary part of the harmonic time average.</td>
+        </tr>
+      </tbody>
+    </table>
+
+<pre><code><span class="kw">library</span>(koopman.dmd)
+
+<span class="cm"># HTA of identity observable on standard map</span>
+hta <span class="op">&lt;-</span> <span class="fn">harmonic_time_average</span>(
+  ic = <span class="fn">c</span>(<span class="nu">0.1</span>, <span class="nu">0.2</span>),
+  map = <span class="st">"standard"</span>,
+  observable = <span class="st">"identity"</span>,
+  omega = <span class="nu">0.0</span>,
+  n_iter = <span class="nu">10000</span>,
+  epsilon = <span class="nu">0.12</span>
+)
+<span class="fn">cat</span>(<span class="st">"Magnitude:"</span>, hta<span class="op">$</span>magnitude, <span class="st">"\n"</span>)
+<span class="fn">cat</span>(<span class="st">"Phase:    "</span>, hta<span class="op">$</span>phase, <span class="st">"\n"</span>)</code></pre>
+
+    <!-- ============================================================ -->
+    <h3 id="mesochronic-compute">mesochronic_compute</h3>
+
+    <p>Compute harmonic time averages over a grid of initial conditions,
+    producing a mesochronic map of the phase space. This reveals the structure
+    of Koopman eigenfunctions and distinguishes regular from chaotic
+    regions.</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Argument</th>
+          <th>Type</th>
+          <th>Default</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>map</code></td>
+          <td><code>character</code></td>
+          <td>--</td>
+          <td>Map name.</td>
+        </tr>
+        <tr>
+          <td><code>x_range</code></td>
+          <td><code>numeric(2)</code></td>
+          <td>--</td>
+          <td>Range of x-coordinates as <code>c(x_min, x_max)</code>.</td>
+        </tr>
+        <tr>
+          <td><code>y_range</code></td>
+          <td><code>numeric(2)</code></td>
+          <td>--</td>
+          <td>Range of y-coordinates as <code>c(y_min, y_max)</code>.</td>
+        </tr>
+        <tr>
+          <td><code>resolution</code></td>
+          <td><code>integer</code></td>
+          <td>--</td>
+          <td>Number of grid points along each axis.</td>
+        </tr>
+        <tr>
+          <td><code>observable</code></td>
+          <td><code>character</code></td>
+          <td>--</td>
+          <td>Observable function (same choices as
+          <code>harmonic_time_average</code>).</td>
+        </tr>
+        <tr>
+          <td><code>omega</code></td>
+          <td><code>numeric</code></td>
+          <td>--</td>
+          <td>Frequency parameter.</td>
+        </tr>
+        <tr>
+          <td><code>n_iter</code></td>
+          <td><code>integer</code></td>
+          <td>--</td>
+          <td>Number of iterations for each initial condition.</td>
+        </tr>
+        <tr>
+          <td><code>...</code></td>
+          <td>various</td>
+          <td>--</td>
+          <td>Map-specific parameters.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p><strong>Return value.</strong> A list with the following components:</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Component</th>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>hta_matrix</code></td>
+          <td><code>numeric matrix</code></td>
+          <td>Matrix of HTA magnitudes over the grid (resolution x resolution).</td>
+        </tr>
+        <tr>
+          <td><code>phase_matrix</code></td>
+          <td><code>numeric matrix</code></td>
+          <td>Matrix of HTA phases over the grid (resolution x resolution).</td>
+        </tr>
+        <tr>
+          <td><code>x_coords</code></td>
+          <td><code>numeric vector</code></td>
+          <td>Vector of x-coordinates for the grid.</td>
+        </tr>
+        <tr>
+          <td><code>y_coords</code></td>
+          <td><code>numeric vector</code></td>
+          <td>Vector of y-coordinates for the grid.</td>
+        </tr>
+      </tbody>
+    </table>
+
+<pre><code><span class="cm"># Mesochronic analysis of the standard map</span>
+meso <span class="op">&lt;-</span> <span class="fn">mesochronic_compute</span>(
+  map = <span class="st">"standard"</span>,
+  x_range = <span class="fn">c</span>(<span class="nu">0</span>, <span class="nu">1</span>),
+  y_range = <span class="fn">c</span>(<span class="nu">0</span>, <span class="nu">1</span>),
+  resolution = <span class="nu">200</span>,
+  observable = <span class="st">"identity"</span>,
+  omega = <span class="nu">0.0</span>,
+  n_iter = <span class="nu">5000</span>,
+  epsilon = <span class="nu">0.12</span>
+)
+
+<span class="cm"># Plot with base R</span>
+<span class="fn">image</span>(
+  meso<span class="op">$</span>x_coords,
+  meso<span class="op">$</span>y_coords,
+  meso<span class="op">$</span>hta_matrix,
+  col = <span class="fn">hcl.colors</span>(<span class="nu">256</span>, <span class="st">"viridis"</span>),
+  xlab = <span class="st">"x"</span>,
+  ylab = <span class="st">"y"</span>,
+  main = <span class="st">"Mesochronic Map"</span>
+)</code></pre>
+
+    <!-- ============================================================ -->
+    <h3 id="classify-phase-space">classify_phase_space</h3>
+
+    <p>Classify an initial condition as belonging to a regular or chaotic
+    region of phase space, based on the convergence behavior of the harmonic
+    time average.</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Argument</th>
+          <th>Type</th>
+          <th>Default</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>ic</code></td>
+          <td><code>numeric vector</code></td>
+          <td>--</td>
+          <td>Initial condition.</td>
+        </tr>
+        <tr>
+          <td><code>map</code></td>
+          <td><code>character</code></td>
+          <td>--</td>
+          <td>Map name.</td>
+        </tr>
+        <tr>
+          <td><code>omega</code></td>
+          <td><code>numeric</code></td>
+          <td>--</td>
+          <td>Frequency parameter.</td>
+        </tr>
+        <tr>
+          <td><code>n_iter</code></td>
+          <td><code>integer</code></td>
+          <td>--</td>
+          <td>Number of iterations.</td>
+        </tr>
+        <tr>
+          <td><code>...</code></td>
+          <td>various</td>
+          <td>--</td>
+          <td>Map-specific parameters.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p><strong>Return value.</strong> A list with the following components:</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Component</th>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>classification</code></td>
+          <td><code>character</code></td>
+          <td>One of <code>"regular"</code>, <code>"chaotic"</code>, or
+          <code>"boundary"</code>.</td>
+        </tr>
+        <tr>
+          <td><code>hta_magnitude</code></td>
+          <td><code>numeric</code></td>
+          <td>Magnitude of the harmonic time average at convergence.</td>
+        </tr>
+        <tr>
+          <td><code>hta_phase</code></td>
+          <td><code>numeric</code></td>
+          <td>Phase of the harmonic time average at convergence.</td>
+        </tr>
+      </tbody>
+    </table>
+
+<pre><code><span class="cm"># Classify a point on the standard map</span>
+cls <span class="op">&lt;-</span> <span class="fn">classify_phase_space</span>(
+  ic = <span class="fn">c</span>(<span class="nu">0.1</span>, <span class="nu">0.2</span>),
+  map = <span class="st">"standard"</span>,
+  omega = <span class="nu">0.0</span>,
+  n_iter = <span class="nu">10000</span>,
+  epsilon = <span class="nu">0.12</span>
+)
+<span class="fn">cat</span>(<span class="st">"Classification:"</span>, cls<span class="op">$</span>classification, <span class="st">"\n"</span>)
+<span class="fn">cat</span>(<span class="st">"HTA magnitude: "</span>, cls<span class="op">$</span>hta_magnitude, <span class="st">"\n"</span>)</code></pre>
+
+    <!-- ============================================================ -->
+    <h3 id="hta-convergence">hta_convergence</h3>
+
+    <p>Track the convergence of the harmonic time average as a function of
+    the number of iterations. Useful for determining the required iteration
+    depth and for visualizing the convergence behavior of regular versus
+    chaotic orbits.</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Argument</th>
+          <th>Type</th>
+          <th>Default</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>ic</code></td>
+          <td><code>numeric vector</code></td>
+          <td>--</td>
+          <td>Initial condition.</td>
+        </tr>
+        <tr>
+          <td><code>map</code></td>
+          <td><code>character</code></td>
+          <td>--</td>
+          <td>Map name.</td>
+        </tr>
+        <tr>
+          <td><code>observable</code></td>
+          <td><code>character</code></td>
+          <td>--</td>
+          <td>Observable function.</td>
+        </tr>
+        <tr>
+          <td><code>omega</code></td>
+          <td><code>numeric</code></td>
+          <td>--</td>
+          <td>Frequency parameter.</td>
+        </tr>
+        <tr>
+          <td><code>max_iter</code></td>
+          <td><code>integer</code></td>
+          <td>--</td>
+          <td>Maximum number of iterations.</td>
+        </tr>
+        <tr>
+          <td><code>step</code></td>
+          <td><code>integer</code></td>
+          <td>--</td>
+          <td>Record the HTA magnitude every <code>step</code> iterations.</td>
+        </tr>
+        <tr>
+          <td><code>...</code></td>
+          <td>various</td>
+          <td>--</td>
+          <td>Map-specific parameters.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p><strong>Return value.</strong> A <code>data.frame</code> with two
+    columns:</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Column</th>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>iteration</code></td>
+          <td><code>integer</code></td>
+          <td>Iteration number at which the magnitude was recorded.</td>
+        </tr>
+        <tr>
+          <td><code>magnitude</code></td>
+          <td><code>numeric</code></td>
+          <td>HTA magnitude at this iteration.</td>
+        </tr>
+      </tbody>
+    </table>
+
+<pre><code><span class="cm"># Track HTA convergence for a regular orbit</span>
+conv <span class="op">&lt;-</span> <span class="fn">hta_convergence</span>(
+  ic = <span class="fn">c</span>(<span class="nu">0.1</span>, <span class="nu">0.2</span>),
+  map = <span class="st">"standard"</span>,
+  observable = <span class="st">"identity"</span>,
+  omega = <span class="nu">0.0</span>,
+  max_iter = <span class="nu">50000</span>,
+  step = <span class="nu">500</span>,
+  epsilon = <span class="nu">0.12</span>
+)
+<span class="fn">plot</span>(conv<span class="op">$</span>iteration, conv<span class="op">$</span>magnitude,
+     type = <span class="st">"l"</span>, xlab = <span class="st">"Iteration"</span>, ylab = <span class="st">"HTA Magnitude"</span>)</code></pre>
+
+    <!-- ============================================================
+         7. Examples
+         ============================================================ -->
+    <h2 id="examples">Examples</h2>
+
+    <h3>Complete DMD Workflow</h3>
+
+<pre><code><span class="kw">library</span>(koopman.dmd)
+
+<span class="cm"># -- Generate synthetic data --</span>
+t <span class="op">&lt;-</span> <span class="fn">seq</span>(<span class="nu">0</span>, <span class="nu">4</span> <span class="op">*</span> pi, length.out = <span class="nu">200</span>)
+data <span class="op">&lt;-</span> <span class="fn">rbind</span>(
+  <span class="fn">sin</span>(t) + <span class="nu">0.1</span> <span class="op">*</span> <span class="fn">sin</span>(<span class="nu">5</span> <span class="op">*</span> t),
+  <span class="fn">cos</span>(t) + <span class="nu">0.1</span> <span class="op">*</span> <span class="fn">cos</span>(<span class="nu">5</span> <span class="op">*</span> t)
+)
+
+<span class="cm"># -- Fit DMD --</span>
+result <span class="op">&lt;-</span> <span class="fn">dmd</span>(data, rank = <span class="nu">4</span>)
+<span class="fn">print</span>(result)
+<span class="fn">summary</span>(result)
+
+<span class="cm"># -- Prediction --</span>
+forecast <span class="op">&lt;-</span> <span class="fn">predict</span>(result, n_ahead = <span class="nu">100</span>)
+<span class="fn">matplot</span>(<span class="fn">t</span>(forecast), type = <span class="st">"l"</span>, main = <span class="st">"DMD Forecast"</span>)
+
+<span class="cm"># -- Reconstruction error --</span>
+err <span class="op">&lt;-</span> <span class="fn">dmd_error</span>(result, data)
+<span class="fn">cat</span>(<span class="st">"RMSE:          "</span>, err<span class="op">$</span>rmse, <span class="st">"\n"</span>)
+<span class="fn">cat</span>(<span class="st">"Relative error:"</span>, err<span class="op">$</span>relative_error, <span class="st">"\n"</span>)
+
+<span class="cm"># -- Spectrum --</span>
+spec <span class="op">&lt;-</span> <span class="fn">dmd_spectrum</span>(result, dt = <span class="nu">0.01</span>)
+<span class="fn">print</span>(spec)
+
+<span class="cm"># -- Stability --</span>
+stab <span class="op">&lt;-</span> <span class="fn">dmd_stability</span>(result)
+<span class="fn">cat</span>(<span class="st">"Stable:"</span>, stab<span class="op">$</span>is_stable, <span class="st">"\n"</span>)
+
+<span class="cm"># -- Dominant modes --</span>
+top <span class="op">&lt;-</span> <span class="fn">dmd_dominant_modes</span>(result, n = <span class="nu">3</span>)
+<span class="fn">print</span>(top)</code></pre>
+
+    <h3>Hankel-DMD for Scalar Time Series</h3>
+
+<pre><code><span class="kw">library</span>(koopman.dmd)
+
+<span class="cm"># Scalar time series with two frequencies</span>
+t <span class="op">&lt;-</span> <span class="fn">seq</span>(<span class="nu">0</span>, <span class="nu">20</span> <span class="op">*</span> pi, length.out = <span class="nu">1000</span>)
+data <span class="op">&lt;-</span> <span class="fn">matrix</span>(<span class="fn">sin</span>(t) + <span class="nu">0.5</span> <span class="op">*</span> <span class="fn">sin</span>(<span class="nu">3</span> <span class="op">*</span> t), nrow = <span class="nu">1</span>)
+
+<span class="cm"># Fit Hankel-DMD</span>
+hresult <span class="op">&lt;-</span> <span class="fn">hankel_dmd</span>(data, delays = <span class="nu">30</span>, rank = <span class="nu">4</span>)
+<span class="fn">print</span>(hresult)
+
+<span class="cm"># Predict and reconstruct</span>
+hforecast <span class="op">&lt;-</span> <span class="fn">predict</span>(hresult, n_ahead = <span class="nu">200</span>)
+hrecon <span class="op">&lt;-</span> <span class="fn">hankel_reconstruct</span>(hresult)
+
+<span class="cm"># Compare reconstruction to original</span>
+<span class="fn">plot</span>(data[<span class="nu">1</span>, ], type = <span class="st">"l"</span>, col = <span class="st">"black"</span>, ylab = <span class="st">"x"</span>,
+     main = <span class="st">"Hankel-DMD Reconstruction"</span>)
+<span class="fn">lines</span>(hrecon[<span class="nu">1</span>, ], col = <span class="st">"red"</span>, lty = <span class="nu">2</span>)
+<span class="fn">legend</span>(<span class="st">"topright"</span>, <span class="fn">c</span>(<span class="st">"Original"</span>, <span class="st">"Reconstructed"</span>),
+       col = <span class="fn">c</span>(<span class="st">"black"</span>, <span class="st">"red"</span>), lty = <span class="fn">c</span>(<span class="nu">1</span>, <span class="nu">2</span>))</code></pre>
+
+    <h3>GLA Eigenvalue Extraction</h3>
+
+<pre><code><span class="kw">library</span>(koopman.dmd)
+
+<span class="cm"># Oscillatory data</span>
+t <span class="op">&lt;-</span> <span class="fn">seq</span>(<span class="nu">0</span>, <span class="nu">8</span> <span class="op">*</span> pi, length.out = <span class="nu">500</span>)
+data <span class="op">&lt;-</span> <span class="fn">rbind</span>(<span class="fn">sin</span>(t), <span class="fn">cos</span>(t))
+
+<span class="cm"># Extract 4 Koopman eigenvalues with GLA</span>
+gresult <span class="op">&lt;-</span> <span class="fn">gla</span>(data, n_eigenvalues = <span class="nu">4</span>, tol = <span class="nu">1e-8</span>)
+<span class="fn">print</span>(gresult)
+
+<span class="cm"># Predict and reconstruct</span>
+gforecast <span class="op">&lt;-</span> <span class="fn">predict</span>(gresult, n_ahead = <span class="nu">100</span>)
+grecon <span class="op">&lt;-</span> <span class="fn">gla_reconstruct</span>(gresult)
+
+<span class="fn">matplot</span>(<span class="fn">t</span>(grecon), type = <span class="st">"l"</span>, main = <span class="st">"GLA Reconstruction"</span>)</code></pre>
+
+    <h3>Trajectory Generation and Phase Portraits</h3>
+
+<pre><code><span class="kw">library</span>(koopman.dmd)
+
+<span class="cm"># Standard map phase portrait</span>
+<span class="fn">par</span>(mfrow = <span class="fn">c</span>(<span class="nu">1</span>, <span class="nu">2</span>))
+
+<span class="cm"># Regular orbit</span>
+traj1 <span class="op">&lt;-</span> <span class="fn">generate_trajectory</span>(
+  ic = <span class="fn">c</span>(<span class="nu">0.1</span>, <span class="nu">0.2</span>),
+  map = <span class="st">"standard"</span>,
+  n_steps = <span class="nu">5000</span>,
+  epsilon = <span class="nu">0.12</span>
+)
+<span class="fn">plot</span>(traj1[<span class="nu">1</span>, ], traj1[<span class="nu">2</span>, ],
+     pch = <span class="st">"."</span>, xlab = <span class="st">"x"</span>, ylab = <span class="st">"y"</span>,
+     main = <span class="st">"Standard Map (regular)"</span>)
+
+<span class="cm"># Chaotic orbit</span>
+traj2 <span class="op">&lt;-</span> <span class="fn">generate_trajectory</span>(
+  ic = <span class="fn">c</span>(<span class="nu">0.5</span>, <span class="nu">0.5</span>),
+  map = <span class="st">"standard"</span>,
+  n_steps = <span class="nu">50000</span>,
+  epsilon = <span class="nu">0.97</span>
+)
+<span class="fn">plot</span>(traj2[<span class="nu">1</span>, ], traj2[<span class="nu">2</span>, ],
+     pch = <span class="st">"."</span>, xlab = <span class="st">"x"</span>, ylab = <span class="st">"y"</span>,
+     main = <span class="st">"Standard Map (chaotic)"</span>)
+
+<span class="cm"># Henon attractor</span>
+<span class="fn">par</span>(mfrow = <span class="fn">c</span>(<span class="nu">1</span>, <span class="nu">1</span>))
+henon <span class="op">&lt;-</span> <span class="fn">generate_trajectory</span>(
+  ic = <span class="fn">c</span>(<span class="nu">0.0</span>, <span class="nu">0.0</span>),
+  map = <span class="st">"henon"</span>,
+  n_steps = <span class="nu">10000</span>,
+  a = <span class="nu">1.4</span>,
+  b = <span class="nu">0.3</span>
+)
+<span class="fn">plot</span>(henon[<span class="nu">1</span>, ], henon[<span class="nu">2</span>, ],
+     pch = <span class="st">"."</span>, xlab = <span class="st">"x"</span>, ylab = <span class="st">"y"</span>,
+     main = <span class="st">"Henon Attractor"</span>)
+
+<span class="cm"># Logistic map bifurcation diagram</span>
+rs <span class="op">&lt;-</span> <span class="fn">seq</span>(<span class="nu">2.5</span>, <span class="nu">4.0</span>, by = <span class="nu">0.005</span>)
+<span class="fn">plot</span>(<span class="kw">NULL</span>, xlim = <span class="fn">c</span>(<span class="nu">2.5</span>, <span class="nu">4</span>), ylim = <span class="fn">c</span>(<span class="nu">0</span>, <span class="nu">1</span>),
+     xlab = <span class="st">"r"</span>, ylab = <span class="st">"x"</span>, main = <span class="st">"Logistic Map Bifurcation"</span>)
+<span class="kw">for</span> (r <span class="kw">in</span> rs) {
+  traj <span class="op">&lt;-</span> <span class="fn">generate_trajectory</span>(
+    ic = <span class="nu">0.4</span>, map = <span class="st">"logistic"</span>, n_steps = <span class="nu">300</span>, r = r
+  )
+  <span class="fn">points</span>(<span class="fn">rep</span>(r, <span class="nu">50</span>), traj[<span class="nu">1</span>, <span class="nu">251</span>:<span class="nu">300</span>], pch = <span class="st">"."</span>, cex = <span class="nu">0.5</span>)
+}</code></pre>
+
+    <h3>Harmonic Time Averages and Mesochronic Analysis</h3>
+
+<pre><code><span class="kw">library</span>(koopman.dmd)
+
+<span class="cm"># -- Single-point HTA --</span>
+hta <span class="op">&lt;-</span> <span class="fn">harmonic_time_average</span>(
+  ic = <span class="fn">c</span>(<span class="nu">0.1</span>, <span class="nu">0.2</span>),
+  map = <span class="st">"standard"</span>,
+  observable = <span class="st">"sin_pi"</span>,
+  omega = <span class="nu">0.0</span>,
+  n_iter = <span class="nu">20000</span>,
+  epsilon = <span class="nu">0.12</span>
+)
+<span class="fn">cat</span>(<span class="st">"HTA magnitude:"</span>, hta<span class="op">$</span>magnitude, <span class="st">"\n"</span>)
+<span class="fn">cat</span>(<span class="st">"HTA phase:    "</span>, hta<span class="op">$</span>phase, <span class="st">"\n"</span>)
+
+<span class="cm"># -- Mesochronic map --</span>
+meso <span class="op">&lt;-</span> <span class="fn">mesochronic_compute</span>(
+  map = <span class="st">"standard"</span>,
+  x_range = <span class="fn">c</span>(<span class="nu">0</span>, <span class="nu">1</span>),
+  y_range = <span class="fn">c</span>(<span class="nu">0</span>, <span class="nu">1</span>),
+  resolution = <span class="nu">300</span>,
+  observable = <span class="st">"cos_pi"</span>,
+  omega = <span class="nu">0.0</span>,
+  n_iter = <span class="nu">10000</span>,
+  epsilon = <span class="nu">0.12</span>
+)
+
+<span class="fn">image</span>(
+  meso<span class="op">$</span>x_coords, meso<span class="op">$</span>y_coords, meso<span class="op">$</span>hta_matrix,
+  col = <span class="fn">hcl.colors</span>(<span class="nu">256</span>, <span class="st">"viridis"</span>),
+  xlab = <span class="st">"x"</span>, ylab = <span class="st">"y"</span>,
+  main = <span class="st">"Mesochronic Map (cos_pi, omega=0)"</span>
+)
+
+<span class="cm"># -- Phase space classification --</span>
+cls <span class="op">&lt;-</span> <span class="fn">classify_phase_space</span>(
+  ic = <span class="fn">c</span>(<span class="nu">0.5</span>, <span class="nu">0.5</span>),
+  map = <span class="st">"standard"</span>,
+  omega = <span class="nu">0.0</span>,
+  n_iter = <span class="nu">50000</span>,
+  epsilon = <span class="nu">0.97</span>
+)
+<span class="fn">cat</span>(<span class="st">"Classification:"</span>, cls<span class="op">$</span>classification, <span class="st">"\n"</span>)
+
+<span class="cm"># -- Convergence tracking --</span>
+conv <span class="op">&lt;-</span> <span class="fn">hta_convergence</span>(
+  ic = <span class="fn">c</span>(<span class="nu">0.1</span>, <span class="nu">0.2</span>),
+  map = <span class="st">"standard"</span>,
+  observable = <span class="st">"quadratic"</span>,
+  omega = <span class="nu">0.0</span>,
+  max_iter = <span class="nu">100000</span>,
+  step = <span class="nu">1000</span>,
+  epsilon = <span class="nu">0.12</span>
+)
+<span class="fn">plot</span>(conv<span class="op">$</span>iteration, conv<span class="op">$</span>magnitude,
+     type = <span class="st">"l"</span>, log = <span class="st">"x"</span>,
+     xlab = <span class="st">"Iteration"</span>, ylab = <span class="st">"HTA Magnitude"</span>,
+     main = <span class="st">"HTA Convergence"</span>)</code></pre>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <p>koopman-dmd -- Dynamic Mode Decomposition with Koopman operator theory.</p>
+      <p>Released under the MIT License. Built with Rust, Python, and R.</p>
+    </footer>
+
+  </main>
+</div>
+
+<script src="js/main.js"></script>
+</body>
+</html>

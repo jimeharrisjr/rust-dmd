@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Generalized Laplace Analysis -- koopman-dmd</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Top navigation -->
+  <header class="topnav">
+    <div class="logo">koopman<span>-dmd</span></div>
+    <nav>
+      <a href="index.html">Home</a>
+      <a href="getting-started.html">Guide</a>
+      <a href="api-rust.html">API</a>
+    </nav>
+    <a href="https://github.com/jimeharrisjr/rust-dmd" class="gh-link">
+      <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor">
+        <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38
+        0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15
+        -.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87
+        .51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12
+        0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82
+        2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65
+        3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013
+        0 0016 8c0-4.42-3.58-8-8-8z"/>
+      </svg>
+      GitHub
+    </a>
+  </header>
+
+  <div class="page-layout">
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <h3>Getting Started</h3>
+      <a href="getting-started.html">Getting Started</a>
+
+      <h3>Features</h3>
+      <a href="core-dmd.html">Core DMD</a>
+      <a href="extended-dmd.html">Extended DMD</a>
+      <a href="hankel-dmd.html">Hankel-DMD</a>
+      <a href="gla.html" class="active">Generalized Laplace Analysis</a>
+      <a href="harmonic.html">Harmonic Time Averages</a>
+      <a href="maps.html">Built-in Maps</a>
+      <a href="analysis.html">Analysis</a>
+
+      <h3>API Reference</h3>
+      <a href="api-rust.html">Rust API</a>
+      <a href="api-python.html">Python API</a>
+      <a href="api-r.html">R API</a>
+    </aside>
+
+    <!-- Main content -->
+    <div class="content">
+
+      <h1>Generalized Laplace Analysis</h1>
+      <p class="subtitle">Extract Koopman eigenfunctions directly from trajectory data using weighted time averages.</p>
+
+      <!-- Overview -->
+      <h2>Overview</h2>
+      <p>
+        Generalized Laplace Analysis (GLA) computes Koopman eigenfunctions directly via
+        weighted time averages, without forming the DMD matrix. Based on the theoretical
+        framework introduced by Mezic (2020), GLA provides a fundamentally different
+        approach to spectral analysis of dynamical systems. Rather than constructing a
+        finite-dimensional approximation of the Koopman operator, GLA iteratively refines
+        eigenvalue estimates and extracts the corresponding eigenfunctions from trajectory
+        data using spectral methods.
+      </p>
+      <p>
+        This approach is particularly valuable when specific eigenvalues are of interest
+        or when forming the full DMD matrix is computationally expensive. GLA operates
+        directly on observable time series, making it well-suited for streaming data and
+        high-dimensional systems.
+      </p>
+
+      <!-- Mathematical formulation -->
+      <h2>Mathematical Formulation</h2>
+      <p>
+        The Koopman operator <code>U</code> acts on observables of a dynamical system.
+        A Koopman eigenfunction <code>phi_lambda</code> associated with eigenvalue
+        <code>lambda</code> satisfies the functional equation:
+      </p>
+      <div class="math">
+        phi_lambda(T(x)) = lambda * phi_lambda(x)
+      </div>
+      <p>
+        where <code>T</code> is the dynamical system map. In other words, the eigenfunction
+        transforms multiplicatively under the dynamics. GLA computes this eigenfunction via
+        a weighted time average along trajectories:
+      </p>
+      <div class="math">
+        phi_lambda(x) = lim_{N -> inf} (1/N) sum_{k=0}^{N-1} lambda^{-k} g(T^k(x))
+      </div>
+      <p>
+        Here, <code>g</code> is an observable function evaluated along the orbit of
+        <code>x</code>. The weighting by <code>lambda^{-k}</code> isolates the component
+        of the observable that evolves according to the eigenvalue <code>lambda</code>.
+        When the eigenvalue estimate is correct, this sum converges to the projection of
+        <code>g</code> onto the eigenfunction. The iterative refinement procedure adjusts
+        the eigenvalue estimate to maximize convergence.
+      </p>
+
+      <!-- GlaConfig parameters -->
+      <h2>GlaConfig</h2>
+      <p>
+        The <code>GlaConfig</code> struct controls GLA computation. All parameters have
+        sensible defaults, and the configuration can be customized as needed.
+      </p>
+      <table class="param-table">
+        <thead>
+          <tr>
+            <th>Parameter</th>
+            <th>Type</th>
+            <th>Default</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>eigenvalues</code></td>
+            <td><code>Option&lt;Vec&lt;Complex&lt;f64&gt;&gt;&gt;</code></td>
+            <td><code>None</code></td>
+            <td>Optional vector of initial eigenvalue guesses (complex-valued). When set to <code>None</code>, GLA will auto-detect eigenvalues from the data using spectral analysis.</td>
+          </tr>
+          <tr>
+            <td><code>n_eigenvalues</code></td>
+            <td><code>usize</code></td>
+            <td><code>4</code></td>
+            <td>Number of eigenvalues to find. Used when <code>eigenvalues</code> is <code>None</code>. Ignored if explicit eigenvalue guesses are provided.</td>
+          </tr>
+          <tr>
+            <td><code>tol</code></td>
+            <td><code>f64</code></td>
+            <td><code>1e-6</code></td>
+            <td>Convergence tolerance for iterative refinement. Smaller values yield more precise eigenvalue estimates at the cost of additional iterations.</td>
+          </tr>
+          <tr>
+            <td><code>max_iter</code></td>
+            <td><code>Option&lt;usize&gt;</code></td>
+            <td><code>None</code></td>
+            <td>Maximum number of refinement iterations. When set to <code>None</code>, the iteration count is determined automatically based on the data length and tolerance.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Basic usage -->
+      <h2>Basic Usage</h2>
+      <p>
+        The following example creates an oscillating two-variable signal, configures GLA
+        to extract two eigenvalues, and inspects the results. For oscillatory data, the
+        eigenvalues should have magnitude near 1.
+      </p>
+      <div class="lang-tabs">
+        <button class="lang-tab active" data-lang="rust">Rust</button>
+        <button class="lang-tab" data-lang="python">Python</button>
+        <button class="lang-tab" data-lang="r">R</button>
+      </div>
+      <div class="lang-panel active" data-lang="rust">
+<pre><code><span class="kw">use</span> koopman_dmd::{<span class="ty">GlaConfig</span>, <span class="ty">Matrix</span>, gla};
+<span class="kw">use</span> std::f64::consts::<span class="ty">PI</span>;
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="cm">// Create an oscillating 2-variable signal</span>
+    <span class="kw">let</span> n = <span class="nu">500</span>;
+    <span class="kw">let</span> dt = <span class="nu">0.02</span>;
+    <span class="kw">let</span> omega = <span class="nu">2.0</span> * <span class="ty">PI</span> * <span class="nu">0.5</span>;
+    <span class="kw">let</span> <span class="kw">mut</span> data = <span class="ty">Matrix</span>::<span class="fn">zeros</span>(<span class="nu">2</span>, n);
+    <span class="kw">for</span> i <span class="kw">in</span> <span class="nu">0</span>..n {
+        <span class="kw">let</span> t = i <span class="kw">as</span> <span class="ty">f64</span> * dt;
+        data[(<span class="nu">0</span>, i)] = (omega * t).<span class="fn">cos</span>();
+        data[(<span class="nu">1</span>, i)] = (omega * t).<span class="fn">sin</span>();
+    }
+
+    <span class="cm">// Configure GLA with 2 eigenvalues</span>
+    <span class="kw">let</span> config = <span class="ty">GlaConfig</span> {
+        eigenvalues: <span class="ty">None</span>,
+        n_eigenvalues: <span class="nu">2</span>,
+        tol: <span class="nu">1e-6</span>,
+        max_iter: <span class="ty">None</span>,
+    };
+
+    <span class="cm">// Run GLA</span>
+    <span class="kw">let</span> result = <span class="fn">gla</span>(&amp;data, &amp;config).<span class="fn">unwrap</span>();
+
+    <span class="cm">// Inspect eigenvalues -- magnitude should be near 1</span>
+    <span class="kw">for</span> (i, ev) <span class="kw">in</span> result.<span class="fn">eigenvalues</span>().<span class="fn">iter</span>().<span class="fn">enumerate</span>() {
+        <span class="mc">println!</span>(<span class="st">"eigenvalue {}: {} (|lambda| = {:.6})"</span>,
+            i, ev, ev.<span class="fn">norm</span>());
+    }
+
+    <span class="cm">// Check convergence info</span>
+    <span class="kw">let</span> info = result.<span class="fn">convergence_info</span>();
+    <span class="mc">println!</span>(<span class="st">"Converged: {}"</span>, info.converged);
+    <span class="mc">println!</span>(<span class="st">"Iterations: {}"</span>, info.iterations);
+}</code></pre>
+      </div>
+      <div class="lang-panel" data-lang="python">
+<pre><code><span class="kw">import</span> koopman_dmd <span class="kw">as</span> kdmd
+<span class="kw">import</span> numpy <span class="kw">as</span> np
+
+<span class="cm"># Create an oscillating 2-variable signal</span>
+n = <span class="nu">500</span>
+dt = <span class="nu">0.02</span>
+omega = <span class="nu">2.0</span> * np.pi * <span class="nu">0.5</span>
+t = np.<span class="fn">arange</span>(n) * dt
+data = np.<span class="fn">vstack</span>([np.<span class="fn">cos</span>(omega * t), np.<span class="fn">sin</span>(omega * t)])
+
+<span class="cm"># Configure GLA with 2 eigenvalues</span>
+config = kdmd.<span class="fn">GlaConfig</span>(
+    eigenvalues=<span class="ty">None</span>,
+    n_eigenvalues=<span class="nu">2</span>,
+    tol=<span class="nu">1e-6</span>,
+    max_iter=<span class="ty">None</span>,
+)
+
+<span class="cm"># Run GLA</span>
+result = kdmd.<span class="fn">gla</span>(data, config)
+
+<span class="cm"># Inspect eigenvalues -- magnitude should be near 1</span>
+<span class="kw">for</span> i, ev <span class="kw">in</span> <span class="fn">enumerate</span>(result.<span class="fn">eigenvalues</span>()):
+    <span class="fn">print</span>(<span class="st">f"eigenvalue </span>{i}<span class="st">: </span>{ev}<span class="st"> (|lambda| = </span>{<span class="fn">abs</span>(ev):<span class="st">.6f})</span><span class="st">"</span>)
+
+<span class="cm"># Check convergence info</span>
+info = result.<span class="fn">convergence_info</span>()
+<span class="fn">print</span>(<span class="st">f"Converged: </span>{info.converged}<span class="st">"</span>)
+<span class="fn">print</span>(<span class="st">f"Iterations: </span>{info.iterations}<span class="st">"</span>)</code></pre>
+      </div>
+      <div class="lang-panel" data-lang="r">
+<pre><code><span class="fn">library</span>(koopman.dmd)
+
+<span class="cm"># Create an oscillating 2-variable signal</span>
+n <span class="op">&lt;-</span> <span class="nu">500</span>
+dt <span class="op">&lt;-</span> <span class="nu">0.02</span>
+omega <span class="op">&lt;-</span> <span class="nu">2</span> * pi * <span class="nu">0.5</span>
+t <span class="op">&lt;-</span> (<span class="nu">0</span>:(n - <span class="nu">1</span>)) * dt
+data <span class="op">&lt;-</span> <span class="fn">rbind</span>(<span class="fn">cos</span>(omega * t), <span class="fn">sin</span>(omega * t))
+
+<span class="cm"># Configure GLA with 2 eigenvalues</span>
+config <span class="op">&lt;-</span> <span class="fn">gla_config</span>(
+  eigenvalues = <span class="ty">NULL</span>,
+  n_eigenvalues = <span class="nu">2</span>,
+  tol = <span class="nu">1e-6</span>,
+  max_iter = <span class="ty">NULL</span>
+)
+
+<span class="cm"># Run GLA</span>
+result <span class="op">&lt;-</span> <span class="fn">gla</span>(data, config)
+
+<span class="cm"># Inspect eigenvalues -- magnitude should be near 1</span>
+evs <span class="op">&lt;-</span> result<span class="op">$</span><span class="fn">eigenvalues</span>()
+<span class="kw">for</span> (i <span class="kw">in</span> <span class="fn">seq_along</span>(evs)) {
+  <span class="fn">cat</span>(<span class="fn">sprintf</span>(<span class="st">"eigenvalue %d: %s (|lambda| = %.6f)\n"</span>,
+      i, evs[i], <span class="fn">Mod</span>(evs[i])))
+}
+
+<span class="cm"># Check convergence info</span>
+info <span class="op">&lt;-</span> result<span class="op">$</span><span class="fn">convergence_info</span>()
+<span class="fn">cat</span>(<span class="st">"Converged:"</span>, info<span class="op">$</span>converged, <span class="st">"\n"</span>)
+<span class="fn">cat</span>(<span class="st">"Iterations:"</span>, info<span class="op">$</span>iterations, <span class="st">"\n"</span>)</code></pre>
+      </div>
+
+      <!-- Prediction and reconstruction -->
+      <h2>Prediction and Reconstruction</h2>
+      <p>
+        Once GLA has been fitted, you can use the extracted eigenfunctions and eigenvalues
+        for forecasting with <code>gla_predict</code> and for computing fitted values with
+        <code>gla_reconstruct</code>. These results can be compared against standard DMD
+        to evaluate the quality of the GLA decomposition.
+      </p>
+      <div class="lang-tabs">
+        <button class="lang-tab active" data-lang="rust">Rust</button>
+        <button class="lang-tab" data-lang="python">Python</button>
+        <button class="lang-tab" data-lang="r">R</button>
+      </div>
+      <div class="lang-panel active" data-lang="rust">
+<pre><code><span class="cm">// Forecast 50 steps ahead using GLA</span>
+<span class="kw">let</span> forecast = <span class="fn">gla_predict</span>(&amp;result, <span class="nu">50</span>).<span class="fn">unwrap</span>();
+<span class="mc">println!</span>(<span class="st">"Forecast shape: {} x {}"</span>,
+    forecast.<span class="fn">nrows</span>(), forecast.<span class="fn">ncols</span>());
+
+<span class="cm">// Reconstruct fitted values over the training window</span>
+<span class="kw">let</span> reconstruction = <span class="fn">gla_reconstruct</span>(&amp;result).<span class="fn">unwrap</span>();
+
+<span class="cm">// Compare with standard DMD</span>
+<span class="kw">let</span> dmd_result = <span class="ty">DMD</span>::<span class="fn">new</span>(<span class="nu">2</span>).<span class="fn">fit</span>(&amp;x, &amp;y).<span class="fn">unwrap</span>();
+<span class="kw">let</span> dmd_recon = dmd_result.<span class="fn">reconstruct</span>();
+
+<span class="cm">// Compute reconstruction error for both methods</span>
+<span class="kw">let</span> gla_error = (&amp;reconstruction - &amp;data).<span class="fn">norm</span>() / data.<span class="fn">norm</span>();
+<span class="kw">let</span> dmd_error = (&amp;dmd_recon - &amp;data).<span class="fn">norm</span>() / data.<span class="fn">norm</span>();
+<span class="mc">println!</span>(<span class="st">"GLA reconstruction error: {:.6e}"</span>, gla_error);
+<span class="mc">println!</span>(<span class="st">"DMD reconstruction error: {:.6e}"</span>, dmd_error);</code></pre>
+      </div>
+      <div class="lang-panel" data-lang="python">
+<pre><code><span class="cm"># Forecast 50 steps ahead using GLA</span>
+forecast = kdmd.<span class="fn">gla_predict</span>(result, n_steps=<span class="nu">50</span>)
+<span class="fn">print</span>(<span class="st">f"Forecast shape: </span>{forecast.shape}<span class="st">"</span>)
+
+<span class="cm"># Reconstruct fitted values over the training window</span>
+reconstruction = kdmd.<span class="fn">gla_reconstruct</span>(result)
+
+<span class="cm"># Compare with standard DMD</span>
+dmd = kdmd.<span class="fn">DMD</span>(rank=<span class="nu">2</span>)
+dmd_result = dmd.<span class="fn">fit</span>(data[:, :-<span class="nu">1</span>], data[:, <span class="nu">1</span>:])
+dmd_recon = dmd_result.<span class="fn">reconstruct</span>()
+
+<span class="cm"># Compute reconstruction error for both methods</span>
+gla_error = np.linalg.<span class="fn">norm</span>(reconstruction - data) / np.linalg.<span class="fn">norm</span>(data)
+dmd_error = np.linalg.<span class="fn">norm</span>(dmd_recon - data) / np.linalg.<span class="fn">norm</span>(data)
+<span class="fn">print</span>(<span class="st">f"GLA reconstruction error: </span>{gla_error:<span class="st">.6e}</span><span class="st">"</span>)
+<span class="fn">print</span>(<span class="st">f"DMD reconstruction error: </span>{dmd_error:<span class="st">.6e}</span><span class="st">"</span>)</code></pre>
+      </div>
+      <div class="lang-panel" data-lang="r">
+<pre><code><span class="cm"># Forecast 50 steps ahead using GLA</span>
+forecast <span class="op">&lt;-</span> <span class="fn">gla_predict</span>(result, n_steps = <span class="nu">50</span>)
+<span class="fn">cat</span>(<span class="st">"Forecast dimensions:"</span>, <span class="fn">dim</span>(forecast), <span class="st">"\n"</span>)
+
+<span class="cm"># Reconstruct fitted values over the training window</span>
+reconstruction <span class="op">&lt;-</span> <span class="fn">gla_reconstruct</span>(result)
+
+<span class="cm"># Compare with standard DMD</span>
+x <span class="op">&lt;-</span> data[, <span class="nu">1</span>:(n - <span class="nu">1</span>)]
+y <span class="op">&lt;-</span> data[, <span class="nu">2</span>:n]
+dmd_result <span class="op">&lt;-</span> <span class="fn">dmd_fit</span>(x, y, rank = <span class="nu">2</span>)
+dmd_recon <span class="op">&lt;-</span> dmd_result<span class="op">$</span><span class="fn">reconstruct</span>()
+
+<span class="cm"># Compute reconstruction error for both methods</span>
+gla_error <span class="op">&lt;-</span> <span class="fn">norm</span>(reconstruction - data, <span class="st">"F"</span>) / <span class="fn">norm</span>(data, <span class="st">"F"</span>)
+dmd_error <span class="op">&lt;-</span> <span class="fn">norm</span>(dmd_recon - data, <span class="st">"F"</span>) / <span class="fn">norm</span>(data, <span class="st">"F"</span>)
+<span class="fn">cat</span>(<span class="fn">sprintf</span>(<span class="st">"GLA reconstruction error: %.6e\n"</span>, gla_error))
+<span class="fn">cat</span>(<span class="fn">sprintf</span>(<span class="st">"DMD reconstruction error: %.6e\n"</span>, dmd_error))</code></pre>
+      </div>
+
+      <!-- When to use GLA vs DMD -->
+      <h2>When to Use GLA vs DMD</h2>
+      <p>
+        GLA and standard DMD approach the same underlying problem from different angles.
+        The right choice depends on your specific use case and computational constraints.
+      </p>
+
+      <h3>GLA is better for</h3>
+      <ul>
+        <li><strong>Extracting specific eigenvalues</strong> -- when you know which frequencies
+          or growth rates are important and want to target them directly, GLA can isolate
+          individual Koopman eigenvalues without computing the full spectrum.</li>
+        <li><strong>Large systems where the full DMD matrix is expensive</strong> -- GLA avoids
+          constructing and decomposing the DMD matrix, operating instead on time averages
+          along trajectories. This makes it more scalable for very high-dimensional data.</li>
+        <li><strong>Direct eigenfunction access</strong> -- GLA naturally produces
+          eigenfunctions evaluated along the trajectory, providing a direct connection
+          to Koopman operator theory.</li>
+      </ul>
+
+      <h3>DMD is better for</h3>
+      <ul>
+        <li><strong>General-purpose decomposition</strong> -- when you want a complete
+          picture of the system dynamics without prior knowledge of which eigenvalues
+          matter, standard DMD computes the full set of modes simultaneously.</li>
+        <li><strong>Modes and amplitudes</strong> -- DMD provides spatial modes and their
+          amplitudes in a single computation, making it straightforward to rank modes
+          by energy and identify dominant structures.</li>
+        <li><strong>Fast computation on moderate-sized problems</strong> -- for problems
+          where the snapshot matrices fit comfortably in memory, DMD's SVD-based approach
+          is typically faster than GLA's iterative refinement.</li>
+      </ul>
+
+      <!-- Convergence -->
+      <h2>Convergence</h2>
+      <p>
+        GLA uses an iterative refinement procedure to improve eigenvalue estimates. At each
+        iteration, the weighted time average is computed with the current eigenvalue guess,
+        and the eigenvalue is updated based on the resulting eigenfunction estimate. The
+        process continues until the change between successive eigenvalue estimates falls
+        below the specified tolerance <code>tol</code>, or until the maximum number of
+        iterations <code>max_iter</code> is reached.
+      </p>
+      <p>
+        The <code>tol</code> parameter controls the precision of the final eigenvalue
+        estimates. A tolerance of <code>1e-6</code> (the default) is suitable for most
+        applications. For high-precision work, values of <code>1e-10</code> or smaller
+        can be used, though this will increase computation time. The convergence rate
+        depends on the spectral gap between eigenvalues: well-separated eigenvalues
+        converge quickly, while closely spaced eigenvalues may require more iterations.
+      </p>
+      <div class="info-box warn">
+        <strong>Note on chaotic systems:</strong> Convergence may not be achieved for
+        chaotic dynamical systems. In such cases, the continuous spectrum of the Koopman
+        operator means that point eigenvalues may not exist, and the iterative procedure
+        may fail to converge regardless of the number of iterations. Monitor the
+        <code>convergence_info</code> output and consider increasing <code>max_iter</code>
+        or adjusting <code>tol</code> if convergence is not reached. For chaotic systems,
+        standard DMD or Hankel-DMD may be more appropriate.
+      </div>
+
+      <!-- Footer -->
+      <footer class="footer">
+        <p>koopman-dmd -- Dynamic Mode Decomposition with Koopman operator theory.</p>
+        <p>Released under the MIT License. Built with Rust, Python, and R.</p>
+      </footer>
+
+    </div>
+  </div>
+
+  <script src="js/main.js"></script>
+</body>
+</html>

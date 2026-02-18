@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hankel-DMD -- koopman-dmd</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Top navigation -->
+  <header class="topnav">
+    <div class="logo">koopman<span>-dmd</span></div>
+    <nav>
+      <a href="index.html">Home</a>
+      <a href="getting-started.html">Guide</a>
+      <a href="api-rust.html">API</a>
+    </nav>
+    <a href="https://github.com/jimeharrisjr/rust-dmd" class="gh-link">
+      <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor">
+        <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38
+        0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15
+        -.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87
+        .51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12
+        0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82
+        2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65
+        3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013
+        0 0016 8c0-4.42-3.58-8-8-8z"/>
+      </svg>
+      GitHub
+    </a>
+  </header>
+
+  <div class="page-layout">
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <h3>Getting Started</h3>
+      <a href="getting-started.html">Getting Started</a>
+
+      <h3>Features</h3>
+      <a href="core-dmd.html">Core DMD</a>
+      <a href="extended-dmd.html">Extended DMD</a>
+      <a href="hankel-dmd.html" class="active">Hankel-DMD</a>
+      <a href="gla.html">GLA</a>
+      <a href="harmonic.html">Harmonic Time Averages</a>
+      <a href="maps.html">Built-in Maps</a>
+      <a href="analysis.html">Analysis</a>
+
+      <h3>API Reference</h3>
+      <a href="api-rust.html">Rust API</a>
+      <a href="api-python.html">Python API</a>
+      <a href="api-r.html">R API</a>
+    </aside>
+
+    <!-- Main content -->
+    <div class="content">
+
+      <h1>Hankel-DMD</h1>
+      <p class="subtitle">Time-delay embedding for scalar and low-dimensional time series</p>
+
+      <!-- Overview -->
+      <h2>Overview</h2>
+      <p>
+        Hankel-DMD uses time-delay embedding to construct a Hankel matrix from
+        scalar or low-dimensional time series. By stacking delayed copies of the
+        signal as rows of a matrix, the method creates a Krylov-like subspace
+        that captures temporal structure even from a single measurement channel.
+        This lifts a one-dimensional observation into a higher-dimensional space
+        where standard DMD can extract dynamic modes and frequencies.
+      </p>
+      <p>
+        The approach is grounded in Takens' embedding theorem, which guarantees
+        that for a sufficient number of delays, the delay-coordinate map
+        preserves the topology of the underlying attractor. In the Koopman
+        framework, the Hankel matrix spans an approximation to a
+        Koopman-invariant subspace, enabling spectral analysis of the operator
+        from minimal measurement data.
+      </p>
+
+      <!-- Hankel Matrix Construction -->
+      <h2>Hankel Matrix Construction</h2>
+      <p>
+        Given a scalar time series <code>[x_0, x_1, x_2, ..., x_{n-1}]</code>
+        with <code>n</code> samples, the Hankel matrix <code>H</code> is formed
+        by arranging <code>d</code> delayed copies of the signal into rows.
+        Each row is a window of consecutive samples shifted forward by one time
+        step:
+      </p>
+      <div class="math">
+H = [ x_0     x_1     x_2     ...  x_{n-d}   ]<br>
+    [ x_1     x_2     x_3     ...  x_{n-d+1} ]<br>
+    [ x_2     x_3     x_4     ...  x_{n-d+2} ]<br>
+    [  .       .       .            .         ]<br>
+    [ x_{d-1} x_d     x_{d+1} ...  x_{n-1}   ]
+      </div>
+      <p>
+        The matrix has <code>d</code> rows (the number of delays) and
+        <code>n - d + 1</code> columns. Each column is a delay vector
+        representing the state of the system at a particular time, embedded in
+        a <code>d</code>-dimensional space. Standard DMD is then applied to
+        the column pairs of <code>H</code> to extract eigenvalues and modes.
+      </p>
+      <div class="info-box">
+        <strong>Choosing the number of delays.</strong>
+        A common heuristic is to set <code>d = n / 3</code>, which balances
+        the row and column dimensions of the Hankel matrix. Too few delays
+        may fail to resolve the dynamics; too many reduces the number of
+        columns available for the SVD and can amplify noise.
+      </div>
+
+      <!-- HankelConfig -->
+      <h2>HankelConfig</h2>
+      <p>
+        The <code>HankelConfig</code> struct controls how the Hankel matrix is
+        built and how the subsequent DMD decomposition is performed.
+      </p>
+      <table class="param-table">
+        <thead>
+          <tr>
+            <th>Parameter</th>
+            <th>Type</th>
+            <th>Default</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>delays</code></td>
+            <td><code>Option&lt;usize&gt;</code></td>
+            <td><code>None</code></td>
+            <td>
+              Number of delay rows in the Hankel matrix. When set to
+              <code>None</code>, defaults to <code>n / 3</code> where
+              <code>n</code> is the length of the input signal.
+            </td>
+          </tr>
+          <tr>
+            <td><code>rank</code></td>
+            <td><code>Option&lt;usize&gt;</code></td>
+            <td><code>None</code></td>
+            <td>
+              SVD truncation rank. When set to <code>None</code>, the rank is
+              chosen automatically based on the singular value spectrum
+              (hard threshold at the optimal singular value).
+            </td>
+          </tr>
+          <tr>
+            <td><code>dt</code></td>
+            <td><code>f64</code></td>
+            <td><code>1.0</code></td>
+            <td>
+              Time step between consecutive samples. Used to convert
+              discrete-time eigenvalues into continuous-time frequencies
+              via <code>freq = arg(lambda) / (2 * pi * dt)</code>.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Basic Usage -->
+      <h2>Basic Usage</h2>
+      <p>
+        The following example creates a scalar sinusoidal signal, runs
+        Hankel-DMD, and inspects the resulting eigenvalues. For a pure
+        oscillation the eigenvalues should lie on (or very near) the unit
+        circle in the complex plane.
+      </p>
+      <div class="lang-tabs">
+        <button class="lang-tab active" data-lang="rust">Rust</button>
+        <button class="lang-tab" data-lang="python">Python</button>
+        <button class="lang-tab" data-lang="r">R</button>
+      </div>
+      <div class="lang-panel active" data-lang="rust">
+<pre><code><span class="kw">use</span> koopman_dmd::{<span class="ty">HankelConfig</span>, hankel_dmd};
+<span class="kw">use</span> std::f64::consts::<span class="ty">PI</span>;
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="cm">// Generate a scalar oscillating signal: sin(2*pi*0.25*t)</span>
+    <span class="kw">let</span> n = <span class="nu">200</span>;
+    <span class="kw">let</span> dt = <span class="nu">0.1</span>;
+    <span class="kw">let</span> freq_true = <span class="nu">0.25</span>;
+    <span class="kw">let</span> signal: <span class="ty">Vec</span>&lt;<span class="ty">f64</span>&gt; = (<span class="nu">0</span>..n)
+        .<span class="fn">map</span>(|i| (<span class="nu">2.0</span> * <span class="ty">PI</span> * freq_true * i <span class="kw">as</span> <span class="ty">f64</span> * dt).<span class="fn">sin</span>())
+        .<span class="fn">collect</span>();
+
+    <span class="cm">// Configure Hankel-DMD</span>
+    <span class="kw">let</span> config = <span class="ty">HankelConfig</span> {
+        delays: <span class="ty">None</span>,    <span class="cm">// auto: n / 3</span>
+        rank: <span class="ty">None</span>,      <span class="cm">// auto truncation</span>
+        dt,
+    };
+
+    <span class="cm">// Run Hankel-DMD</span>
+    <span class="kw">let</span> result = <span class="fn">hankel_dmd</span>(&amp;signal, &amp;config).<span class="fn">unwrap</span>();
+
+    <span class="cm">// Inspect eigenvalues -- magnitudes near 1.0 for pure oscillation</span>
+    <span class="kw">for</span> eig <span class="kw">in</span> result.<span class="fn">eigenvalues</span>() {
+        <span class="kw">let</span> mag = eig.<span class="fn">norm</span>();
+        <span class="kw">let</span> freq = eig.<span class="fn">arg</span>() / (<span class="nu">2.0</span> * <span class="ty">PI</span> * dt);
+        <span class="mc">println!</span>(<span class="st">"|lambda| = {:.4}, freq = {:.4} Hz"</span>, mag, freq);
+    }
+}</code></pre>
+      </div>
+      <div class="lang-panel" data-lang="python">
+<pre><code><span class="kw">import</span> numpy <span class="kw">as</span> np
+<span class="kw">import</span> koopman_dmd <span class="kw">as</span> kdmd
+
+<span class="cm"># Generate a scalar oscillating signal: sin(2*pi*0.25*t)</span>
+n = <span class="nu">200</span>
+dt = <span class="nu">0.1</span>
+freq_true = <span class="nu">0.25</span>
+t = np.<span class="fn">arange</span>(n) * dt
+signal = np.<span class="fn">sin</span>(<span class="nu">2.0</span> * np.pi * freq_true * t)
+
+<span class="cm"># Configure and run Hankel-DMD</span>
+result = kdmd.<span class="fn">hankel_dmd</span>(signal, delays=<span class="ty">None</span>, rank=<span class="ty">None</span>, dt=dt)
+
+<span class="cm"># Inspect eigenvalues -- magnitudes near 1.0 for pure oscillation</span>
+<span class="kw">for</span> eig <span class="kw">in</span> result.<span class="fn">eigenvalues</span>():
+    mag = np.<span class="fn">abs</span>(eig)
+    freq = np.<span class="fn">angle</span>(eig) / (<span class="nu">2.0</span> * np.pi * dt)
+    <span class="fn">print</span>(<span class="st">f"|lambda| = </span>{mag:<span class="st">.4f}</span><span class="st">, freq = </span>{freq:<span class="st">.4f}</span><span class="st"> Hz"</span>)</code></pre>
+      </div>
+      <div class="lang-panel" data-lang="r">
+<pre><code><span class="fn">library</span>(koopman.dmd)
+
+<span class="cm"># Generate a scalar oscillating signal: sin(2*pi*0.25*t)</span>
+n <span class="op">&lt;-</span> <span class="nu">200</span>
+dt <span class="op">&lt;-</span> <span class="nu">0.1</span>
+freq_true <span class="op">&lt;-</span> <span class="nu">0.25</span>
+t <span class="op">&lt;-</span> (<span class="nu">0</span>:(n - <span class="nu">1</span>)) * dt
+signal <span class="op">&lt;-</span> <span class="fn">sin</span>(<span class="nu">2</span> * pi * freq_true * t)
+
+<span class="cm"># Configure and run Hankel-DMD</span>
+result <span class="op">&lt;-</span> <span class="fn">hankel_dmd</span>(signal, delays = <span class="ty">NULL</span>, rank = <span class="ty">NULL</span>, dt = dt)
+
+<span class="cm"># Inspect eigenvalues -- magnitudes near 1.0 for pure oscillation</span>
+eigs <span class="op">&lt;-</span> result<span class="op">$</span><span class="fn">eigenvalues</span>()
+<span class="kw">for</span> (i <span class="kw">in</span> <span class="fn">seq_along</span>(eigs)) {
+  mag <span class="op">&lt;-</span> <span class="fn">Mod</span>(eigs[i])
+  freq <span class="op">&lt;-</span> <span class="fn">Arg</span>(eigs[i]) / (<span class="nu">2</span> * pi * dt)
+  <span class="fn">cat</span>(<span class="fn">sprintf</span>(<span class="st">"|lambda| = %.4f, freq = %.4f Hz\n"</span>, mag, freq))
+}</code></pre>
+      </div>
+
+      <!-- Reconstruction -->
+      <h2>Reconstruction</h2>
+      <p>
+        After fitting a Hankel-DMD model, use <code>hankel_reconstruct</code>
+        to obtain fitted values projected back into the original scalar space.
+        Use <code>hankel_predict</code> to forecast future values beyond the
+        training window.
+      </p>
+      <div class="lang-tabs">
+        <button class="lang-tab active" data-lang="rust">Rust</button>
+        <button class="lang-tab" data-lang="python">Python</button>
+        <button class="lang-tab" data-lang="r">R</button>
+      </div>
+      <div class="lang-panel active" data-lang="rust">
+<pre><code><span class="cm">// Reconstruct the fitted signal in original space</span>
+<span class="kw">let</span> fitted = <span class="fn">hankel_reconstruct</span>(&amp;result).<span class="fn">unwrap</span>();
+<span class="mc">println!</span>(<span class="st">"Reconstruction length: {}"</span>, fitted.<span class="fn">len</span>());
+
+<span class="cm">// Forecast 50 steps into the future</span>
+<span class="kw">let</span> forecast = <span class="fn">hankel_predict</span>(&amp;result, <span class="nu">50</span>).<span class="fn">unwrap</span>();
+<span class="mc">println!</span>(<span class="st">"Forecast length: {}"</span>, forecast.<span class="fn">len</span>());
+
+<span class="cm">// Compute reconstruction error</span>
+<span class="kw">let</span> error: <span class="ty">f64</span> = signal.<span class="fn">iter</span>()
+    .<span class="fn">zip</span>(fitted.<span class="fn">iter</span>())
+    .<span class="fn">map</span>(|(s, f)| (s - f).<span class="fn">powi</span>(<span class="nu">2</span>))
+    .<span class="fn">sum</span>::&lt;<span class="ty">f64</span>&gt;()
+    .<span class="fn">sqrt</span>() / signal.<span class="fn">len</span>() <span class="kw">as</span> <span class="ty">f64</span>;
+<span class="mc">println!</span>(<span class="st">"RMS reconstruction error: {:.6}"</span>, error);</code></pre>
+      </div>
+      <div class="lang-panel" data-lang="python">
+<pre><code><span class="cm"># Reconstruct the fitted signal in original space</span>
+fitted = kdmd.<span class="fn">hankel_reconstruct</span>(result)
+<span class="fn">print</span>(<span class="st">f"Reconstruction length: </span>{<span class="fn">len</span>(fitted)}<span class="st">"</span>)
+
+<span class="cm"># Forecast 50 steps into the future</span>
+forecast = kdmd.<span class="fn">hankel_predict</span>(result, n_steps=<span class="nu">50</span>)
+<span class="fn">print</span>(<span class="st">f"Forecast length: </span>{<span class="fn">len</span>(forecast)}<span class="st">"</span>)
+
+<span class="cm"># Compute reconstruction error</span>
+error = np.<span class="fn">sqrt</span>(np.<span class="fn">mean</span>((signal - fitted) ** <span class="nu">2</span>))
+<span class="fn">print</span>(<span class="st">f"RMS reconstruction error: </span>{error:<span class="st">.6f}</span><span class="st">"</span>)</code></pre>
+      </div>
+      <div class="lang-panel" data-lang="r">
+<pre><code><span class="cm"># Reconstruct the fitted signal in original space</span>
+fitted <span class="op">&lt;-</span> <span class="fn">hankel_reconstruct</span>(result)
+<span class="fn">cat</span>(<span class="st">"Reconstruction length:"</span>, <span class="fn">length</span>(fitted), <span class="st">"\n"</span>)
+
+<span class="cm"># Forecast 50 steps into the future</span>
+forecast <span class="op">&lt;-</span> <span class="fn">hankel_predict</span>(result, n_steps = <span class="nu">50</span>)
+<span class="fn">cat</span>(<span class="st">"Forecast length:"</span>, <span class="fn">length</span>(forecast), <span class="st">"\n"</span>)
+
+<span class="cm"># Compute reconstruction error</span>
+error <span class="op">&lt;-</span> <span class="fn">sqrt</span>(<span class="fn">mean</span>((signal - fitted)^<span class="nu">2</span>))
+<span class="fn">cat</span>(<span class="fn">sprintf</span>(<span class="st">"RMS reconstruction error: %.6f\n"</span>, error))</code></pre>
+      </div>
+
+      <!-- Frequency Recovery -->
+      <h2>Frequency Recovery</h2>
+      <p>
+        A key application of Hankel-DMD is recovering oscillation frequencies
+        from noisy scalar measurements. The following example embeds a known
+        frequency into a noisy signal and demonstrates that Hankel-DMD
+        recovers it accurately.
+      </p>
+      <div class="lang-tabs">
+        <button class="lang-tab active" data-lang="rust">Rust</button>
+        <button class="lang-tab" data-lang="python">Python</button>
+        <button class="lang-tab" data-lang="r">R</button>
+      </div>
+      <div class="lang-panel active" data-lang="rust">
+<pre><code><span class="kw">use</span> koopman_dmd::{<span class="ty">HankelConfig</span>, hankel_dmd};
+<span class="kw">use</span> std::f64::consts::<span class="ty">PI</span>;
+<span class="kw">use</span> rand::distributions::{<span class="ty">Distribution</span>, <span class="ty">Normal</span>};
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="kw">let</span> n = <span class="nu">500</span>;
+    <span class="kw">let</span> dt = <span class="nu">0.05</span>;
+    <span class="kw">let</span> freq_true = <span class="nu">1.5</span>;  <span class="cm">// 1.5 Hz signal</span>
+    <span class="kw">let</span> noise_std = <span class="nu">0.3</span>;
+
+    <span class="kw">let</span> <span class="kw">mut</span> rng = rand::thread_rng();
+    <span class="kw">let</span> normal = <span class="ty">Normal</span>::<span class="fn">new</span>(<span class="nu">0.0</span>, noise_std);
+
+    <span class="kw">let</span> signal: <span class="ty">Vec</span>&lt;<span class="ty">f64</span>&gt; = (<span class="nu">0</span>..n)
+        .<span class="fn">map</span>(|i| {
+            <span class="kw">let</span> t = i <span class="kw">as</span> <span class="ty">f64</span> * dt;
+            (<span class="nu">2.0</span> * <span class="ty">PI</span> * freq_true * t).<span class="fn">sin</span>() + normal.<span class="fn">sample</span>(&amp;<span class="kw">mut</span> rng)
+        })
+        .<span class="fn">collect</span>();
+
+    <span class="kw">let</span> config = <span class="ty">HankelConfig</span> { delays: <span class="ty">None</span>, rank: <span class="ty">Some</span>(<span class="nu">4</span>), dt };
+    <span class="kw">let</span> result = <span class="fn">hankel_dmd</span>(&amp;signal, &amp;config).<span class="fn">unwrap</span>();
+
+    <span class="cm">// Find the dominant frequency (largest-magnitude eigenvalue)</span>
+    <span class="kw">let</span> eigs = result.<span class="fn">eigenvalues</span>();
+    <span class="kw">let</span> dominant = eigs.<span class="fn">iter</span>()
+        .<span class="fn">max_by</span>(|a, b| a.<span class="fn">norm</span>().<span class="fn">partial_cmp</span>(&amp;b.<span class="fn">norm</span>()).<span class="fn">unwrap</span>())
+        .<span class="fn">unwrap</span>();
+    <span class="kw">let</span> freq_recovered = dominant.<span class="fn">arg</span>().<span class="fn">abs</span>() / (<span class="nu">2.0</span> * <span class="ty">PI</span> * dt);
+
+    <span class="mc">println!</span>(<span class="st">"True frequency:      {:.4} Hz"</span>, freq_true);
+    <span class="mc">println!</span>(<span class="st">"Recovered frequency: {:.4} Hz"</span>, freq_recovered);
+}</code></pre>
+      </div>
+      <div class="lang-panel" data-lang="python">
+<pre><code><span class="kw">import</span> numpy <span class="kw">as</span> np
+<span class="kw">import</span> koopman_dmd <span class="kw">as</span> kdmd
+
+n = <span class="nu">500</span>
+dt = <span class="nu">0.05</span>
+freq_true = <span class="nu">1.5</span>  <span class="cm"># 1.5 Hz signal</span>
+noise_std = <span class="nu">0.3</span>
+
+t = np.<span class="fn">arange</span>(n) * dt
+signal = np.<span class="fn">sin</span>(<span class="nu">2.0</span> * np.pi * freq_true * t) + noise_std * np.random.<span class="fn">randn</span>(n)
+
+result = kdmd.<span class="fn">hankel_dmd</span>(signal, rank=<span class="nu">4</span>, dt=dt)
+
+<span class="cm"># Find the dominant frequency (largest-magnitude eigenvalue)</span>
+eigs = result.<span class="fn">eigenvalues</span>()
+dominant = eigs[np.<span class="fn">argmax</span>(np.<span class="fn">abs</span>(eigs))]
+freq_recovered = np.<span class="fn">abs</span>(np.<span class="fn">angle</span>(dominant)) / (<span class="nu">2.0</span> * np.pi * dt)
+
+<span class="fn">print</span>(<span class="st">f"True frequency:      </span>{freq_true:<span class="st">.4f}</span><span class="st"> Hz"</span>)
+<span class="fn">print</span>(<span class="st">f"Recovered frequency: </span>{freq_recovered:<span class="st">.4f}</span><span class="st"> Hz"</span>)</code></pre>
+      </div>
+      <div class="lang-panel" data-lang="r">
+<pre><code><span class="fn">library</span>(koopman.dmd)
+
+n <span class="op">&lt;-</span> <span class="nu">500</span>
+dt <span class="op">&lt;-</span> <span class="nu">0.05</span>
+freq_true <span class="op">&lt;-</span> <span class="nu">1.5</span>  <span class="cm"># 1.5 Hz signal</span>
+noise_std <span class="op">&lt;-</span> <span class="nu">0.3</span>
+
+t <span class="op">&lt;-</span> (<span class="nu">0</span>:(n - <span class="nu">1</span>)) * dt
+signal <span class="op">&lt;-</span> <span class="fn">sin</span>(<span class="nu">2</span> * pi * freq_true * t) + noise_std * <span class="fn">rnorm</span>(n)
+
+result <span class="op">&lt;-</span> <span class="fn">hankel_dmd</span>(signal, rank = <span class="nu">4</span>, dt = dt)
+
+<span class="cm"># Find the dominant frequency (largest-magnitude eigenvalue)</span>
+eigs <span class="op">&lt;-</span> result<span class="op">$</span><span class="fn">eigenvalues</span>()
+dominant <span class="op">&lt;-</span> eigs[<span class="fn">which.max</span>(<span class="fn">Mod</span>(eigs))]
+freq_recovered <span class="op">&lt;-</span> <span class="fn">abs</span>(<span class="fn">Arg</span>(dominant)) / (<span class="nu">2</span> * pi * dt)
+
+<span class="fn">cat</span>(<span class="fn">sprintf</span>(<span class="st">"True frequency:      %.4f Hz\n"</span>, freq_true))
+<span class="fn">cat</span>(<span class="fn">sprintf</span>(<span class="st">"Recovered frequency: %.4f Hz\n"</span>, freq_recovered))</code></pre>
+      </div>
+
+      <!-- When to Use Hankel-DMD -->
+      <h2>When to Use Hankel-DMD</h2>
+      <p>
+        Hankel-DMD is the right tool when your data does not naturally come as
+        multi-variable snapshot matrices. The following table summarizes the
+        key trade-offs between standard DMD and Hankel-DMD.
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th>Criterion</th>
+            <th>Standard DMD</th>
+            <th>Hankel-DMD</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Input format</td>
+            <td>Multi-variable snapshot columns</td>
+            <td>Scalar or low-dimensional time series</td>
+          </tr>
+          <tr>
+            <td>Sensor requirements</td>
+            <td>Many simultaneous measurements</td>
+            <td>Single channel is sufficient</td>
+          </tr>
+          <tr>
+            <td>Frequency extraction</td>
+            <td>From spatial-temporal structure</td>
+            <td>From temporal structure alone</td>
+          </tr>
+          <tr>
+            <td>Delay parameter</td>
+            <td>Not applicable</td>
+            <td>Must choose number of delays <code>d</code></td>
+          </tr>
+          <tr>
+            <td>Data efficiency</td>
+            <td>Uses all samples directly</td>
+            <td>Loses <code>d - 1</code> samples to embedding</td>
+          </tr>
+          <tr>
+            <td>Typical use cases</td>
+            <td>Fluid dynamics, multi-sensor arrays</td>
+            <td>Vibration analysis, single-probe experiments, EEG/ECG signals</td>
+          </tr>
+        </tbody>
+      </table>
+      <p>
+        Use Hankel-DMD when you have a scalar time series and want to extract
+        oscillation frequencies, when your measurement system provides a
+        limited number of sensors, or when you want to apply DMD-based
+        forecasting to one-dimensional data. For systems where you already
+        have high-dimensional snapshot data from multiple spatial locations,
+        standard DMD or Extended DMD will typically be more efficient and
+        direct.
+      </p>
+      <div class="info-box">
+        <strong>Combining approaches.</strong>
+        Hankel-DMD can be combined with Extended DMD by applying dictionary
+        functions to the delay-embedded state vectors. This is useful when
+        the underlying dynamics are nonlinear and a single measurement
+        channel is all that is available.
+      </div>
+
+      <!-- Footer -->
+      <footer class="footer">
+        <p>koopman-dmd -- Dynamic Mode Decomposition with Koopman operator theory.</p>
+        <p>Released under the MIT License. Built with Rust, Python, and R.</p>
+      </footer>
+
+    </div>
+  </div>
+
+  <script src="js/main.js"></script>
+</body>
+</html>

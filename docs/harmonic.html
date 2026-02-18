@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Harmonic Time Averages - koopman-dmd</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Top nav -->
+  <header class="topnav">
+    <a class="logo" href="index.html">koopman-<span>dmd</span></a>
+    <nav>
+      <a href="index.html">Home</a>
+      <a href="getting-started.html">Guide</a>
+      <a href="api-rust.html">API</a>
+    </nav>
+    <a class="gh-link" href="https://github.com/jimeharrisjr/rust-dmd">GitHub</a>
+  </header>
+
+  <div class="page-layout">
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <h3>Getting Started</h3>
+      <a href="getting-started.html">Installation</a>
+
+      <h3>Features</h3>
+      <a href="core-dmd.html">Core DMD</a>
+      <a href="extended-dmd.html">Extended DMD</a>
+      <a href="hankel-dmd.html">Hankel-DMD</a>
+      <a href="gla.html">GLA</a>
+      <a href="harmonic.html" class="active">Harmonic Analysis</a>
+      <a href="maps.html">Dynamical Maps</a>
+      <a href="analysis.html">Analysis Tools</a>
+
+      <h3>API Reference</h3>
+      <a href="api-rust.html">Rust API</a>
+      <a href="api-python.html">Python API</a>
+      <a href="api-r.html">R API</a>
+    </aside>
+
+    <!-- Main content -->
+    <main class="content">
+      <h1>Harmonic Time Averages &amp; Mesochronic Plots</h1>
+      <p class="subtitle">Koopman-theoretic tools for revealing phase space structure through weighted time averages along trajectories.</p>
+
+      <!-- ============================================================ -->
+      <h2 id="overview">Overview</h2>
+
+      <p>Harmonic Time Averages (HTA) provide a Koopman-theoretic tool for
+      analyzing the structure of phase space in discrete dynamical systems. By
+      computing weighted time averages of observables along trajectories, HTAs
+      reveal periodic orbits, resonance zones, and chaotic regions without
+      requiring explicit integration of variational equations or Lyapunov
+      exponent computation.</p>
+
+      <p>The core idea is simple: if a trajectory is periodic with a frequency
+      that matches the test frequency, the harmonic average will be large in
+      magnitude. If the trajectory is chaotic or periodic at an unrelated
+      frequency, the average will tend toward zero as the number of iterations
+      increases.</p>
+
+      <p>This implementation is based on the work of Mezic (2020) and
+      Levnajic &amp; Mezic (2014), which established the theoretical
+      foundations of harmonic averages and mesochronic analysis for
+      discrete-time systems.</p>
+
+      <div class="info-box">
+        <strong>Key references:</strong> I. Mezic, "Spectrum of the Koopman
+        operator, spectral expansions in functional spaces, and state-space
+        geometry," Journal of Nonlinear Science, 2020. Z. Levnajic and
+        I. Mezic, "Ergodic theory and visualization," preprint, 2014.
+      </div>
+
+      <!-- ============================================================ -->
+      <h2 id="hta-definition">HTA Definition</h2>
+
+      <p>For an observable <code>f</code>, a map <code>T</code>, and a test
+      frequency <code>omega</code>, the Harmonic Time Average is defined
+      as:</p>
+
+      <div class="math">HTA_omega(x) = lim_{N -&gt; inf} (1/N) sum_{k=0}^{N-1} e^{2*pi*i*k*omega} f(T^k(x))</div>
+
+      <p>In practice, we compute a finite approximation by choosing a large
+      but finite number of iterations <code>N</code>. The result is a complex
+      number for each initial condition <code>x</code>. Two quantities carry
+      dynamical information:</p>
+
+      <ul>
+        <li><strong>Magnitude</strong> <code>|HTA|</code> -- indicates how
+        strongly the trajectory resonates with the test frequency
+        <code>omega</code>. A large magnitude means the orbit is periodic (or
+        quasi-periodic) at that frequency.</li>
+        <li><strong>Phase</strong> <code>arg(HTA)</code> -- encodes the phase
+        offset of the periodic component along the orbit relative to the test
+        frequency.</li>
+      </ul>
+
+      <p>When the trajectory is chaotic or periodic at a frequency
+      incommensurate with <code>omega</code>, the exponential weighting causes
+      cancellation and the magnitude decays toward zero as <code>N</code>
+      increases.</p>
+
+      <!-- ============================================================ -->
+      <h2 id="observables">Observables</h2>
+
+      <p>An observable is a scalar-valued function evaluated on the state
+      vector at each iteration. The choice of observable affects the HTA
+      result. The library provides several built-in observables:</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Observable</th>
+            <th>Definition</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>Identity</code></td>
+            <td>f(x) = x[0]</td>
+            <td>Projects onto the first coordinate. Simple and general-purpose.</td>
+          </tr>
+          <tr>
+            <td><code>SinPi</code></td>
+            <td>f(x) = sin(pi * x[0])</td>
+            <td>Smooth, bounded observable. Good for maps on [0, 1].</td>
+          </tr>
+          <tr>
+            <td><code>CosPi</code></td>
+            <td>f(x) = cos(pi * x[0])</td>
+            <td>Complementary to SinPi. Even symmetry about x[0] = 0.</td>
+          </tr>
+          <tr>
+            <td><code>SinPiXY</code></td>
+            <td>f(x) = sin(pi * x[0] * x[1])</td>
+            <td>Couples both coordinates. Useful for 2D maps.</td>
+          </tr>
+          <tr>
+            <td><code>Quadratic</code></td>
+            <td>f(x) = x[0]^2 + x[1]^2</td>
+            <td>Radial observable. Measures distance from the origin.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p>You can also define custom observables by implementing the
+      <code>Observable</code> trait (Rust), passing a callable (Python), or
+      supplying a function (R).</p>
+
+      <!-- ============================================================ -->
+      <h2 id="basic-hta">Basic HTA Computation</h2>
+
+      <p>The following example creates a standard map, picks an initial
+      condition, computes the Harmonic Time Average at a chosen frequency,
+      and inspects the magnitude and phase of the result.</p>
+
+      <div class="lang-tabs">
+        <button class="lang-tab active" data-lang="rust">Rust</button>
+        <button class="lang-tab" data-lang="python">Python</button>
+        <button class="lang-tab" data-lang="r">R</button>
+      </div>
+
+      <!-- Rust panel -->
+      <div class="lang-panel active" data-lang="rust">
+<pre><code><span class="kw">use</span> koopman_dmd::maps::<span class="ty">StandardMap</span>;
+<span class="kw">use</span> koopman_dmd::harmonic::{<span class="fn">harmonic_time_average</span>, <span class="ty">Observable</span>};
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="cm">// Create a standard map with perturbation parameter K = 0.9</span>
+    <span class="kw">let</span> map = <span class="ty">StandardMap</span>::<span class="fn">new</span>(<span class="nu">0.9</span>);
+
+    <span class="cm">// Initial condition in phase space</span>
+    <span class="kw">let</span> x0 = [<span class="nu">0.5</span>, <span class="nu">0.25</span>];
+
+    <span class="cm">// Test frequency (e.g., 1/3 for period-3 orbits)</span>
+    <span class="kw">let</span> omega = <span class="nu">1.0</span> / <span class="nu">3.0</span>;
+
+    <span class="cm">// Compute HTA with 10000 iterations using the Identity observable</span>
+    <span class="kw">let</span> hta = <span class="fn">harmonic_time_average</span>(
+        &amp;map,
+        &amp;x0,
+        omega,
+        <span class="nu">10_000</span>,
+        <span class="ty">Observable</span>::Identity,
+    );
+
+    <span class="cm">// Inspect magnitude and phase</span>
+    <span class="fn">println!</span>(<span class="st">"|HTA| = {:.6}"</span>, hta.<span class="fn">norm</span>());
+    <span class="fn">println!</span>(<span class="st">"arg(HTA) = {:.6}"</span>, hta.<span class="fn">arg</span>());
+}</code></pre>
+      </div>
+
+      <!-- Python panel -->
+      <div class="lang-panel" data-lang="python">
+<pre><code><span class="kw">import</span> koopman_dmd
+
+<span class="cm"># Create a standard map with perturbation parameter K = 0.9</span>
+map = koopman_dmd.<span class="fn">StandardMap</span>(k=<span class="nu">0.9</span>)
+
+<span class="cm"># Initial condition in phase space</span>
+x0 = [<span class="nu">0.5</span>, <span class="nu">0.25</span>]
+
+<span class="cm"># Test frequency (e.g., 1/3 for period-3 orbits)</span>
+omega = <span class="nu">1.0</span> / <span class="nu">3.0</span>
+
+<span class="cm"># Compute HTA with 10000 iterations using the Identity observable</span>
+hta = koopman_dmd.<span class="fn">harmonic_time_average</span>(
+    map, x0, omega,
+    n_iter=<span class="nu">10_000</span>,
+    observable=<span class="st">"identity"</span>,
+)
+
+<span class="cm"># Inspect magnitude and phase</span>
+<span class="fn">print</span>(<span class="st">f"|HTA| = {<span class="fn">abs</span>(hta):.6f}"</span>)
+<span class="fn">print</span>(<span class="st">f"arg(HTA) = {koopman_dmd.<span class="fn">phase</span>(hta):.6f}"</span>)</code></pre>
+      </div>
+
+      <!-- R panel -->
+      <div class="lang-panel" data-lang="r">
+<pre><code><span class="fn">library</span>(koopmandmd)
+
+<span class="cm"># Create a standard map with perturbation parameter K = 0.9</span>
+map <span class="op">&lt;-</span> <span class="fn">standard_map</span>(k = <span class="nu">0.9</span>)
+
+<span class="cm"># Initial condition in phase space</span>
+x0 <span class="op">&lt;-</span> <span class="fn">c</span>(<span class="nu">0.5</span>, <span class="nu">0.25</span>)
+
+<span class="cm"># Test frequency (e.g., 1/3 for period-3 orbits)</span>
+omega <span class="op">&lt;-</span> <span class="nu">1</span> / <span class="nu">3</span>
+
+<span class="cm"># Compute HTA with 10000 iterations using the Identity observable</span>
+hta <span class="op">&lt;-</span> <span class="fn">harmonic_time_average</span>(
+  map, x0, omega,
+  n_iter = <span class="nu">10000</span>,
+  observable = <span class="st">"identity"</span>
+)
+
+<span class="cm"># Inspect magnitude and phase</span>
+<span class="fn">cat</span>(<span class="fn">sprintf</span>(<span class="st">"|HTA| = %.6f\n"</span>, <span class="fn">Mod</span>(hta)))
+<span class="fn">cat</span>(<span class="fn">sprintf</span>(<span class="st">"arg(HTA) = %.6f\n"</span>, <span class="fn">Arg</span>(hta)))</code></pre>
+      </div>
+
+      <!-- ============================================================ -->
+      <h2 id="mesochronic-harmonic">Mesochronic Harmonic Plots</h2>
+
+      <p>A mesochronic harmonic plot computes the HTA over a two-dimensional
+      grid of initial conditions. Each pixel in the resulting image
+      corresponds to a single initial condition; its color encodes the HTA
+      magnitude (or phase). This produces a rich visualization of phase space
+      structure: islands of stability appear as bright regions of high
+      <code>|HTA|</code>, while chaotic seas appear dark.</p>
+
+      <p>The computation is embarrassingly parallel -- each initial condition
+      is independent -- and the Rust implementation uses
+      <a href="https://docs.rs/rayon">rayon</a> for automatic work-stealing
+      parallelism across all available CPU cores.</p>
+
+      <div class="lang-tabs">
+        <button class="lang-tab active" data-lang="rust">Rust</button>
+        <button class="lang-tab" data-lang="python">Python</button>
+        <button class="lang-tab" data-lang="r">R</button>
+      </div>
+
+      <!-- Rust panel -->
+      <div class="lang-panel active" data-lang="rust">
+<pre><code><span class="kw">use</span> koopman_dmd::maps::<span class="ty">StandardMap</span>;
+<span class="kw">use</span> koopman_dmd::harmonic::{<span class="fn">mesochronic_compute</span>, <span class="ty">Observable</span>};
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="kw">let</span> map = <span class="ty">StandardMap</span>::<span class="fn">new</span>(<span class="nu">0.9</span>);
+
+    <span class="cm">// Define the grid: 500x500 over [0, 2*pi) x [0, 2*pi)</span>
+    <span class="kw">let</span> resolution = <span class="nu">500</span>;
+    <span class="kw">let</span> x_range = (<span class="nu">0.0</span>, <span class="nu">2.0</span> * std::f64::consts::<span class="ty">PI</span>);
+    <span class="kw">let</span> y_range = (<span class="nu">0.0</span>, <span class="nu">2.0</span> * std::f64::consts::<span class="ty">PI</span>);
+    <span class="kw">let</span> omega = <span class="nu">1.0</span> / <span class="nu">3.0</span>;
+    <span class="kw">let</span> n_iter = <span class="nu">5_000</span>;
+
+    <span class="cm">// Compute HTA over the grid (parallelized with rayon)</span>
+    <span class="kw">let</span> result = <span class="fn">mesochronic_compute</span>(
+        &amp;map,
+        x_range,
+        y_range,
+        resolution,
+        omega,
+        n_iter,
+        <span class="ty">Observable</span>::SinPi,
+    );
+
+    <span class="cm">// result.hta_matrix: 500x500 Array2&lt;f64&gt; of |HTA| values</span>
+    <span class="cm">// result.phase_matrix: 500x500 Array2&lt;f64&gt; of arg(HTA) values</span>
+    <span class="fn">println!</span>(<span class="st">"HTA matrix shape: {:?}"</span>, result.hta_matrix.<span class="fn">dim</span>());
+    <span class="fn">println!</span>(<span class="st">"Phase matrix shape: {:?}"</span>, result.phase_matrix.<span class="fn">dim</span>());
+}</code></pre>
+      </div>
+
+      <!-- Python panel -->
+      <div class="lang-panel" data-lang="python">
+<pre><code><span class="kw">import</span> numpy <span class="kw">as</span> np
+<span class="kw">import</span> koopman_dmd
+
+map = koopman_dmd.<span class="fn">StandardMap</span>(k=<span class="nu">0.9</span>)
+
+<span class="cm"># Compute HTA over a 500x500 grid (parallelized internally via rayon)</span>
+result = koopman_dmd.<span class="fn">mesochronic_compute</span>(
+    map,
+    x_range=(<span class="nu">0.0</span>, <span class="nu">2.0</span> * np.pi),
+    y_range=(<span class="nu">0.0</span>, <span class="nu">2.0</span> * np.pi),
+    resolution=<span class="nu">500</span>,
+    omega=<span class="nu">1.0</span> / <span class="nu">3.0</span>,
+    n_iter=<span class="nu">5_000</span>,
+    observable=<span class="st">"sin_pi"</span>,
+)
+
+<span class="cm"># result.hta_matrix: (500, 500) numpy array of |HTA| values</span>
+<span class="cm"># result.phase_matrix: (500, 500) numpy array of arg(HTA) values</span>
+<span class="fn">print</span>(<span class="st">"HTA matrix shape:"</span>, result.hta_matrix.shape)
+<span class="fn">print</span>(<span class="st">"Max |HTA|:"</span>, result.hta_matrix.<span class="fn">max</span>())</code></pre>
+      </div>
+
+      <!-- R panel -->
+      <div class="lang-panel" data-lang="r">
+<pre><code><span class="fn">library</span>(koopmandmd)
+
+map <span class="op">&lt;-</span> <span class="fn">standard_map</span>(k = <span class="nu">0.9</span>)
+
+<span class="cm"># Compute HTA over a 500x500 grid (parallelized internally via rayon)</span>
+result <span class="op">&lt;-</span> <span class="fn">mesochronic_compute</span>(
+  map,
+  x_range = <span class="fn">c</span>(<span class="nu">0</span>, <span class="nu">2</span> * pi),
+  y_range = <span class="fn">c</span>(<span class="nu">0</span>, <span class="nu">2</span> * pi),
+  resolution = <span class="nu">500</span>,
+  omega = <span class="nu">1</span> / <span class="nu">3</span>,
+  n_iter = <span class="nu">5000</span>,
+  observable = <span class="st">"sin_pi"</span>
+)
+
+<span class="cm"># result$hta_matrix: 500x500 matrix of |HTA| values</span>
+<span class="cm"># result$phase_matrix: 500x500 matrix of arg(HTA) values</span>
+<span class="fn">cat</span>(<span class="st">"HTA matrix dimensions:"</span>, <span class="fn">dim</span>(result<span class="op">$</span>hta_matrix), <span class="st">"\n"</span>)</code></pre>
+      </div>
+
+      <div class="info-box">
+        <strong>Interpretation:</strong> High <code>|HTA|</code> values
+        indicate that the trajectory starting at that initial condition
+        resonates with the test frequency <code>omega</code>. Resonance
+        islands appear as bright connected regions. The chaotic sea, where
+        orbits are ergodic and have continuous spectrum, appears uniformly
+        dark.
+      </div>
+
+      <!-- ============================================================ -->
+      <h2 id="mesochronic-scatter">Mesochronic Scatter Plots</h2>
+
+      <p>The function <code>mesochronic_scatter()</code> computes HTA values
+      for multiple observables simultaneously over the same grid of initial
+      conditions. This is useful for producing scatter plots of
+      <code>|HTA_1|</code> vs. <code>|HTA_2|</code>, where each point
+      corresponds to one initial condition and can be colored by its
+      position, phase, or classification.</p>
+
+      <p>Such scatter plots reveal clustering structure: initial conditions
+      within the same resonance island tend to cluster together, while
+      chaotic initial conditions cluster near the origin (both magnitudes
+      small).</p>
+
+      <div class="lang-tabs">
+        <button class="lang-tab active" data-lang="rust">Rust</button>
+        <button class="lang-tab" data-lang="python">Python</button>
+        <button class="lang-tab" data-lang="r">R</button>
+      </div>
+
+      <!-- Rust panel -->
+      <div class="lang-panel active" data-lang="rust">
+<pre><code><span class="kw">use</span> koopman_dmd::maps::<span class="ty">StandardMap</span>;
+<span class="kw">use</span> koopman_dmd::harmonic::{<span class="fn">mesochronic_scatter</span>, <span class="ty">Observable</span>};
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="kw">let</span> map = <span class="ty">StandardMap</span>::<span class="fn">new</span>(<span class="nu">0.9</span>);
+
+    <span class="cm">// Compute HTA for two observables over a grid</span>
+    <span class="kw">let</span> result = <span class="fn">mesochronic_scatter</span>(
+        &amp;map,
+        (<span class="nu">0.0</span>, <span class="nu">2.0</span> * std::f64::consts::<span class="ty">PI</span>),
+        (<span class="nu">0.0</span>, <span class="nu">2.0</span> * std::f64::consts::<span class="ty">PI</span>),
+        <span class="nu">200</span>,                     <span class="cm">// grid resolution</span>
+        <span class="nu">1.0</span> / <span class="nu">3.0</span>,               <span class="cm">// omega</span>
+        <span class="nu">5_000</span>,                   <span class="cm">// iterations</span>
+        &amp;[<span class="ty">Observable</span>::Identity, <span class="ty">Observable</span>::SinPi],
+    );
+
+    <span class="cm">// result.hta_values: Vec&lt;Vec&lt;f64&gt;&gt; -- one entry per observable</span>
+    <span class="cm">// result.initial_conditions: Vec&lt;[f64; 2]&gt; -- the grid points</span>
+    <span class="fn">println!</span>(<span class="st">"Points: {}"</span>, result.initial_conditions.<span class="fn">len</span>());
+    <span class="fn">println!</span>(<span class="st">"Observables: {}"</span>, result.hta_values.<span class="fn">len</span>());
+}</code></pre>
+      </div>
+
+      <!-- Python panel -->
+      <div class="lang-panel" data-lang="python">
+<pre><code><span class="kw">import</span> numpy <span class="kw">as</span> np
+<span class="kw">import</span> koopman_dmd
+
+map = koopman_dmd.<span class="fn">StandardMap</span>(k=<span class="nu">0.9</span>)
+
+<span class="cm"># Compute HTA for two observables over a grid</span>
+result = koopman_dmd.<span class="fn">mesochronic_scatter</span>(
+    map,
+    x_range=(<span class="nu">0.0</span>, <span class="nu">2.0</span> * np.pi),
+    y_range=(<span class="nu">0.0</span>, <span class="nu">2.0</span> * np.pi),
+    resolution=<span class="nu">200</span>,
+    omega=<span class="nu">1.0</span> / <span class="nu">3.0</span>,
+    n_iter=<span class="nu">5_000</span>,
+    observables=[<span class="st">"identity"</span>, <span class="st">"sin_pi"</span>],
+)
+
+<span class="cm"># result.hta_values: list of numpy arrays, one per observable</span>
+<span class="cm"># result.initial_conditions: (N, 2) array of grid points</span>
+<span class="fn">print</span>(<span class="st">"Points:"</span>, result.initial_conditions.shape[<span class="nu">0</span>])</code></pre>
+      </div>
+
+      <!-- R panel -->
+      <div class="lang-panel" data-lang="r">
+<pre><code><span class="fn">library</span>(koopmandmd)
+
+map <span class="op">&lt;-</span> <span class="fn">standard_map</span>(k = <span class="nu">0.9</span>)
+
+<span class="cm"># Compute HTA for two observables over a grid</span>
+result <span class="op">&lt;-</span> <span class="fn">mesochronic_scatter</span>(
+  map,
+  x_range = <span class="fn">c</span>(<span class="nu">0</span>, <span class="nu">2</span> * pi),
+  y_range = <span class="fn">c</span>(<span class="nu">0</span>, <span class="nu">2</span> * pi),
+  resolution = <span class="nu">200</span>,
+  omega = <span class="nu">1</span> / <span class="nu">3</span>,
+  n_iter = <span class="nu">5000</span>,
+  observables = <span class="fn">c</span>(<span class="st">"identity"</span>, <span class="st">"sin_pi"</span>)
+)
+
+<span class="cm"># result$hta_values: list of numeric vectors, one per observable</span>
+<span class="cm"># result$initial_conditions: Nx2 matrix of grid points</span>
+<span class="fn">cat</span>(<span class="st">"Points:"</span>, <span class="fn">nrow</span>(result<span class="op">$</span>initial_conditions), <span class="st">"\n"</span>)</code></pre>
+      </div>
+
+      <!-- ============================================================ -->
+      <h2 id="phase-space-classification">Phase Space Classification</h2>
+
+      <p>The function <code>classify_phase_space()</code> uses HTA values at
+      multiple test frequencies to automatically classify each initial
+      condition into one of three categories:</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Category</th>
+            <th>Criterion</th>
+            <th>Interpretation</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>Resonating</code></td>
+            <td><code>|HTA(omega)| &gt; threshold</code></td>
+            <td>The orbit is locked to the test frequency. It lies on or near a periodic orbit of the corresponding period.</td>
+          </tr>
+          <tr>
+            <td><code>NonResonating</code></td>
+            <td><code>|HTA(omega)| &lt; threshold</code> but <code>|HTA(omega')|</code> is large for some other <code>omega'</code></td>
+            <td>The orbit is periodic, but at a frequency different from the test frequency. It belongs to a different island chain.</td>
+          </tr>
+          <tr>
+            <td><code>Chaotic</code></td>
+            <td><code>|HTA| &lt; threshold</code> for all tested frequencies</td>
+            <td>No persistent periodic structure detected. The orbit wanders ergodically through a chaotic region.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="lang-tabs">
+        <button class="lang-tab active" data-lang="rust">Rust</button>
+        <button class="lang-tab" data-lang="python">Python</button>
+        <button class="lang-tab" data-lang="r">R</button>
+      </div>
+
+      <!-- Rust panel -->
+      <div class="lang-panel active" data-lang="rust">
+<pre><code><span class="kw">use</span> koopman_dmd::maps::<span class="ty">StandardMap</span>;
+<span class="kw">use</span> koopman_dmd::harmonic::{<span class="fn">classify_phase_space</span>, <span class="ty">Observable</span>, <span class="ty">Classification</span>};
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="kw">let</span> map = <span class="ty">StandardMap</span>::<span class="fn">new</span>(<span class="nu">0.9</span>);
+
+    <span class="cm">// Test frequencies: 1/2, 1/3, 1/4, 1/5</span>
+    <span class="kw">let</span> omegas = <span class="mc">vec!</span>[<span class="nu">0.5</span>, <span class="nu">1.0</span>/<span class="nu">3.0</span>, <span class="nu">0.25</span>, <span class="nu">0.2</span>];
+    <span class="kw">let</span> threshold = <span class="nu">0.01</span>;
+
+    <span class="kw">let</span> result = <span class="fn">classify_phase_space</span>(
+        &amp;map,
+        (<span class="nu">0.0</span>, <span class="nu">2.0</span> * std::f64::consts::<span class="ty">PI</span>),
+        (<span class="nu">0.0</span>, <span class="nu">2.0</span> * std::f64::consts::<span class="ty">PI</span>),
+        <span class="nu">300</span>,
+        &amp;omegas,
+        <span class="nu">10_000</span>,
+        threshold,
+        <span class="ty">Observable</span>::Identity,
+    );
+
+    <span class="cm">// Count classifications</span>
+    <span class="kw">let</span> n_resonating = result.<span class="fn">iter</span>()
+        .<span class="fn">filter</span>(|c| <span class="kw">matches!</span>(c, <span class="ty">Classification</span>::Resonating(_)))
+        .<span class="fn">count</span>();
+    <span class="kw">let</span> n_chaotic = result.<span class="fn">iter</span>()
+        .<span class="fn">filter</span>(|c| <span class="kw">matches!</span>(c, <span class="ty">Classification</span>::Chaotic))
+        .<span class="fn">count</span>();
+
+    <span class="fn">println!</span>(<span class="st">"Resonating: {}"</span>, n_resonating);
+    <span class="fn">println!</span>(<span class="st">"Chaotic: {}"</span>, n_chaotic);
+}</code></pre>
+      </div>
+
+      <!-- Python panel -->
+      <div class="lang-panel" data-lang="python">
+<pre><code><span class="kw">import</span> numpy <span class="kw">as</span> np
+<span class="kw">import</span> koopman_dmd
+
+map = koopman_dmd.<span class="fn">StandardMap</span>(k=<span class="nu">0.9</span>)
+
+<span class="cm"># Test frequencies: 1/2, 1/3, 1/4, 1/5</span>
+omegas = [<span class="nu">0.5</span>, <span class="nu">1.0</span> / <span class="nu">3.0</span>, <span class="nu">0.25</span>, <span class="nu">0.2</span>]
+threshold = <span class="nu">0.01</span>
+
+result = koopman_dmd.<span class="fn">classify_phase_space</span>(
+    map,
+    x_range=(<span class="nu">0.0</span>, <span class="nu">2.0</span> * np.pi),
+    y_range=(<span class="nu">0.0</span>, <span class="nu">2.0</span> * np.pi),
+    resolution=<span class="nu">300</span>,
+    omegas=omegas,
+    n_iter=<span class="nu">10_000</span>,
+    threshold=threshold,
+    observable=<span class="st">"identity"</span>,
+)
+
+<span class="cm"># result.labels: array of strings ("resonating", "non_resonating", "chaotic")</span>
+<span class="cm"># result.matched_omega: array of matched frequencies (NaN for chaotic)</span>
+<span class="fn">print</span>(<span class="st">"Resonating:"</span>, <span class="fn">sum</span>(result.labels == <span class="st">"resonating"</span>))
+<span class="fn">print</span>(<span class="st">"Chaotic:"</span>, <span class="fn">sum</span>(result.labels == <span class="st">"chaotic"</span>))</code></pre>
+      </div>
+
+      <!-- R panel -->
+      <div class="lang-panel" data-lang="r">
+<pre><code><span class="fn">library</span>(koopmandmd)
+
+map <span class="op">&lt;-</span> <span class="fn">standard_map</span>(k = <span class="nu">0.9</span>)
+
+<span class="cm"># Test frequencies: 1/2, 1/3, 1/4, 1/5</span>
+omegas <span class="op">&lt;-</span> <span class="fn">c</span>(<span class="nu">0.5</span>, <span class="nu">1</span> / <span class="nu">3</span>, <span class="nu">0.25</span>, <span class="nu">0.2</span>)
+threshold <span class="op">&lt;-</span> <span class="nu">0.01</span>
+
+result <span class="op">&lt;-</span> <span class="fn">classify_phase_space</span>(
+  map,
+  x_range = <span class="fn">c</span>(<span class="nu">0</span>, <span class="nu">2</span> * pi),
+  y_range = <span class="fn">c</span>(<span class="nu">0</span>, <span class="nu">2</span> * pi),
+  resolution = <span class="nu">300</span>,
+  omegas = omegas,
+  n_iter = <span class="nu">10000</span>,
+  threshold = threshold,
+  observable = <span class="st">"identity"</span>
+)
+
+<span class="cm"># result$labels: character vector of classifications</span>
+<span class="cm"># result$matched_omega: numeric vector of matched frequencies</span>
+<span class="fn">table</span>(result<span class="op">$</span>labels)</code></pre>
+      </div>
+
+      <!-- ============================================================ -->
+      <h2 id="hta-convergence">HTA Convergence</h2>
+
+      <p>The function <code>hta_convergence()</code> tracks how the HTA
+      magnitude evolves as the number of iterations increases. This is useful
+      for determining whether enough iterations were used to reliably
+      distinguish resonant from non-resonant initial conditions.</p>
+
+      <p>For a resonating orbit, <code>|HTA|</code> converges to a positive
+      constant. For a chaotic orbit, <code>|HTA|</code> decays roughly as
+      <code>1/sqrt(N)</code> due to the central limit theorem applied to the
+      oscillating sum.</p>
+
+      <div class="lang-tabs">
+        <button class="lang-tab active" data-lang="rust">Rust</button>
+        <button class="lang-tab" data-lang="python">Python</button>
+        <button class="lang-tab" data-lang="r">R</button>
+      </div>
+
+      <!-- Rust panel -->
+      <div class="lang-panel active" data-lang="rust">
+<pre><code><span class="kw">use</span> koopman_dmd::maps::<span class="ty">StandardMap</span>;
+<span class="kw">use</span> koopman_dmd::harmonic::{<span class="fn">hta_convergence</span>, <span class="ty">Observable</span>};
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="kw">let</span> map = <span class="ty">StandardMap</span>::<span class="fn">new</span>(<span class="nu">0.9</span>);
+    <span class="kw">let</span> x0 = [<span class="nu">0.5</span>, <span class="nu">0.25</span>];
+    <span class="kw">let</span> omega = <span class="nu">1.0</span> / <span class="nu">3.0</span>;
+
+    <span class="cm">// Track |HTA| at checkpoints: 100, 500, 1000, 5000, 10000</span>
+    <span class="kw">let</span> checkpoints = <span class="mc">vec!</span>[<span class="nu">100</span>, <span class="nu">500</span>, <span class="nu">1_000</span>, <span class="nu">5_000</span>, <span class="nu">10_000</span>];
+
+    <span class="kw">let</span> curve = <span class="fn">hta_convergence</span>(
+        &amp;map,
+        &amp;x0,
+        omega,
+        &amp;checkpoints,
+        <span class="ty">Observable</span>::Identity,
+    );
+
+    <span class="cm">// curve: Vec&lt;(usize, f64)&gt; -- (iterations, |HTA|)</span>
+    <span class="kw">for</span> (n, mag) <span class="kw">in</span> &amp;curve {
+        <span class="fn">println!</span>(<span class="st">"N = {:>6} | |HTA| = {:.8}"</span>, n, mag);
+    }
+}</code></pre>
+      </div>
+
+      <!-- Python panel -->
+      <div class="lang-panel" data-lang="python">
+<pre><code><span class="kw">import</span> koopman_dmd
+
+map = koopman_dmd.<span class="fn">StandardMap</span>(k=<span class="nu">0.9</span>)
+x0 = [<span class="nu">0.5</span>, <span class="nu">0.25</span>]
+omega = <span class="nu">1.0</span> / <span class="nu">3.0</span>
+
+<span class="cm"># Track |HTA| at checkpoints</span>
+checkpoints = [<span class="nu">100</span>, <span class="nu">500</span>, <span class="nu">1_000</span>, <span class="nu">5_000</span>, <span class="nu">10_000</span>]
+
+curve = koopman_dmd.<span class="fn">hta_convergence</span>(
+    map, x0, omega,
+    checkpoints=checkpoints,
+    observable=<span class="st">"identity"</span>,
+)
+
+<span class="cm"># curve: list of (n_iter, |HTA|) pairs</span>
+<span class="kw">for</span> n, mag <span class="kw">in</span> curve:
+    <span class="fn">print</span>(<span class="st">f"N = {n:>6} | |HTA| = {mag:.8f}"</span>)</code></pre>
+      </div>
+
+      <!-- R panel -->
+      <div class="lang-panel" data-lang="r">
+<pre><code><span class="fn">library</span>(koopmandmd)
+
+map <span class="op">&lt;-</span> <span class="fn">standard_map</span>(k = <span class="nu">0.9</span>)
+x0 <span class="op">&lt;-</span> <span class="fn">c</span>(<span class="nu">0.5</span>, <span class="nu">0.25</span>)
+omega <span class="op">&lt;-</span> <span class="nu">1</span> / <span class="nu">3</span>
+
+<span class="cm"># Track |HTA| at checkpoints</span>
+checkpoints <span class="op">&lt;-</span> <span class="fn">c</span>(<span class="nu">100</span>, <span class="nu">500</span>, <span class="nu">1000</span>, <span class="nu">5000</span>, <span class="nu">10000</span>)
+
+curve <span class="op">&lt;-</span> <span class="fn">hta_convergence</span>(
+  map, x0, omega,
+  checkpoints = checkpoints,
+  observable = <span class="st">"identity"</span>
+)
+
+<span class="cm"># curve: data.frame with columns n_iter and hta_magnitude</span>
+<span class="fn">print</span>(curve)</code></pre>
+      </div>
+
+      <!-- ============================================================ -->
+      <h2 id="mesochronic-sections">Mesochronic Sections</h2>
+
+      <p>For higher-dimensional maps (such as the 4D Froeschle map), a full
+      mesochronic plot over all dimensions is not practical. The function
+      <code>mesochronic_section()</code> computes a two-dimensional slice
+      through a higher-dimensional phase space: you fix two of the
+      coordinates and vary the other two over a grid.</p>
+
+      <p>This is analogous to a Poincare section but computed via harmonic
+      averages rather than intersection with a surface of section.</p>
+
+      <div class="lang-tabs">
+        <button class="lang-tab active" data-lang="rust">Rust</button>
+        <button class="lang-tab" data-lang="python">Python</button>
+        <button class="lang-tab" data-lang="r">R</button>
+      </div>
+
+      <!-- Rust panel -->
+      <div class="lang-panel active" data-lang="rust">
+<pre><code><span class="kw">use</span> koopman_dmd::maps::<span class="ty">FroeschleMap</span>;
+<span class="kw">use</span> koopman_dmd::harmonic::{<span class="fn">mesochronic_section</span>, <span class="ty">Observable</span>};
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="cm">// 4D Froeschle map with coupling parameters</span>
+    <span class="kw">let</span> map = <span class="ty">FroeschleMap</span>::<span class="fn">new</span>(<span class="nu">0.5</span>, <span class="nu">0.3</span>, <span class="nu">0.1</span>);
+
+    <span class="cm">// Fix dimensions 2 and 3 at specific values</span>
+    <span class="kw">let</span> fixed_dims = <span class="mc">vec!</span>[(<span class="nu">2</span>, <span class="nu">0.0</span>), (<span class="nu">3</span>, <span class="nu">0.0</span>)];
+
+    <span class="cm">// Vary dimensions 0 and 1 over the grid</span>
+    <span class="kw">let</span> vary_dims = (<span class="nu">0</span>, <span class="nu">1</span>);
+    <span class="kw">let</span> x_range = (<span class="nu">0.0</span>, <span class="nu">2.0</span> * std::f64::consts::<span class="ty">PI</span>);
+    <span class="kw">let</span> y_range = (<span class="nu">0.0</span>, <span class="nu">2.0</span> * std::f64::consts::<span class="ty">PI</span>);
+
+    <span class="kw">let</span> result = <span class="fn">mesochronic_section</span>(
+        &amp;map,
+        vary_dims,
+        x_range,
+        y_range,
+        &amp;fixed_dims,
+        <span class="nu">300</span>,          <span class="cm">// resolution</span>
+        <span class="nu">1.0</span> / <span class="nu">4.0</span>,   <span class="cm">// omega</span>
+        <span class="nu">5_000</span>,        <span class="cm">// iterations</span>
+        <span class="ty">Observable</span>::Identity,
+    );
+
+    <span class="fn">println!</span>(<span class="st">"Section shape: {:?}"</span>, result.hta_matrix.<span class="fn">dim</span>());
+}</code></pre>
+      </div>
+
+      <!-- Python panel -->
+      <div class="lang-panel" data-lang="python">
+<pre><code><span class="kw">import</span> numpy <span class="kw">as</span> np
+<span class="kw">import</span> koopman_dmd
+
+<span class="cm"># 4D Froeschle map with coupling parameters</span>
+map = koopman_dmd.<span class="fn">FroeschleMap</span>(a=<span class="nu">0.5</span>, b=<span class="nu">0.3</span>, coupling=<span class="nu">0.1</span>)
+
+<span class="cm"># Fix dimensions 2 and 3, vary dimensions 0 and 1</span>
+result = koopman_dmd.<span class="fn">mesochronic_section</span>(
+    map,
+    vary_dims=(<span class="nu">0</span>, <span class="nu">1</span>),
+    x_range=(<span class="nu">0.0</span>, <span class="nu">2.0</span> * np.pi),
+    y_range=(<span class="nu">0.0</span>, <span class="nu">2.0</span> * np.pi),
+    fixed_dims={<span class="nu">2</span>: <span class="nu">0.0</span>, <span class="nu">3</span>: <span class="nu">0.0</span>},
+    resolution=<span class="nu">300</span>,
+    omega=<span class="nu">0.25</span>,
+    n_iter=<span class="nu">5_000</span>,
+    observable=<span class="st">"identity"</span>,
+)
+
+<span class="fn">print</span>(<span class="st">"Section shape:"</span>, result.hta_matrix.shape)</code></pre>
+      </div>
+
+      <!-- R panel -->
+      <div class="lang-panel" data-lang="r">
+<pre><code><span class="fn">library</span>(koopmandmd)
+
+<span class="cm"># 4D Froeschle map with coupling parameters</span>
+map <span class="op">&lt;-</span> <span class="fn">froeschle_map</span>(a = <span class="nu">0.5</span>, b = <span class="nu">0.3</span>, coupling = <span class="nu">0.1</span>)
+
+<span class="cm"># Fix dimensions 3 and 4, vary dimensions 1 and 2</span>
+result <span class="op">&lt;-</span> <span class="fn">mesochronic_section</span>(
+  map,
+  vary_dims = <span class="fn">c</span>(<span class="nu">1</span>, <span class="nu">2</span>),
+  x_range = <span class="fn">c</span>(<span class="nu">0</span>, <span class="nu">2</span> * pi),
+  y_range = <span class="fn">c</span>(<span class="nu">0</span>, <span class="nu">2</span> * pi),
+  fixed_dims = <span class="fn">list</span>(<span class="st">"3"</span> = <span class="nu">0.0</span>, <span class="st">"4"</span> = <span class="nu">0.0</span>),
+  resolution = <span class="nu">300</span>,
+  omega = <span class="nu">0.25</span>,
+  n_iter = <span class="nu">5000</span>,
+  observable = <span class="st">"identity"</span>
+)
+
+<span class="fn">cat</span>(<span class="st">"Section dimensions:"</span>, <span class="fn">dim</span>(result<span class="op">$</span>hta_matrix), <span class="st">"\n"</span>)</code></pre>
+      </div>
+
+      <div class="info-box">
+        <strong>Note:</strong> For the R bindings, dimension indices are
+        1-based (matching R convention), while the Rust and Python interfaces
+        use 0-based indexing.
+      </div>
+
+    </main>
+  </div>
+
+  <script src="js/main.js"></script>
+</body>
+</html>

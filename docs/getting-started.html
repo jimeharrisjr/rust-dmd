@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Getting Started - koopman-dmd</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Top nav -->
+  <header class="topnav">
+    <a class="logo" href="index.html">koopman-<span>dmd</span></a>
+    <nav>
+      <a href="index.html">Home</a>
+      <a href="getting-started.html" class="active">Guide</a>
+      <a href="api-rust.html">API</a>
+    </nav>
+    <a class="gh-link" href="https://github.com/jimeharrisjr/rust-dmd">GitHub</a>
+  </header>
+
+  <div class="page-layout">
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <h3>Getting Started</h3>
+      <a href="getting-started.html">Installation</a>
+
+      <h3>Features</h3>
+      <a href="core-dmd.html">Core DMD</a>
+      <a href="extended-dmd.html">Extended DMD</a>
+      <a href="hankel-dmd.html">Hankel-DMD</a>
+      <a href="gla.html">GLA</a>
+      <a href="harmonic.html">Harmonic Analysis</a>
+      <a href="maps.html">Dynamical Maps</a>
+      <a href="analysis.html">Analysis Tools</a>
+
+      <h3>API Reference</h3>
+      <a href="api-rust.html">Rust API</a>
+      <a href="api-python.html">Python API</a>
+      <a href="api-r.html">R API</a>
+    </aside>
+
+    <!-- Main content -->
+    <main class="content">
+      <h1>Getting Started</h1>
+      <p class="subtitle">Install koopman-dmd and run your first Dynamic Mode Decomposition in Rust, Python, or R.</p>
+
+      <!-- ============================================================ -->
+      <h2 id="prerequisites">Prerequisites</h2>
+
+      <p>The core library is written in Rust. Language bindings for Python and R are optional and only required if you intend to call koopman-dmd from those languages.</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Requirement</th>
+            <th>Version</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>rustc</code> + <code>cargo</code></td>
+            <td>stable 1.70+</td>
+            <td>Required. Install via <a href="https://rustup.rs">rustup.rs</a>.</td>
+          </tr>
+          <tr>
+            <td>Python</td>
+            <td>3.8+</td>
+            <td>Optional. Needed only for the Python bindings.</td>
+          </tr>
+          <tr>
+            <td>R</td>
+            <td>4.0+</td>
+            <td>Optional. Needed only for the R bindings.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="info-box">
+        <strong>Tip:</strong> If you only need Rust, you can skip the Python and R sections entirely. Each language binding is an independent, self-contained wrapper around the same core engine.
+      </div>
+
+      <!-- ============================================================ -->
+      <h2 id="install-rust">Rust Installation</h2>
+
+      <p>You can depend on koopman-dmd as a Cargo crate or build directly from source.</p>
+
+      <h3>Option A: Add to Cargo.toml</h3>
+
+      <p>In your project's <code>Cargo.toml</code>, add the dependency:</p>
+
+<pre><code><span class="cm"># Cargo.toml</span>
+[dependencies]
+<span class="st">koopman-dmd</span> = { <span class="st">git</span> = <span class="st">"https://github.com/jimeharrisjr/rust-dmd"</span>, <span class="st">branch</span> = <span class="st">"main"</span> }</code></pre>
+
+      <p>Then build your project as usual:</p>
+
+<pre><code>cargo build --release</code></pre>
+
+      <h3>Option B: Clone the repository</h3>
+
+<pre><code>git clone https://github.com/jimeharrisjr/rust-dmd.git
+<span class="kw">cd</span> rust-dmd/koopman-dmd
+cargo build --release
+cargo test</code></pre>
+
+      <!-- ============================================================ -->
+      <h2 id="install-python">Python Installation</h2>
+
+      <p>The Python bindings use <a href="https://www.maturin.rs/">maturin</a> to compile the Rust core into a native Python extension module.</p>
+
+<pre><code><span class="cm"># Install maturin (one-time setup)</span>
+pip install maturin
+
+<span class="cm"># Build and install the Python package in development mode</span>
+<span class="kw">cd</span> koopman-dmd-py
+maturin develop --release</code></pre>
+
+      <p>After this completes, you can <code>import koopman_dmd</code> from any Python script or notebook.</p>
+
+      <div class="info-box warn">
+        <strong>Note:</strong> The build requires a working Rust toolchain. Make sure <code>cargo</code> and <code>rustc</code> are on your <code>PATH</code> before running maturin.
+      </div>
+
+      <!-- ============================================================ -->
+      <h2 id="install-r">R Installation</h2>
+
+      <p>The R package wraps the Rust core through compiled native code. Install it with <code>R CMD INSTALL</code>:</p>
+
+<pre><code>R CMD INSTALL koopman-dmd-r</code></pre>
+
+      <p>This will invoke Cargo internally to compile the Rust library, then install the resulting R package. Both <code>cargo</code> and <code>rustc</code> must be available on your system <code>PATH</code>.</p>
+
+      <p>Once installed, load the package in R:</p>
+
+<pre><code><span class="fn">library</span>(koopmandmd)</code></pre>
+
+      <!-- ============================================================ -->
+      <h2 id="quick-start">Quick Start</h2>
+
+      <p>The following example creates a simple oscillating signal with two variables, computes a DMD decomposition, inspects the eigenvalues, and predicts ten steps into the future. Choose your language below.</p>
+
+      <div class="lang-tabs">
+        <button class="lang-tab active" data-lang="rust">Rust</button>
+        <button class="lang-tab" data-lang="python">Python</button>
+        <button class="lang-tab" data-lang="r">R</button>
+      </div>
+
+      <!-- Rust panel -->
+      <div class="lang-panel active" data-lang="rust">
+<pre><code><span class="kw">use</span> koopman_dmd::{<span class="ty">DmdConfig</span>, <span class="ty">Dmd</span>};
+<span class="kw">use</span> ndarray::<span class="ty">Array2</span>;
+<span class="kw">use</span> std::f64::consts::<span class="ty">PI</span>;
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="cm">// 1. Create an oscillating 2-variable signal (n_vars x n_time)</span>
+    <span class="kw">let</span> n_time = <span class="nu">100</span>;
+    <span class="kw">let</span> dt = <span class="nu">0.05</span>;
+    <span class="kw">let</span> <span class="kw">mut</span> data = <span class="ty">Array2</span>::<span class="fn">zeros</span>((<span class="nu">2</span>, n_time));
+    <span class="kw">for</span> j <span class="kw">in</span> <span class="nu">0</span>..n_time {
+        <span class="kw">let</span> t = j <span class="kw">as</span> <span class="ty">f64</span> * dt;
+        data[[<span class="nu">0</span>, j]] = (<span class="nu">2.0</span> * <span class="ty">PI</span> * t).<span class="fn">sin</span>();
+        data[[<span class="nu">1</span>, j]] = (<span class="nu">2.0</span> * <span class="ty">PI</span> * t).<span class="fn">cos</span>();
+    }
+
+    <span class="cm">// 2. Compute DMD with default configuration</span>
+    <span class="kw">let</span> config = <span class="ty">DmdConfig</span>::<span class="fn">default</span>();
+    <span class="kw">let</span> result = <span class="ty">Dmd</span>::<span class="fn">fit</span>(&amp;data, &amp;config).<span class="fn">expect</span>(<span class="st">"DMD fit failed"</span>);
+
+    <span class="cm">// 3. Examine eigenvalues</span>
+    <span class="fn">println!</span>(<span class="st">"Eigenvalues: {:?}"</span>, result.<span class="fn">eigenvalues</span>());
+
+    <span class="cm">// 4. Predict 10 steps ahead</span>
+    <span class="kw">let</span> prediction = result.<span class="fn">predict</span>(<span class="nu">10</span>);
+    <span class="fn">println!</span>(<span class="st">"Prediction shape: {:?}"</span>, prediction.<span class="fn">dim</span>());
+}</code></pre>
+      </div>
+
+      <!-- Python panel -->
+      <div class="lang-panel" data-lang="python">
+<pre><code><span class="kw">import</span> numpy <span class="kw">as</span> np
+<span class="kw">import</span> koopman_dmd
+
+<span class="cm"># 1. Create an oscillating 2-variable signal (n_vars x n_time)</span>
+n_time = <span class="nu">100</span>
+dt = <span class="nu">0.05</span>
+t = np.<span class="fn">arange</span>(n_time) * dt
+data = np.<span class="fn">array</span>([
+    np.<span class="fn">sin</span>(<span class="nu">2</span> * np.pi * t),
+    np.<span class="fn">cos</span>(<span class="nu">2</span> * np.pi * t),
+])
+
+<span class="cm"># 2. Compute DMD with default configuration</span>
+result = koopman_dmd.<span class="fn">dmd</span>(data)
+
+<span class="cm"># 3. Examine eigenvalues</span>
+<span class="fn">print</span>(<span class="st">"Eigenvalues:"</span>, result.<span class="fn">eigenvalues</span>())
+
+<span class="cm"># 4. Predict 10 steps ahead</span>
+prediction = result.<span class="fn">predict</span>(<span class="nu">10</span>)
+<span class="fn">print</span>(<span class="st">"Prediction shape:"</span>, prediction.shape)</code></pre>
+      </div>
+
+      <!-- R panel -->
+      <div class="lang-panel" data-lang="r">
+<pre><code><span class="fn">library</span>(koopmandmd)
+
+<span class="cm"># 1. Create an oscillating 2-variable signal (n_vars x n_time)</span>
+n_time <span class="op">&lt;-</span> <span class="nu">100</span>
+dt <span class="op">&lt;-</span> <span class="nu">0.05</span>
+t <span class="op">&lt;-</span> <span class="fn">seq</span>(<span class="nu">0</span>, by = dt, length.out = n_time)
+data <span class="op">&lt;-</span> <span class="fn">rbind</span>(
+  <span class="fn">sin</span>(<span class="nu">2</span> * pi * t),
+  <span class="fn">cos</span>(<span class="nu">2</span> * pi * t)
+)
+
+<span class="cm"># 2. Compute DMD with default configuration</span>
+result <span class="op">&lt;-</span> <span class="fn">dmd</span>(data)
+
+<span class="cm"># 3. Examine eigenvalues</span>
+<span class="fn">print</span>(result<span class="op">$</span>eigenvalues)
+
+<span class="cm"># 4. Predict 10 steps ahead</span>
+prediction <span class="op">&lt;-</span> <span class="fn">predict</span>(result, n_steps = <span class="nu">10</span>)
+<span class="fn">print</span>(<span class="fn">dim</span>(prediction))</code></pre>
+      </div>
+
+      <!-- ============================================================ -->
+      <h2 id="key-concepts">Key Concepts</h2>
+
+      <h3>Data matrix layout</h3>
+
+      <p>koopman-dmd expects input data as a matrix with shape
+      <strong>n_vars x n_time</strong>, where each row is an observed variable
+      and each column is a snapshot at a single point in time. For example, a
+      system with 3 sensors sampled at 200 time steps should be passed as a
+      3-by-200 matrix.</p>
+
+      <div class="math">X = [ x(t_1) &nbsp; x(t_2) &nbsp; ... &nbsp; x(t_m) ] &nbsp;&nbsp; where each x(t_k) is an n-dimensional column</div>
+
+      <h3>Rank truncation</h3>
+
+      <p>DMD internally performs a Singular Value Decomposition (SVD) of the
+      data. In many practical applications the data is approximately low-rank,
+      meaning that only a handful of singular values carry significant energy.
+      Rank truncation discards the remaining singular values and their
+      associated modes, which serves two purposes:</p>
+
+      <ul>
+        <li><strong>Noise filtering</strong> -- small singular values often
+        correspond to measurement noise rather than true dynamics.</li>
+        <li><strong>Computational efficiency</strong> -- working with a reduced
+        rank lowers the cost of all subsequent linear algebra operations.</li>
+      </ul>
+
+      <p>By default, koopman-dmd retains all singular values. You can set an
+      explicit rank via the configuration object (e.g.,
+      <code>DmdConfig::default().rank(5)</code> in Rust) or specify an energy
+      threshold to let the library choose the rank automatically.</p>
+
+      <h3>Eigenvalues, modes, and amplitudes</h3>
+
+      <p>A DMD decomposition produces three quantities that together describe
+      the dynamics of the system:</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Quantity</th>
+            <th>Symbol</th>
+            <th>Interpretation</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Eigenvalues</strong></td>
+            <td>lambda</td>
+            <td>Complex scalars encoding the growth/decay rate and oscillation frequency of each dynamic component. Eigenvalues on the unit circle correspond to purely oscillatory behaviour; those inside the circle are decaying.</td>
+          </tr>
+          <tr>
+            <td><strong>Modes</strong></td>
+            <td>phi</td>
+            <td>Spatial patterns (complex vectors) that describe how each dynamic component is distributed across the observed variables. Each mode has the same dimension as a single snapshot.</td>
+          </tr>
+          <tr>
+            <td><strong>Amplitudes</strong></td>
+            <td>b</td>
+            <td>Complex coefficients that weight each mode's contribution to the reconstruction. They are determined by projecting the initial condition onto the set of modes.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p>Together, these allow you to reconstruct the data or extrapolate
+      forward in time:</p>
+
+      <div class="math">x(t_k) = Phi * diag(b) * lambda^k</div>
+
+      <p>where <code>Phi</code> is the matrix of modes, <code>b</code> is the
+      amplitude vector, and <code>lambda^k</code> raises each eigenvalue to the
+      power of the time index.</p>
+
+    </main>
+  </div>
+
+  <script src="js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Extended DMD - koopman-dmd</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Top nav -->
+  <header class="topnav">
+    <a class="logo" href="index.html">koopman<span>-dmd</span></a>
+    <nav>
+      <a href="index.html">Home</a>
+      <a href="getting-started.html">Guide</a>
+      <a href="api-rust.html">API</a>
+    </nav>
+    <a class="gh-link" href="https://github.com/jamesharris/koopman-dmd" target="_blank">
+      <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+      GitHub
+    </a>
+  </header>
+
+  <div class="page-layout">
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <h3>Getting Started</h3>
+      <a href="getting-started.html">Installation &amp; Setup</a>
+
+      <h3>Features</h3>
+      <a href="core-dmd.html">Core DMD</a>
+      <a href="extended-dmd.html" class="active">Extended DMD</a>
+      <a href="hankel-dmd.html">Hankel DMD</a>
+      <a href="gla.html">GLA</a>
+      <a href="harmonic.html">Harmonic Analysis</a>
+      <a href="maps.html">Maps</a>
+      <a href="analysis.html">Analysis</a>
+
+      <h3>API Reference</h3>
+      <a href="api-rust.html">Rust API</a>
+      <a href="api-python.html">Python API</a>
+      <a href="api-r.html">R API</a>
+    </aside>
+
+    <!-- Main content -->
+    <main class="content">
+      <h1>Extended DMD</h1>
+      <p class="subtitle">Lifting functions for nonlinear dynamics</p>
+
+      <!-- ============================================================ -->
+      <h2 id="overview">Overview</h2>
+
+      <p>
+        Standard DMD fits a linear model to observed data, which works well when the
+        underlying dynamics are already close to linear. When the dynamics are
+        genuinely nonlinear, the linear approximation can break down. Extended DMD
+        addresses this by <strong>lifting</strong> the observables into a
+        higher-dimensional space where the nonlinear dynamics become approximately
+        linear under the Koopman operator.
+      </p>
+
+      <p>
+        Given state vector <code>x</code>, the lifted state is constructed as:
+      </p>
+
+      <div class="math">
+        g(x) = [ x, g<sub>1</sub>(x), g<sub>2</sub>(x), ... ]
+      </div>
+
+      <p>
+        The original state variables are always retained as the first elements of the
+        lifted vector. Additional terms &mdash; polynomials, trigonometric functions,
+        or time-delayed copies &mdash; expand the observation space so that a linear
+        operator in the lifted space can capture nonlinear relationships in the
+        original space.
+      </p>
+
+      <div class="info-box">
+        <strong>Key idea:</strong> Instead of finding a linear map A such that
+        x(t+1) = A x(t), Extended DMD finds a linear map K such that
+        g(x(t+1)) = K g(x(t)), where K operates on the richer lifted space.
+      </div>
+
+      <!-- ============================================================ -->
+      <h2 id="lifting-types">Lifting Types</h2>
+
+      <h3 id="polynomial">Polynomial Lifting</h3>
+      <p>
+        Polynomial lifting adds all monomial terms up to a specified degree
+        <code>d</code>. For a two-dimensional state <code>[x, y]</code> with
+        degree 2, the lifted vector becomes:
+      </p>
+
+      <div class="math">
+        g([x, y]) = [ x, y, x<sup>2</sup>, xy, y<sup>2</sup> ]
+      </div>
+
+      <p>
+        Higher degrees capture more complex nonlinearities but increase the
+        dimensionality of the lifted space combinatorially. Degree 2 or 3 is
+        typically sufficient for moderate nonlinearities.
+      </p>
+
+      <pre><code><span class="cm">// Rust: polynomial lifting configuration</span>
+<span class="kw">let</span> lifting = <span class="ty">LiftingConfig</span>::<span class="fn">Polynomial</span> { degree: <span class="nu">2</span> };</code></pre>
+
+      <h3 id="trigonometric">Trigonometric Lifting</h3>
+      <p>
+        Trigonometric lifting adds sine and cosine terms at integer harmonics of
+        each state variable. With <code>harmonics: h</code>, it appends
+        <code>sin(k * x)</code> and <code>cos(k * x)</code> for
+        k = 1, 2, ..., h for each component of x. This is effective for systems
+        with periodic or oscillatory structure.
+      </p>
+
+      <pre><code><span class="cm">// Rust: trigonometric lifting configuration</span>
+<span class="kw">let</span> lifting = <span class="ty">LiftingConfig</span>::<span class="fn">Trigonometric</span> { harmonics: <span class="nu">3</span> };</code></pre>
+
+      <h3 id="delay">Delay Lifting</h3>
+      <p>
+        Delay lifting appends time-delayed copies of the state to each snapshot.
+        With <code>delays: d</code>, snapshot t becomes
+        <code>[x(t), x(t-1), ..., x(t-d)]</code>. This is closely related to
+        Hankel DMD and is useful when the system has memory or when only partial
+        state measurements are available.
+      </p>
+
+      <pre><code><span class="cm">// Rust: delay lifting configuration</span>
+<span class="kw">let</span> lifting = <span class="ty">LiftingConfig</span>::<span class="fn">Delay</span> { delays: <span class="nu">5</span> };</code></pre>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Lifting Type</th>
+            <th>Best For</th>
+            <th>Lifted Dimension Growth</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>Polynomial</code></td>
+            <td>Algebraic nonlinearities (quadratic drag, cubic stiffness)</td>
+            <td>Combinatorial in degree and state dimension</td>
+          </tr>
+          <tr>
+            <td><code>Trigonometric</code></td>
+            <td>Periodic or oscillatory dynamics</td>
+            <td>2 * harmonics * state dimension</td>
+          </tr>
+          <tr>
+            <td><code>Delay</code></td>
+            <td>Partial observations, systems with memory</td>
+            <td>delays * state dimension</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- ============================================================ -->
+      <h2 id="usage">Usage</h2>
+
+      <p>
+        The following example applies polynomial lifting to a nonlinear signal
+        generated from sin<sup>2</sup>(t). After fitting, predictions are
+        automatically projected back to the original observation space.
+      </p>
+
+      <div class="lang-tabs">
+        <button class="lang-tab active" data-lang="rust">Rust</button>
+        <button class="lang-tab" data-lang="python">Python</button>
+        <button class="lang-tab" data-lang="r">R</button>
+      </div>
+
+      <div class="lang-panel active" data-lang="rust">
+<pre><code><span class="kw">use</span> koopman_dmd::{<span class="ty">DmdConfig</span>, <span class="ty">LiftingConfig</span>};
+<span class="kw">use</span> ndarray::<span class="ty">Array2</span>;
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="cm">// Generate nonlinear signal: sin^2(t)</span>
+    <span class="kw">let</span> n = <span class="nu">200</span>;
+    <span class="kw">let</span> dt = <span class="nu">0.05</span>;
+    <span class="kw">let</span> t: <span class="ty">Vec</span>&lt;<span class="ty">f64</span>&gt; = (<span class="nu">0</span>..n).<span class="fn">map</span>(|i| i <span class="kw">as</span> <span class="ty">f64</span> * dt).<span class="fn">collect</span>();
+    <span class="kw">let</span> signal: <span class="ty">Vec</span>&lt;<span class="ty">f64</span>&gt; = t.<span class="fn">iter</span>().<span class="fn">map</span>(|&amp;ti| ti.<span class="fn">sin</span>().<span class="fn">powi</span>(<span class="nu">2</span>)).<span class="fn">collect</span>();
+
+    <span class="cm">// Arrange into snapshot matrix (1 x n)</span>
+    <span class="kw">let</span> data = <span class="ty">Array2</span>::<span class="fn">from_shape_vec</span>((<span class="nu">1</span>, n), signal).<span class="fn">unwrap</span>();
+
+    <span class="cm">// Configure Extended DMD with polynomial lifting</span>
+    <span class="kw">let</span> config = <span class="ty">DmdConfig</span> {
+        lifting: <span class="ty">Some</span>(<span class="ty">LiftingConfig</span>::<span class="fn">Polynomial</span> { degree: <span class="nu">2</span> }),
+        dt: <span class="ty">Some</span>(dt),
+        ..<span class="ty">DmdConfig</span>::<span class="fn">default</span>()
+    };
+
+    <span class="cm">// Fit the model</span>
+    <span class="kw">let</span> result = koopman_dmd::<span class="fn">fit</span>(&amp;data, &amp;config).<span class="fn">unwrap</span>();
+
+    <span class="cm">// Predict -- output is in the original 1-d observation space</span>
+    <span class="kw">let</span> pred = result.<span class="fn">predict</span>(n);
+    <span class="fn">println!</span>(<span class="st">"Prediction shape: {:?}"</span>, pred.<span class="fn">shape</span>());
+    <span class="cm">// [1, 200] -- automatically back-projected</span>
+}</code></pre>
+      </div>
+
+      <div class="lang-panel" data-lang="python">
+<pre><code><span class="kw">import</span> numpy <span class="kw">as</span> np
+<span class="kw">from</span> koopman_dmd <span class="kw">import</span> <span class="ty">DmdConfig</span>, <span class="ty">LiftingConfig</span>, fit
+
+<span class="cm"># Generate nonlinear signal: sin^2(t)</span>
+n = <span class="nu">200</span>
+dt = <span class="nu">0.05</span>
+t = np.<span class="fn">arange</span>(n) * dt
+signal = np.<span class="fn">sin</span>(t) ** <span class="nu">2</span>
+
+<span class="cm"># Arrange into snapshot matrix (1 x n)</span>
+data = signal.<span class="fn">reshape</span>(<span class="nu">1</span>, <span class="nu">-1</span>)
+
+<span class="cm"># Configure Extended DMD with polynomial lifting</span>
+config = <span class="ty">DmdConfig</span>(
+    lifting=<span class="ty">LiftingConfig</span>.<span class="fn">polynomial</span>(degree=<span class="nu">2</span>),
+    dt=dt,
+)
+
+<span class="cm"># Fit and predict</span>
+result = <span class="fn">fit</span>(data, config)
+pred = result.<span class="fn">predict</span>(n)
+
+<span class="fn">print</span>(<span class="st">f"Prediction shape: </span>{pred.shape}<span class="st">"</span>)
+<span class="cm"># (1, 200) -- automatically back-projected</span></code></pre>
+      </div>
+
+      <div class="lang-panel" data-lang="r">
+<pre><code><span class="kw">library</span>(koopmandmd)
+
+<span class="cm"># Generate nonlinear signal: sin^2(t)</span>
+n <span class="op">&lt;-</span> <span class="nu">200</span>
+dt <span class="op">&lt;-</span> <span class="nu">0.05</span>
+t <span class="op">&lt;-</span> <span class="fn">seq</span>(<span class="nu">0</span>, by = dt, length.out = n)
+signal <span class="op">&lt;-</span> <span class="fn">sin</span>(t)^<span class="nu">2</span>
+
+<span class="cm"># Arrange into snapshot matrix (1 x n)</span>
+data <span class="op">&lt;-</span> <span class="fn">matrix</span>(signal, nrow = <span class="nu">1</span>)
+
+<span class="cm"># Configure Extended DMD with polynomial lifting</span>
+config <span class="op">&lt;-</span> <span class="fn">dmd_config</span>(
+  lifting = <span class="fn">lifting_polynomial</span>(degree = <span class="nu">2</span>),
+  dt = dt
+)
+
+<span class="cm"># Fit and predict</span>
+result <span class="op">&lt;-</span> <span class="fn">dmd_fit</span>(data, config)
+pred <span class="op">&lt;-</span> <span class="fn">dmd_predict</span>(result, n)
+
+<span class="fn">cat</span>(<span class="st">"Prediction shape:"</span>, <span class="fn">dim</span>(pred), <span class="st">"\n"</span>)
+<span class="cm"># 1 200 -- automatically back-projected</span></code></pre>
+      </div>
+
+      <!-- ============================================================ -->
+      <h2 id="when-to-use">When to Use Lifting</h2>
+
+      <p>Extended DMD with lifting functions is most effective when:</p>
+
+      <ul>
+        <li>
+          <strong>Known polynomial structure</strong> &mdash; the dynamics involve
+          quadratic, cubic, or higher-order terms (e.g., fluid drag proportional to
+          velocity squared).
+        </li>
+        <li>
+          <strong>Known trigonometric structure</strong> &mdash; the signal contains
+          products of sinusoids or periodic components at known harmonics (e.g.,
+          sin<sup>2</sup>(t) = (1 - cos(2t)) / 2).
+        </li>
+        <li>
+          <strong>Standard DMD error is high</strong> &mdash; when fitting standard
+          DMD produces large reconstruction or prediction error, lifting into a
+          richer basis often improves accuracy.
+        </li>
+        <li>
+          <strong>Partial state observations</strong> &mdash; delay embedding
+          reconstructs the full state space from scalar or low-dimensional
+          measurements (Takens' theorem).
+        </li>
+      </ul>
+
+      <div class="info-box warn">
+        <strong>Caution:</strong> Lifting increases the dimension of the snapshot
+        matrix. Very high polynomial degrees or large numbers of harmonics can lead
+        to overfitting and increased computation time. Start with low settings and
+        increase only if reconstruction error justifies it.
+      </div>
+
+      <!-- ============================================================ -->
+      <h2 id="comparison">Comparison: Standard vs. Extended DMD</h2>
+
+      <p>
+        The following example computes DMD with and without polynomial lifting on a
+        sin<sup>2</sup> signal and compares the reconstruction error (RMSE).
+      </p>
+
+      <div class="lang-tabs">
+        <button class="lang-tab active" data-lang="rust">Rust</button>
+        <button class="lang-tab" data-lang="python">Python</button>
+        <button class="lang-tab" data-lang="r">R</button>
+      </div>
+
+      <div class="lang-panel active" data-lang="rust">
+<pre><code><span class="kw">use</span> koopman_dmd::{<span class="ty">DmdConfig</span>, <span class="ty">LiftingConfig</span>};
+<span class="kw">use</span> ndarray::<span class="ty">Array2</span>;
+
+<span class="kw">fn</span> <span class="fn">main</span>() {
+    <span class="kw">let</span> n = <span class="nu">200</span>;
+    <span class="kw">let</span> dt = <span class="nu">0.05</span>;
+    <span class="kw">let</span> t: <span class="ty">Vec</span>&lt;<span class="ty">f64</span>&gt; = (<span class="nu">0</span>..n).<span class="fn">map</span>(|i| i <span class="kw">as</span> <span class="ty">f64</span> * dt).<span class="fn">collect</span>();
+    <span class="kw">let</span> signal: <span class="ty">Vec</span>&lt;<span class="ty">f64</span>&gt; = t.<span class="fn">iter</span>().<span class="fn">map</span>(|&amp;ti| ti.<span class="fn">sin</span>().<span class="fn">powi</span>(<span class="nu">2</span>)).<span class="fn">collect</span>();
+    <span class="kw">let</span> data = <span class="ty">Array2</span>::<span class="fn">from_shape_vec</span>((<span class="nu">1</span>, n), signal.<span class="fn">clone</span>()).<span class="fn">unwrap</span>();
+
+    <span class="cm">// Standard DMD (no lifting)</span>
+    <span class="kw">let</span> config_std = <span class="ty">DmdConfig</span> {
+        dt: <span class="ty">Some</span>(dt),
+        ..<span class="ty">DmdConfig</span>::<span class="fn">default</span>()
+    };
+    <span class="kw">let</span> result_std = koopman_dmd::<span class="fn">fit</span>(&amp;data, &amp;config_std).<span class="fn">unwrap</span>();
+    <span class="kw">let</span> pred_std = result_std.<span class="fn">reconstruct</span>();
+
+    <span class="cm">// Extended DMD (polynomial degree 2)</span>
+    <span class="kw">let</span> config_ext = <span class="ty">DmdConfig</span> {
+        lifting: <span class="ty">Some</span>(<span class="ty">LiftingConfig</span>::<span class="fn">Polynomial</span> { degree: <span class="nu">2</span> }),
+        dt: <span class="ty">Some</span>(dt),
+        ..<span class="ty">DmdConfig</span>::<span class="fn">default</span>()
+    };
+    <span class="kw">let</span> result_ext = koopman_dmd::<span class="fn">fit</span>(&amp;data, &amp;config_ext).<span class="fn">unwrap</span>();
+    <span class="kw">let</span> pred_ext = result_ext.<span class="fn">reconstruct</span>();
+
+    <span class="cm">// Compute RMSE for each</span>
+    <span class="kw">let</span> rmse_std = <span class="fn">rmse</span>(&amp;data, &amp;pred_std);
+    <span class="kw">let</span> rmse_ext = <span class="fn">rmse</span>(&amp;data, &amp;pred_ext);
+
+    <span class="fn">println!</span>(<span class="st">"Standard DMD RMSE: {:.6}"</span>, rmse_std);
+    <span class="fn">println!</span>(<span class="st">"Extended DMD RMSE: {:.6}"</span>, rmse_ext);
+    <span class="cm">// Extended DMD RMSE should be significantly lower</span>
+}
+
+<span class="kw">fn</span> <span class="fn">rmse</span>(a: &amp;<span class="ty">Array2</span>&lt;<span class="ty">f64</span>&gt;, b: &amp;<span class="ty">Array2</span>&lt;<span class="ty">f64</span>&gt;) -&gt; <span class="ty">f64</span> {
+    <span class="kw">let</span> diff = a - b;
+    (diff.<span class="fn">mapv</span>(|v| v * v).<span class="fn">mean</span>().<span class="fn">unwrap</span>()).<span class="fn">sqrt</span>()
+}</code></pre>
+      </div>
+
+      <div class="lang-panel" data-lang="python">
+<pre><code><span class="kw">import</span> numpy <span class="kw">as</span> np
+<span class="kw">from</span> koopman_dmd <span class="kw">import</span> <span class="ty">DmdConfig</span>, <span class="ty">LiftingConfig</span>, fit
+
+n = <span class="nu">200</span>
+dt = <span class="nu">0.05</span>
+t = np.<span class="fn">arange</span>(n) * dt
+signal = np.<span class="fn">sin</span>(t) ** <span class="nu">2</span>
+data = signal.<span class="fn">reshape</span>(<span class="nu">1</span>, <span class="nu">-1</span>)
+
+<span class="cm"># Standard DMD</span>
+config_std = <span class="ty">DmdConfig</span>(dt=dt)
+result_std = <span class="fn">fit</span>(data, config_std)
+pred_std = result_std.<span class="fn">reconstruct</span>()
+
+<span class="cm"># Extended DMD with polynomial lifting</span>
+config_ext = <span class="ty">DmdConfig</span>(
+    lifting=<span class="ty">LiftingConfig</span>.<span class="fn">polynomial</span>(degree=<span class="nu">2</span>),
+    dt=dt,
+)
+result_ext = <span class="fn">fit</span>(data, config_ext)
+pred_ext = result_ext.<span class="fn">reconstruct</span>()
+
+<span class="cm"># Compare RMSE</span>
+rmse_std = np.<span class="fn">sqrt</span>(np.<span class="fn">mean</span>((data - pred_std) ** <span class="nu">2</span>))
+rmse_ext = np.<span class="fn">sqrt</span>(np.<span class="fn">mean</span>((data - pred_ext) ** <span class="nu">2</span>))
+
+<span class="fn">print</span>(<span class="st">f"Standard DMD RMSE: </span>{rmse_std:<span class="nu">.6f</span>}<span class="st">"</span>)
+<span class="fn">print</span>(<span class="st">f"Extended DMD RMSE: </span>{rmse_ext:<span class="nu">.6f</span>}<span class="st">"</span>)
+<span class="cm"># Extended DMD RMSE should be significantly lower</span></code></pre>
+      </div>
+
+      <div class="lang-panel" data-lang="r">
+<pre><code><span class="kw">library</span>(koopmandmd)
+
+n <span class="op">&lt;-</span> <span class="nu">200</span>
+dt <span class="op">&lt;-</span> <span class="nu">0.05</span>
+t <span class="op">&lt;-</span> <span class="fn">seq</span>(<span class="nu">0</span>, by = dt, length.out = n)
+signal <span class="op">&lt;-</span> <span class="fn">sin</span>(t)^<span class="nu">2</span>
+data <span class="op">&lt;-</span> <span class="fn">matrix</span>(signal, nrow = <span class="nu">1</span>)
+
+<span class="cm"># Standard DMD</span>
+config_std <span class="op">&lt;-</span> <span class="fn">dmd_config</span>(dt = dt)
+result_std <span class="op">&lt;-</span> <span class="fn">dmd_fit</span>(data, config_std)
+pred_std <span class="op">&lt;-</span> <span class="fn">dmd_reconstruct</span>(result_std)
+
+<span class="cm"># Extended DMD with polynomial lifting</span>
+config_ext <span class="op">&lt;-</span> <span class="fn">dmd_config</span>(
+  lifting = <span class="fn">lifting_polynomial</span>(degree = <span class="nu">2</span>),
+  dt = dt
+)
+result_ext <span class="op">&lt;-</span> <span class="fn">dmd_fit</span>(data, config_ext)
+pred_ext <span class="op">&lt;-</span> <span class="fn">dmd_reconstruct</span>(result_ext)
+
+<span class="cm"># Compare RMSE</span>
+rmse_std <span class="op">&lt;-</span> <span class="fn">sqrt</span>(<span class="fn">mean</span>((data - pred_std)^<span class="nu">2</span>))
+rmse_ext <span class="op">&lt;-</span> <span class="fn">sqrt</span>(<span class="fn">mean</span>((data - pred_ext)^<span class="nu">2</span>))
+
+<span class="fn">cat</span>(<span class="fn">sprintf</span>(<span class="st">"Standard DMD RMSE: %.6f\n"</span>, rmse_std))
+<span class="fn">cat</span>(<span class="fn">sprintf</span>(<span class="st">"Extended DMD RMSE: %.6f\n"</span>, rmse_ext))
+<span class="cm"># Extended DMD RMSE should be significantly lower</span></code></pre>
+      </div>
+
+      <!-- ============================================================ -->
+      <h2 id="back-projection">Back-Projection</h2>
+
+      <p>
+        When Extended DMD is used, the internal computation operates on the lifted
+        state vector, which has higher dimension than the original observations.
+        However, all user-facing outputs &mdash; reconstructions, predictions, and
+        mode shapes &mdash; are automatically projected back to the original
+        observation space. This is handled through the <code>LiftingInfo</code>
+        struct stored in the result.
+      </p>
+
+      <p>
+        <code>LiftingInfo</code> records:
+      </p>
+
+      <ul>
+        <li>
+          <code>original_dim</code> &mdash; the number of rows in the original
+          (un-lifted) snapshot matrix.
+        </li>
+        <li>
+          <code>lifted_dim</code> &mdash; the total number of rows after lifting.
+        </li>
+        <li>
+          <code>config</code> &mdash; the <code>LiftingConfig</code> variant that
+          was applied, enabling the inverse mapping.
+        </li>
+      </ul>
+
+      <p>
+        Because the original state variables always occupy the first
+        <code>original_dim</code> rows of the lifted vector, back-projection is a
+        simple extraction of those rows. This means:
+      </p>
+
+      <ul>
+        <li>
+          <code>result.predict(n)</code> returns a matrix with the same number of
+          rows as the input data, not the lifted dimension.
+        </li>
+        <li>
+          <code>result.reconstruct()</code> likewise returns data in the original
+          space.
+        </li>
+        <li>
+          If you need the full lifted reconstruction for analysis, use
+          <code>result.reconstruct_lifted()</code> to obtain the complete lifted
+          state trajectory.
+        </li>
+      </ul>
+
+      <pre><code><span class="cm">// Access lifting metadata</span>
+<span class="kw">if let</span> <span class="ty">Some</span>(<span class="kw">ref</span> info) = result.lifting_info {
+    <span class="fn">println!</span>(<span class="st">"Original dim: {}"</span>, info.original_dim);
+    <span class="fn">println!</span>(<span class="st">"Lifted dim:   {}"</span>, info.lifted_dim);
+}
+
+<span class="cm">// Predictions are in original space</span>
+<span class="kw">let</span> pred = result.<span class="fn">predict</span>(<span class="nu">100</span>);
+<span class="fn">assert_eq!</span>(pred.<span class="fn">nrows</span>(), <span class="nu">1</span>); <span class="cm">// original dimension</span>
+
+<span class="cm">// Full lifted reconstruction if needed</span>
+<span class="kw">let</span> lifted = result.<span class="fn">reconstruct_lifted</span>();
+<span class="fn">assert_eq!</span>(lifted.<span class="fn">nrows</span>(), <span class="nu">3</span>); <span class="cm">// [x, x^2] for degree-2 poly on 1-d input</span></code></pre>
+
+    </main>
+  </div>
+
+  <script src="js/main.js"></script>
+</body>
+</html>

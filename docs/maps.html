@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Built-in Dynamical Maps - koopman-dmd</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Top nav -->
+  <header class="topnav">
+    <a class="logo" href="index.html">koopman<span>-dmd</span></a>
+    <nav>
+      <a href="index.html">Home</a>
+      <a href="getting-started.html">Guide</a>
+      <a href="api-rust.html">API</a>
+    </nav>
+    <a class="gh-link" href="https://github.com/jimeharrisjr/rust-dmd">GitHub</a>
+  </header>
+
+  <div class="page-layout">
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <h3>Getting Started</h3>
+      <a href="getting-started.html">Installation</a>
+
+      <h3>Features</h3>
+      <a href="core-dmd.html">Core DMD</a>
+      <a href="extended-dmd.html">Extended DMD</a>
+      <a href="hankel-dmd.html">Hankel-DMD</a>
+      <a href="gla.html">GLA</a>
+      <a href="harmonic.html">Harmonic Analysis</a>
+      <a href="maps.html" class="active">Dynamical Maps</a>
+      <a href="analysis.html">Analysis Tools</a>
+
+      <h3>API Reference</h3>
+      <a href="api-rust.html">Rust API</a>
+      <a href="api-python.html">Python API</a>
+      <a href="api-r.html">R API</a>
+    </aside>
+
+    <!-- Main content -->
+    <main class="content">
+      <h1>Built-in Dynamical Maps</h1>
+      <p class="subtitle">Classic dynamical systems for testing, demonstration, and research with koopman-dmd.</p>
+
+      <!-- ============================================================ -->
+      <h2 id="overview">Overview</h2>
+
+      <p>The library includes several classic dynamical systems maps for testing,
+      demonstration, and research. These maps serve as well-understood benchmark
+      systems for validating DMD algorithms, exploring Koopman operator
+      approximations, and studying the interplay between regular and chaotic
+      dynamics.</p>
+
+      <p>All maps implement the <code>MapFn</code> trait in Rust. In Python and R,
+      maps are selected by name string and passed to trajectory generation
+      functions. Each map accepts configurable parameters that control the
+      dynamical regime.</p>
+
+      <!-- ============================================================ -->
+      <h2 id="standard-map">Standard Map (Chirikov)</h2>
+
+      <p>The Chirikov standard map is a two-dimensional, area-preserving map that
+      arises as a simplified model of the kicked rotor. It is one of the most
+      widely studied systems in Hamiltonian dynamics and exhibits a rich mixture of
+      regular and chaotic behavior depending on the perturbation strength.</p>
+
+      <div class="math">y' = y + epsilon * sin(2 * pi * x) &nbsp;&nbsp; (mod 1)</div>
+      <div class="math">x' = x + y' &nbsp;&nbsp; (mod 1)</div>
+
+      <p><strong>Parameter:</strong> <code>epsilon</code> -- perturbation strength
+      (default <code>0.12</code>).</p>
+
+      <p>At small values of epsilon, the phase space is dominated by invariant
+      curves (KAM tori) surrounding elliptic fixed points. As epsilon increases,
+      these curves break up and chaotic regions grow, producing a characteristic
+      pattern of islands of regularity embedded in a chaotic sea. This makes the
+      standard map an ideal testbed for Koopman analysis methods that must
+      distinguish between regular and chaotic dynamics.</p>
+
+      <!-- ============================================================ -->
+      <h2 id="froeschle-map">Froeschle Map</h2>
+
+      <p>The Froeschle map is a four-dimensional symplectic map that generalizes
+      the standard map to coupled degrees of freedom. It consists of two coupled
+      standard maps and is used to study Arnold diffusion and higher-dimensional
+      Hamiltonian chaos.</p>
+
+      <p><strong>Parameters:</strong></p>
+      <ul>
+        <li><code>epsilon1</code> -- perturbation strength for the first degree of freedom (default <code>0.12</code>)</li>
+        <li><code>epsilon2</code> -- perturbation strength for the second degree of freedom (default <code>0.12</code>)</li>
+        <li><code>epsilon3</code> -- coupling strength between the two degrees of freedom (default <code>0.05</code>)</li>
+      </ul>
+
+      <p>When the coupling parameter <code>epsilon3</code> is zero, the map
+      reduces to two independent standard maps. Nonzero coupling introduces
+      interactions between the two subsystems, enabling transport phenomena that
+      are absent in two dimensions.</p>
+
+      <!-- ============================================================ -->
+      <h2 id="extended-standard-map">Extended Standard Map</h2>
+
+      <p>The extended standard map augments the Chirikov standard map with an
+      additional harmonic perturbation term. This extra degree of freedom provides
+      finer control over the structure of phase space and is useful for studying
+      how secondary resonances affect the breakdown of invariant tori.</p>
+
+      <p><strong>Parameters:</strong></p>
+      <ul>
+        <li><code>epsilon</code> -- primary perturbation strength</li>
+        <li><code>alpha</code> -- amplitude of the additional harmonic perturbation</li>
+      </ul>
+
+      <!-- ============================================================ -->
+      <h2 id="henon-map">Henon Map</h2>
+
+      <p>The Henon map is a two-dimensional dissipative map that exhibits a
+      well-known strange attractor. Unlike the area-preserving standard map, the
+      Henon map contracts volumes in phase space, making it a prototype for
+      studying chaotic attractors in low-dimensional systems.</p>
+
+      <div class="math">x' = 1 - a * x^2 + y</div>
+      <div class="math">y' = b * x</div>
+
+      <p><strong>Parameters:</strong></p>
+      <ul>
+        <li><code>a</code> -- nonlinearity parameter (classic value: <code>1.4</code>)</li>
+        <li><code>b</code> -- contraction parameter (classic value: <code>0.3</code>)</li>
+      </ul>
+
+      <p>At the classic parameter values, the map produces a fractal strange
+      attractor with a Hausdorff dimension of approximately 1.26. The Henon
+      attractor is useful for testing DMD methods on systems with dissipative,
+      chaotic dynamics.</p>
+
+      <!-- ============================================================ -->
+      <h2 id="logistic-map">Logistic Map</h2>
+
+      <p>The logistic map is a one-dimensional map that, despite its simplicity,
+      exhibits the full range of dynamical behavior from fixed points through
+      period-doubling cascades to chaos.</p>
+
+      <div class="math">x' = r * x * (1 - x)</div>
+
+      <p><strong>Parameter:</strong> <code>r</code> -- growth rate (default
+      <code>3.9</code>, chaotic regime).</p>
+
+      <p>The map is bounded in the interval [0, 1] for values of
+      <code>r</code> in [0, 4]. It undergoes a period-doubling route to chaos as
+      <code>r</code> increases past approximately 3.57. The default value of 3.9
+      places the system deep in the chaotic regime, which is useful for testing
+      Koopman decompositions on fully chaotic, low-dimensional data.</p>
+
+      <!-- ============================================================ -->
+      <h2 id="generating-trajectories">Generating Trajectories</h2>
+
+      <p>The <code>generate_trajectory</code> function iterates a map from a given
+      initial condition for a specified number of steps and returns a matrix of
+      states. Each column of the returned matrix is a snapshot of the system state
+      at a single time step.</p>
+
+      <div class="lang-tabs">
+        <button class="lang-tab active" data-lang="rust">Rust</button>
+        <button class="lang-tab" data-lang="python">Python</button>
+        <button class="lang-tab" data-lang="r">R</button>
+      </div>
+
+      <!-- Rust panel -->
+      <div class="lang-panel active" data-lang="rust">
+<pre><code><span class="kw">use</span> koopman_dmd::maps::{<span class="ty">StandardMap</span>, <span class="ty">LogisticMap</span>, <span class="fn">generate_trajectory</span>};
+
+<span class="cm">// Standard map with default epsilon = 0.12</span>
+<span class="kw">let</span> map = <span class="ty">StandardMap</span>::<span class="fn">new</span>(<span class="nu">0.12</span>);
+<span class="kw">let</span> x0 = <span class="mc">vec!</span>[<span class="nu">0.1</span>, <span class="nu">0.2</span>];
+<span class="kw">let</span> traj = <span class="fn">generate_trajectory</span>(&amp;x0, &amp;map, <span class="nu">1000</span>);
+<span class="mc">println!</span>(<span class="st">"Trajectory shape: {:?}"</span>, traj.<span class="fn">dim</span>()); <span class="cm">// (2, 1000)</span>
+
+<span class="cm">// Logistic map in the chaotic regime</span>
+<span class="kw">let</span> logistic = <span class="ty">LogisticMap</span>::<span class="fn">new</span>(<span class="nu">3.9</span>);
+<span class="kw">let</span> x0 = <span class="mc">vec!</span>[<span class="nu">0.4</span>];
+<span class="kw">let</span> traj = <span class="fn">generate_trajectory</span>(&amp;x0, &amp;logistic, <span class="nu">500</span>);
+<span class="mc">println!</span>(<span class="st">"Trajectory shape: {:?}"</span>, traj.<span class="fn">dim</span>()); <span class="cm">// (1, 500)</span></code></pre>
+      </div>
+
+      <!-- Python panel -->
+      <div class="lang-panel" data-lang="python">
+<pre><code><span class="kw">import</span> koopman_dmd <span class="kw">as</span> kdmd
+<span class="kw">import</span> numpy <span class="kw">as</span> np
+
+<span class="cm"># Standard map with default epsilon = 0.12</span>
+traj = kdmd.<span class="fn">generate_trajectory</span>(
+    initial_condition=[<span class="nu">0.1</span>, <span class="nu">0.2</span>],
+    map_name=<span class="st">"standard"</span>,
+    n_steps=<span class="nu">1000</span>,
+    epsilon=<span class="nu">0.12</span>,
+)
+<span class="fn">print</span>(<span class="st">"Trajectory shape:"</span>, traj.shape)  <span class="cm"># (2, 1000)</span>
+
+<span class="cm"># Logistic map in the chaotic regime</span>
+traj = kdmd.<span class="fn">generate_trajectory</span>(
+    initial_condition=[<span class="nu">0.4</span>],
+    map_name=<span class="st">"logistic"</span>,
+    n_steps=<span class="nu">500</span>,
+    r=<span class="nu">3.9</span>,
+)
+<span class="fn">print</span>(<span class="st">"Trajectory shape:"</span>, traj.shape)  <span class="cm"># (1, 500)</span></code></pre>
+      </div>
+
+      <!-- R panel -->
+      <div class="lang-panel" data-lang="r">
+<pre><code><span class="fn">library</span>(koopmandmd)
+
+<span class="cm"># Standard map with default epsilon = 0.12</span>
+traj <span class="op">&lt;-</span> <span class="fn">generate_trajectory</span>(
+  initial_condition = <span class="fn">c</span>(<span class="nu">0.1</span>, <span class="nu">0.2</span>),
+  map_name = <span class="st">"standard"</span>,
+  n_steps = <span class="nu">1000</span>,
+  epsilon = <span class="nu">0.12</span>
+)
+<span class="fn">print</span>(<span class="fn">dim</span>(traj))  <span class="cm"># 2 x 1000</span>
+
+<span class="cm"># Logistic map in the chaotic regime</span>
+traj <span class="op">&lt;-</span> <span class="fn">generate_trajectory</span>(
+  initial_condition = <span class="nu">0.4</span>,
+  map_name = <span class="st">"logistic"</span>,
+  n_steps = <span class="nu">500</span>,
+  r = <span class="nu">3.9</span>
+)
+<span class="fn">print</span>(<span class="fn">dim</span>(traj))  <span class="cm"># 1 x 500</span></code></pre>
+      </div>
+
+      <!-- ============================================================ -->
+      <h2 id="phase-grid">Phase Grid</h2>
+
+      <p>The <code>generate_phase_grid</code> function creates a uniform grid of
+      initial conditions for systematic phase space exploration. This is
+      particularly useful for constructing phase portraits, mesochronic plots, or
+      computing Koopman eigenfunctions over a region of phase space.</p>
+
+      <p>This function is available in the Rust API only.</p>
+
+<pre><code><span class="kw">use</span> koopman_dmd::maps::<span class="fn">generate_phase_grid</span>;
+
+<span class="cm">// Create a 100x100 grid of initial conditions on [0, 1) x [0, 1)</span>
+<span class="kw">let</span> grid = <span class="fn">generate_phase_grid</span>(<span class="nu">100</span>, <span class="nu">100</span>);
+<span class="mc">println!</span>(<span class="st">"Grid shape: {:?}"</span>, grid.<span class="fn">dim</span>()); <span class="cm">// (2, 10000)</span>
+
+<span class="cm">// Each column is an (x, y) initial condition.</span>
+<span class="cm">// Use with generate_trajectory to build a phase portrait.</span></code></pre>
+
+      <!-- ============================================================ -->
+      <h2 id="custom-maps">Custom Maps</h2>
+
+      <p>In Rust, you can define custom dynamical maps using the
+      <code>ClosureMap</code> wrapper. Any closure that takes a state slice and
+      returns a new state vector can be wrapped into a type that implements the
+      <code>MapFn</code> trait, making it compatible with
+      <code>generate_trajectory</code> and all analysis functions.</p>
+
+      <p>This feature is available in the Rust API only.</p>
+
+<pre><code><span class="kw">use</span> koopman_dmd::maps::{<span class="ty">ClosureMap</span>, <span class="fn">generate_trajectory</span>};
+
+<span class="cm">// Define a custom 2D rotation map</span>
+<span class="kw">let</span> theta = <span class="nu">0.1</span> * std::f64::consts::<span class="ty">PI</span>;
+<span class="kw">let</span> rotation = <span class="ty">ClosureMap</span>::<span class="fn">new</span>(<span class="nu">2</span>, <span class="kw">move</span> |x: &amp;[<span class="ty">f64</span>]| {
+    <span class="mc">vec!</span>[
+        x[<span class="nu">0</span>] * theta.<span class="fn">cos</span>() - x[<span class="nu">1</span>] * theta.<span class="fn">sin</span>(),
+        x[<span class="nu">0</span>] * theta.<span class="fn">sin</span>() + x[<span class="nu">1</span>] * theta.<span class="fn">cos</span>(),
+    ]
+});
+
+<span class="kw">let</span> traj = <span class="fn">generate_trajectory</span>(&amp;<span class="mc">vec!</span>[<span class="nu">1.0</span>, <span class="nu">0.0</span>], &amp;rotation, <span class="nu">200</span>);
+<span class="mc">println!</span>(<span class="st">"Trajectory shape: {:?}"</span>, traj.<span class="fn">dim</span>()); <span class="cm">// (2, 200)</span></code></pre>
+
+      <!-- ============================================================ -->
+      <h2 id="map-properties">Map Properties</h2>
+
+      <p>The following table summarizes the built-in maps, their dimensionality,
+      dynamical type, configurable parameters, and typical behavior.</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Map</th>
+            <th>Dimension</th>
+            <th>Type</th>
+            <th>Parameters</th>
+            <th>Typical Behavior</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Standard (Chirikov)</td>
+            <td>2</td>
+            <td>Area-preserving</td>
+            <td><code>epsilon</code></td>
+            <td>Mixed regular/chaotic; islands in a chaotic sea</td>
+          </tr>
+          <tr>
+            <td>Froeschle</td>
+            <td>4</td>
+            <td>Symplectic (area-preserving)</td>
+            <td><code>epsilon1</code>, <code>epsilon2</code>, <code>epsilon3</code></td>
+            <td>Higher-dimensional Hamiltonian chaos; Arnold diffusion</td>
+          </tr>
+          <tr>
+            <td>Extended Standard</td>
+            <td>2</td>
+            <td>Area-preserving</td>
+            <td><code>epsilon</code>, <code>alpha</code></td>
+            <td>Secondary resonances; controlled torus breakdown</td>
+          </tr>
+          <tr>
+            <td>Henon</td>
+            <td>2</td>
+            <td>Dissipative</td>
+            <td><code>a</code>, <code>b</code></td>
+            <td>Strange attractor; fractal structure</td>
+          </tr>
+          <tr>
+            <td>Logistic</td>
+            <td>1</td>
+            <td>Dissipative</td>
+            <td><code>r</code></td>
+            <td>Period-doubling cascade to chaos</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Footer -->
+      <footer class="footer">
+        <p>koopman-dmd -- Dynamic Mode Decomposition with Koopman operator theory.</p>
+        <p>Released under the MIT License. Built with Rust, Python, and R.</p>
+      </footer>
+
+    </main>
+  </div>
+
+  <script src="js/main.js"></script>
+</body>
+</html>

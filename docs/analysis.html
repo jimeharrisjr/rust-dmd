@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Analysis Tools - koopman-dmd</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Top nav -->
+  <header class="topnav">
+    <a class="logo" href="index.html">koopman<span>-dmd</span></a>
+    <nav>
+      <a href="index.html">Home</a>
+      <a href="getting-started.html">Guide</a>
+      <a href="api-rust.html">API</a>
+    </nav>
+    <a class="gh-link" href="https://github.com/jimeharrisjr/rust-dmd">GitHub</a>
+  </header>
+
+  <div class="page-layout">
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <h3>Getting Started</h3>
+      <a href="getting-started.html">Installation</a>
+
+      <h3>Features</h3>
+      <a href="core-dmd.html">Core DMD</a>
+      <a href="extended-dmd.html">Extended DMD</a>
+      <a href="hankel-dmd.html">Hankel-DMD</a>
+      <a href="gla.html">GLA</a>
+      <a href="harmonic.html">Harmonic Analysis</a>
+      <a href="maps.html">Dynamical Maps</a>
+      <a href="analysis.html" class="active">Analysis Tools</a>
+
+      <h3>API Reference</h3>
+      <a href="api-rust.html">Rust API</a>
+      <a href="api-python.html">Python API</a>
+      <a href="api-r.html">R API</a>
+    </aside>
+
+    <!-- Main content -->
+    <main class="content">
+      <h1>Analysis Tools</h1>
+      <p class="subtitle">Post-decomposition diagnostics for understanding system dynamics, stability, and reconstruction quality.</p>
+
+      <!-- ============================================================ -->
+      <h2 id="overview">Overview</h2>
+
+      <p>After computing a DMD decomposition, the analysis module provides a suite of diagnostic tools for interpreting and validating the results. These tools cover:</p>
+
+      <ul>
+        <li><strong>Spectrum analysis</strong> -- frequency, growth rate, and damping ratio for each mode.</li>
+        <li><strong>Stability analysis</strong> -- classification of eigenvalues relative to the unit circle.</li>
+        <li><strong>Error metrics</strong> -- RMSE, relative error, and maximum pointwise error against original data.</li>
+        <li><strong>Residuals</strong> -- per-mode residual norms measuring how well each mode satisfies the DMD eigenvalue equation.</li>
+        <li><strong>Dominant modes</strong> -- extraction of the most significant modes by amplitude or energy.</li>
+        <li><strong>Pseudospectrum</strong> -- resolvent norm computation for sensitivity analysis of non-normal operators.</li>
+        <li><strong>Convergence</strong> -- evaluation of reconstruction error as a function of rank truncation.</li>
+      </ul>
+
+      <!-- ============================================================ -->
+      <h2 id="spectrum">Spectrum Analysis</h2>
+
+      <p>The <code>dmd_spectrum</code> function extracts spectral information from a completed DMD result. Given the time step <code>dt</code>, it converts discrete-time eigenvalues into continuous-time quantities and classifies the stability of each mode.</p>
+
+      <p>For each mode, the returned <code>ModeInfo</code> contains:</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Field</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>frequency</code></td>
+            <td>Oscillation frequency in Hz, derived from the argument of the eigenvalue.</td>
+          </tr>
+          <tr>
+            <td><code>magnitude</code></td>
+            <td>Absolute value of the eigenvalue, |lambda|.</td>
+          </tr>
+          <tr>
+            <td><code>growth_rate</code></td>
+            <td>Continuous-time growth rate, computed as log(|lambda|) / dt.</td>
+          </tr>
+          <tr>
+            <td><code>damping_ratio</code></td>
+            <td>Ratio quantifying the rate of amplitude decay relative to the oscillation frequency.</td>
+          </tr>
+          <tr>
+            <td><code>stability</code></td>
+            <td>Classification: <code>Growing</code> (|lambda| &gt; 1), <code>Decaying</code> (|lambda| &lt; 1), or <code>Neutral</code> (|lambda| = 1 within tolerance).</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="lang-tabs">
+        <button class="lang-tab active" data-lang="rust">Rust</button>
+        <button class="lang-tab" data-lang="python">Python</button>
+        <button class="lang-tab" data-lang="r">R</button>
+      </div>
+
+      <!-- Rust panel -->
+      <div class="lang-panel active" data-lang="rust">
+<pre><code><span class="kw">use</span> koopman_dmd::analysis::{<span class="fn">dmd_spectrum</span>, <span class="ty">Stability</span>};
+
+<span class="kw">let</span> dt = <span class="nu">0.01</span>;
+<span class="kw">let</span> spectrum = <span class="fn">dmd_spectrum</span>(&amp;result, dt);
+
+<span class="kw">for</span> mode <span class="kw">in</span> &amp;spectrum {
+    <span class="mc">println!</span>(
+        <span class="st">"freq={:.3} Hz  |lambda|={:.4}  growth={:.4}  {:?}"</span>,
+        mode.frequency,
+        mode.magnitude,
+        mode.growth_rate,
+        mode.stability,
+    );
+}
+
+<span class="cm">// Filter for growing modes only</span>
+<span class="kw">let</span> growing: <span class="ty">Vec</span>&lt;_&gt; = spectrum
+    .<span class="fn">iter</span>()
+    .<span class="fn">filter</span>(|m| <span class="kw">matches!</span>(m.stability, <span class="ty">Stability</span>::Growing))
+    .<span class="fn">collect</span>();</code></pre>
+      </div>
+
+      <!-- Python panel -->
+      <div class="lang-panel" data-lang="python">
+<pre><code><span class="kw">import</span> koopman_dmd <span class="kw">as</span> kdmd
+
+dt = <span class="nu">0.01</span>
+spectrum = kdmd.<span class="fn">dmd_spectrum</span>(result, dt)
+
+<span class="kw">for</span> mode <span class="kw">in</span> spectrum:
+    <span class="fn">print</span>(
+        <span class="st">f"freq=</span>{mode.frequency:<span class="nu">.3f</span>}<span class="st"> Hz  "</span>
+        <span class="st">f"|lambda|=</span>{mode.magnitude:<span class="nu">.4f</span>}<span class="st">  "</span>
+        <span class="st">f"growth=</span>{mode.growth_rate:<span class="nu">.4f</span>}<span class="st">  "</span>
+        <span class="st">f"</span>{mode.stability}<span class="st">"</span>
+    )
+
+<span class="cm"># Filter for growing modes only</span>
+growing = [m <span class="kw">for</span> m <span class="kw">in</span> spectrum <span class="kw">if</span> m.stability == <span class="st">"Growing"</span>]</code></pre>
+      </div>
+
+      <!-- R panel -->
+      <div class="lang-panel" data-lang="r">
+<pre><code><span class="fn">library</span>(koopmandmd)
+
+dt <span class="op">&lt;-</span> <span class="nu">0.01</span>
+spectrum <span class="op">&lt;-</span> <span class="fn">dmd_spectrum</span>(result, dt)
+
+<span class="cm"># spectrum is a data.frame with columns:</span>
+<span class="cm"># frequency, magnitude, growth_rate, damping_ratio, stability</span>
+<span class="fn">print</span>(spectrum)
+
+<span class="cm"># Filter for growing modes only</span>
+growing <span class="op">&lt;-</span> spectrum[spectrum<span class="op">$</span>stability == <span class="st">"Growing"</span>, ]</code></pre>
+      </div>
+
+      <!-- ============================================================ -->
+      <h2 id="stability">Stability Analysis</h2>
+
+      <p>The <code>dmd_stability</code> function provides a summary assessment of the system's stability based on eigenvalue locations relative to the unit circle. An optional tolerance parameter controls the width of the neutral band around |lambda| = 1.</p>
+
+      <p>The returned <code>StabilityResult</code> contains:</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Field</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>spectral_radius</code></td>
+            <td>Maximum eigenvalue magnitude, max(|lambda|).</td>
+          </tr>
+          <tr>
+            <td><code>is_stable</code></td>
+            <td>True if all eigenvalues lie within the unit circle (within tolerance).</td>
+          </tr>
+          <tr>
+            <td><code>is_unstable</code></td>
+            <td>True if any eigenvalue lies strictly outside the unit circle.</td>
+          </tr>
+          <tr>
+            <td><code>n_growing</code></td>
+            <td>Number of modes with |lambda| &gt; 1 + tol.</td>
+          </tr>
+          <tr>
+            <td><code>n_decaying</code></td>
+            <td>Number of modes with |lambda| &lt; 1 - tol.</td>
+          </tr>
+          <tr>
+            <td><code>n_neutral</code></td>
+            <td>Number of modes with |lambda| within the tolerance band around 1.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="lang-tabs">
+        <button class="lang-tab active" data-lang="rust">Rust</button>
+        <button class="lang-tab" data-lang="python">Python</button>
+        <button class="lang-tab" data-lang="r">R</button>
+      </div>
+
+      <!-- Rust panel -->
+      <div class="lang-panel active" data-lang="rust">
+<pre><code><span class="kw">use</span> koopman_dmd::analysis::<span class="fn">dmd_stability</span>;
+
+<span class="kw">let</span> tol = <span class="nu">1e-6</span>;
+<span class="kw">let</span> stab = <span class="fn">dmd_stability</span>(&amp;result, tol);
+
+<span class="mc">println!</span>(<span class="st">"Spectral radius: {:.6}"</span>, stab.spectral_radius);
+<span class="mc">println!</span>(<span class="st">"Stable: {}"</span>, stab.is_stable);
+<span class="mc">println!</span>(
+    <span class="st">"Modes -- growing: {}, decaying: {}, neutral: {}"</span>,
+    stab.n_growing, stab.n_decaying, stab.n_neutral
+);</code></pre>
+      </div>
+
+      <!-- Python panel -->
+      <div class="lang-panel" data-lang="python">
+<pre><code><span class="kw">import</span> koopman_dmd <span class="kw">as</span> kdmd
+
+tol = <span class="nu">1e-6</span>
+stab = kdmd.<span class="fn">dmd_stability</span>(result, tol)
+
+<span class="fn">print</span>(<span class="st">f"Spectral radius: </span>{stab.spectral_radius:<span class="nu">.6f</span>}<span class="st">"</span>)
+<span class="fn">print</span>(<span class="st">f"Stable: </span>{stab.is_stable}<span class="st">"</span>)
+<span class="fn">print</span>(
+    <span class="st">f"Modes -- growing: </span>{stab.n_growing}<span class="st">, "</span>
+    <span class="st">f"decaying: </span>{stab.n_decaying}<span class="st">, "</span>
+    <span class="st">f"neutral: </span>{stab.n_neutral}<span class="st">"</span>
+)</code></pre>
+      </div>
+
+      <!-- R panel -->
+      <div class="lang-panel" data-lang="r">
+<pre><code><span class="fn">library</span>(koopmandmd)
+
+tol <span class="op">&lt;-</span> <span class="nu">1e-6</span>
+stab <span class="op">&lt;-</span> <span class="fn">dmd_stability</span>(result, tol)
+
+<span class="fn">cat</span>(<span class="st">"Spectral radius:"</span>, stab<span class="op">$</span>spectral_radius, <span class="st">"\n"</span>)
+<span class="fn">cat</span>(<span class="st">"Stable:"</span>, stab<span class="op">$</span>is_stable, <span class="st">"\n"</span>)
+<span class="fn">cat</span>(<span class="st">"Modes -- growing:"</span>, stab<span class="op">$</span>n_growing,
+    <span class="st">"decaying:"</span>, stab<span class="op">$</span>n_decaying,
+    <span class="st">"neutral:"</span>, stab<span class="op">$</span>n_neutral, <span class="st">"\n"</span>)</code></pre>
+      </div>
+
+      <!-- ============================================================ -->
+      <h2 id="error-metrics">Error Metrics</h2>
+
+      <p>The <code>dmd_error</code> function compares the DMD reconstruction against the original data matrix and returns an <code>ErrorMetrics</code> struct summarizing the approximation quality.</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Field</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>rmse</code></td>
+            <td>Root mean square error between reconstruction and original data.</td>
+          </tr>
+          <tr>
+            <td><code>relative_error</code></td>
+            <td>RMSE normalized by the Frobenius norm of the original data.</td>
+          </tr>
+          <tr>
+            <td><code>max_error</code></td>
+            <td>Maximum absolute pointwise error across all entries.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="lang-tabs">
+        <button class="lang-tab active" data-lang="rust">Rust</button>
+        <button class="lang-tab" data-lang="python">Python</button>
+        <button class="lang-tab" data-lang="r">R</button>
+      </div>
+
+      <!-- Rust panel -->
+      <div class="lang-panel active" data-lang="rust">
+<pre><code><span class="kw">use</span> koopman_dmd::analysis::<span class="fn">dmd_error</span>;
+
+<span class="kw">let</span> err = <span class="fn">dmd_error</span>(&amp;result, &amp;original_data);
+
+<span class="mc">println!</span>(<span class="st">"RMSE:           {:.6e}"</span>, err.rmse);
+<span class="mc">println!</span>(<span class="st">"Relative error: {:.6e}"</span>, err.relative_error);
+<span class="mc">println!</span>(<span class="st">"Max error:      {:.6e}"</span>, err.max_error);</code></pre>
+      </div>
+
+      <!-- Python panel -->
+      <div class="lang-panel" data-lang="python">
+<pre><code><span class="kw">import</span> koopman_dmd <span class="kw">as</span> kdmd
+
+err = kdmd.<span class="fn">dmd_error</span>(result, original_data)
+
+<span class="fn">print</span>(<span class="st">f"RMSE:           </span>{err.rmse:<span class="nu">.6e</span>}<span class="st">"</span>)
+<span class="fn">print</span>(<span class="st">f"Relative error: </span>{err.relative_error:<span class="nu">.6e</span>}<span class="st">"</span>)
+<span class="fn">print</span>(<span class="st">f"Max error:      </span>{err.max_error:<span class="nu">.6e</span>}<span class="st">"</span>)</code></pre>
+      </div>
+
+      <!-- R panel -->
+      <div class="lang-panel" data-lang="r">
+<pre><code><span class="fn">library</span>(koopmandmd)
+
+err <span class="op">&lt;-</span> <span class="fn">dmd_error</span>(result, original_data)
+
+<span class="fn">cat</span>(<span class="fn">sprintf</span>(<span class="st">"RMSE:           %.6e\n"</span>, err<span class="op">$</span>rmse))
+<span class="fn">cat</span>(<span class="fn">sprintf</span>(<span class="st">"Relative error: %.6e\n"</span>, err<span class="op">$</span>relative_error))
+<span class="fn">cat</span>(<span class="fn">sprintf</span>(<span class="st">"Max error:      %.6e\n"</span>, err<span class="op">$</span>max_error))</code></pre>
+      </div>
+
+      <!-- ============================================================ -->
+      <h2 id="residuals">Residuals</h2>
+
+      <p>The <code>dmd_residual</code> function computes per-mode residual norms. For each mode, the residual measures how well the mode-eigenvalue pair satisfies the fundamental DMD equation:</p>
+
+      <div class="math">r_i = || A * phi_i - lambda_i * phi_i ||</div>
+
+      <p>where <code>A</code> is the approximated linear operator, <code>phi_i</code> is the i-th DMD mode, and <code>lambda_i</code> is the corresponding eigenvalue. Small residuals indicate that the mode is a faithful eigenvector of the underlying dynamics. Large residuals may signal numerical issues, insufficient rank, or strongly nonlinear behavior that the linear operator cannot capture.</p>
+
+      <div class="lang-tabs">
+        <button class="lang-tab active" data-lang="rust">Rust</button>
+        <button class="lang-tab" data-lang="python">Python</button>
+        <button class="lang-tab" data-lang="r">R</button>
+      </div>
+
+      <!-- Rust panel -->
+      <div class="lang-panel active" data-lang="rust">
+<pre><code><span class="kw">use</span> koopman_dmd::analysis::<span class="fn">dmd_residual</span>;
+
+<span class="kw">let</span> residuals = <span class="fn">dmd_residual</span>(&amp;result);
+
+<span class="kw">for</span> (i, r) <span class="kw">in</span> residuals.<span class="fn">iter</span>().<span class="fn">enumerate</span>() {
+    <span class="mc">println!</span>(<span class="st">"Mode {}: residual = {:.6e}"</span>, i, r);
+}</code></pre>
+      </div>
+
+      <!-- Python panel -->
+      <div class="lang-panel" data-lang="python">
+<pre><code><span class="kw">import</span> koopman_dmd <span class="kw">as</span> kdmd
+
+residuals = kdmd.<span class="fn">dmd_residual</span>(result)
+
+<span class="kw">for</span> i, r <span class="kw">in</span> <span class="fn">enumerate</span>(residuals):
+    <span class="fn">print</span>(<span class="st">f"Mode </span>{i}<span class="st">: residual = </span>{r:<span class="nu">.6e</span>}<span class="st">"</span>)</code></pre>
+      </div>
+
+      <!-- R panel -->
+      <div class="lang-panel" data-lang="r">
+<pre><code><span class="fn">library</span>(koopmandmd)
+
+residuals <span class="op">&lt;-</span> <span class="fn">dmd_residual</span>(result)
+
+<span class="kw">for</span> (i <span class="kw">in</span> <span class="fn">seq_along</span>(residuals)) {
+    <span class="fn">cat</span>(<span class="fn">sprintf</span>(<span class="st">"Mode %d: residual = %.6e\n"</span>, i, residuals[i]))
+}</code></pre>
+      </div>
+
+      <!-- ============================================================ -->
+      <h2 id="dominant-modes">Dominant Modes</h2>
+
+      <p>The <code>dmd_dominant_modes</code> function extracts the top <code>n</code> most significant modes according to a specified criterion. This is useful for reducing a high-rank decomposition to its most physically meaningful components.</p>
+
+      <p>Two selection criteria are available:</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Criterion</th>
+            <th>Formula</th>
+            <th>Interpretation</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>DominantCriterion::Amplitude</code></td>
+            <td>|b_i|</td>
+            <td>Modes with the largest initial amplitude contribution. Ranks by how strongly each mode participates in the initial condition.</td>
+          </tr>
+          <tr>
+            <td><code>DominantCriterion::Energy</code></td>
+            <td>|b_i|^2 * |lambda_i|</td>
+            <td>Modes carrying the most energy, accounting for both amplitude and persistence. Modes that are large but rapidly decaying are penalized.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="lang-tabs">
+        <button class="lang-tab active" data-lang="rust">Rust</button>
+        <button class="lang-tab" data-lang="python">Python</button>
+        <button class="lang-tab" data-lang="r">R</button>
+      </div>
+
+      <!-- Rust panel -->
+      <div class="lang-panel active" data-lang="rust">
+<pre><code><span class="kw">use</span> koopman_dmd::analysis::{<span class="fn">dmd_dominant_modes</span>, <span class="ty">DominantCriterion</span>};
+
+<span class="cm">// Top 5 modes by amplitude</span>
+<span class="kw">let</span> top_amp = <span class="fn">dmd_dominant_modes</span>(
+    &amp;result,
+    <span class="ty">DominantCriterion</span>::Amplitude,
+    <span class="nu">5</span>,
+);
+
+<span class="cm">// Top 5 modes by energy</span>
+<span class="kw">let</span> top_energy = <span class="fn">dmd_dominant_modes</span>(
+    &amp;result,
+    <span class="ty">DominantCriterion</span>::Energy,
+    <span class="nu">5</span>,
+);
+
+<span class="kw">for</span> (idx, score) <span class="kw">in</span> &amp;top_energy {
+    <span class="mc">println!</span>(<span class="st">"Mode {}: energy score = {:.6}"</span>, idx, score);
+}</code></pre>
+      </div>
+
+      <!-- Python panel -->
+      <div class="lang-panel" data-lang="python">
+<pre><code><span class="kw">import</span> koopman_dmd <span class="kw">as</span> kdmd
+
+<span class="cm"># Top 5 modes by amplitude</span>
+top_amp = kdmd.<span class="fn">dmd_dominant_modes</span>(result, criterion=<span class="st">"amplitude"</span>, n=<span class="nu">5</span>)
+
+<span class="cm"># Top 5 modes by energy</span>
+top_energy = kdmd.<span class="fn">dmd_dominant_modes</span>(result, criterion=<span class="st">"energy"</span>, n=<span class="nu">5</span>)
+
+<span class="kw">for</span> idx, score <span class="kw">in</span> top_energy:
+    <span class="fn">print</span>(<span class="st">f"Mode </span>{idx}<span class="st">: energy score = </span>{score:<span class="nu">.6f</span>}<span class="st">"</span>)</code></pre>
+      </div>
+
+      <!-- R panel -->
+      <div class="lang-panel" data-lang="r">
+<pre><code><span class="fn">library</span>(koopmandmd)
+
+<span class="cm"># Top 5 modes by amplitude</span>
+top_amp <span class="op">&lt;-</span> <span class="fn">dmd_dominant_modes</span>(result, criterion = <span class="st">"amplitude"</span>, n = <span class="nu">5</span>)
+
+<span class="cm"># Top 5 modes by energy</span>
+top_energy <span class="op">&lt;-</span> <span class="fn">dmd_dominant_modes</span>(result, criterion = <span class="st">"energy"</span>, n = <span class="nu">5</span>)
+
+<span class="cm"># top_energy is a data.frame with columns: index, score</span>
+<span class="fn">print</span>(top_energy)</code></pre>
+      </div>
+
+      <!-- ============================================================ -->
+      <h2 id="pseudospectrum">Pseudospectrum</h2>
+
+      <p>The <code>dmd_pseudospectrum</code> function computes the resolvent norm over a grid in the complex plane. The pseudospectrum reveals the sensitivity of eigenvalues to perturbations, which is especially important for non-normal operators where eigenvalues alone can be misleading.</p>
+
+      <p>For a given complex point <code>z</code>, the resolvent norm is defined as:</p>
+
+      <div class="math">sigma(z) = || (zI - A)^{-1} ||</div>
+
+      <p>The function accepts vectors defining the real and imaginary axes of the grid and returns a 2D array of resolvent norm values. Regions of large resolvent norm indicate where small perturbations to the operator could shift eigenvalues, highlighting potential transient growth even in nominally stable systems.</p>
+
+      <div class="lang-tabs">
+        <button class="lang-tab active" data-lang="rust">Rust</button>
+        <button class="lang-tab" data-lang="python">Python</button>
+        <button class="lang-tab" data-lang="r">R</button>
+      </div>
+
+      <!-- Rust panel -->
+      <div class="lang-panel active" data-lang="rust">
+<pre><code><span class="kw">use</span> koopman_dmd::analysis::<span class="fn">dmd_pseudospectrum</span>;
+<span class="kw">use</span> ndarray::<span class="ty">Array1</span>;
+
+<span class="cm">// Define a grid over the complex plane</span>
+<span class="kw">let</span> grid_re = <span class="ty">Array1</span>::<span class="fn">linspace</span>(-<span class="nu">1.5</span>, <span class="nu">1.5</span>, <span class="nu">200</span>);
+<span class="kw">let</span> grid_im = <span class="ty">Array1</span>::<span class="fn">linspace</span>(-<span class="nu">1.5</span>, <span class="nu">1.5</span>, <span class="nu">200</span>);
+
+<span class="cm">// Compute resolvent norm on the grid</span>
+<span class="kw">let</span> sigma = <span class="fn">dmd_pseudospectrum</span>(&amp;result, &amp;grid_re, &amp;grid_im);
+
+<span class="cm">// sigma is a 200x200 Array2&lt;f64&gt; of resolvent norms</span>
+<span class="mc">println!</span>(<span class="st">"Pseudospectrum shape: {:?}"</span>, sigma.<span class="fn">dim</span>());</code></pre>
+      </div>
+
+      <!-- Python panel -->
+      <div class="lang-panel" data-lang="python">
+<pre><code><span class="kw">import</span> numpy <span class="kw">as</span> np
+<span class="kw">import</span> koopman_dmd <span class="kw">as</span> kdmd
+
+<span class="cm"># Define a grid over the complex plane</span>
+grid_re = np.<span class="fn">linspace</span>(-<span class="nu">1.5</span>, <span class="nu">1.5</span>, <span class="nu">200</span>)
+grid_im = np.<span class="fn">linspace</span>(-<span class="nu">1.5</span>, <span class="nu">1.5</span>, <span class="nu">200</span>)
+
+<span class="cm"># Compute resolvent norm on the grid</span>
+sigma = kdmd.<span class="fn">dmd_pseudospectrum</span>(result, grid_re, grid_im)
+
+<span class="cm"># sigma is a (200, 200) ndarray of resolvent norms</span>
+<span class="fn">print</span>(<span class="st">f"Pseudospectrum shape: </span>{sigma.shape}<span class="st">"</span>)</code></pre>
+      </div>
+
+      <!-- R panel -->
+      <div class="lang-panel" data-lang="r">
+<pre><code><span class="fn">library</span>(koopmandmd)
+
+<span class="cm"># Define a grid over the complex plane</span>
+grid_re <span class="op">&lt;-</span> <span class="fn">seq</span>(-<span class="nu">1.5</span>, <span class="nu">1.5</span>, length.out = <span class="nu">200</span>)
+grid_im <span class="op">&lt;-</span> <span class="fn">seq</span>(-<span class="nu">1.5</span>, <span class="nu">1.5</span>, length.out = <span class="nu">200</span>)
+
+<span class="cm"># Compute resolvent norm on the grid</span>
+sigma <span class="op">&lt;-</span> <span class="fn">dmd_pseudospectrum</span>(result, grid_re, grid_im)
+
+<span class="cm"># sigma is a 200x200 matrix of resolvent norms</span>
+<span class="fn">cat</span>(<span class="st">"Pseudospectrum dimensions:"</span>, <span class="fn">dim</span>(sigma), <span class="st">"\n"</span>)</code></pre>
+      </div>
+
+      <!-- ============================================================ -->
+      <h2 id="convergence">Convergence</h2>
+
+      <p>The <code>dmd_convergence</code> function evaluates how the DMD reconstruction error changes as a function of rank truncation. This is useful for selecting the optimal number of modes: too few modes underfit the data, while too many modes risk capturing noise.</p>
+
+      <p>Given a range of ranks, the function performs a DMD fit at each rank and returns a vector of (rank, error) pairs. The error is the relative reconstruction error at each truncation level. A characteristic "elbow" in the resulting curve typically indicates the point where additional modes contribute primarily noise rather than signal.</p>
+
+      <div class="lang-tabs">
+        <button class="lang-tab active" data-lang="rust">Rust</button>
+        <button class="lang-tab" data-lang="python">Python</button>
+        <button class="lang-tab" data-lang="r">R</button>
+      </div>
+
+      <!-- Rust panel -->
+      <div class="lang-panel active" data-lang="rust">
+<pre><code><span class="kw">use</span> koopman_dmd::analysis::<span class="fn">dmd_convergence</span>;
+
+<span class="cm">// Evaluate DMD error for ranks 1 through 20</span>
+<span class="kw">let</span> rank_range = <span class="nu">1</span>..=<span class="nu">20</span>;
+<span class="kw">let</span> convergence = <span class="fn">dmd_convergence</span>(&amp;data, rank_range);
+
+<span class="kw">for</span> (rank, error) <span class="kw">in</span> &amp;convergence {
+    <span class="mc">println!</span>(<span class="st">"rank={:2}  relative_error={:.6e}"</span>, rank, error);
+}
+
+<span class="cm">// Find the rank with the steepest drop in error</span>
+<span class="kw">let</span> best_rank = convergence
+    .<span class="fn">windows</span>(<span class="nu">2</span>)
+    .<span class="fn">enumerate</span>()
+    .<span class="fn">max_by</span>(|(_, a), (_, b)| {
+        <span class="kw">let</span> drop_a = a[<span class="nu">0</span>].<span class="nu">1</span> - a[<span class="nu">1</span>].<span class="nu">1</span>;
+        <span class="kw">let</span> drop_b = b[<span class="nu">0</span>].<span class="nu">1</span> - b[<span class="nu">1</span>].<span class="nu">1</span>;
+        drop_a.<span class="fn">partial_cmp</span>(&amp;drop_b).<span class="fn">unwrap</span>()
+    })
+    .<span class="fn">map</span>(|(i, _)| i + <span class="nu">2</span>);
+<span class="mc">println!</span>(<span class="st">"Suggested rank: {:?}"</span>, best_rank);</code></pre>
+      </div>
+
+      <!-- Python panel -->
+      <div class="lang-panel" data-lang="python">
+<pre><code><span class="kw">import</span> koopman_dmd <span class="kw">as</span> kdmd
+<span class="kw">import</span> numpy <span class="kw">as</span> np
+
+<span class="cm"># Evaluate DMD error for ranks 1 through 20</span>
+rank_range = <span class="fn">range</span>(<span class="nu">1</span>, <span class="nu">21</span>)
+convergence = kdmd.<span class="fn">dmd_convergence</span>(data, rank_range)
+
+<span class="kw">for</span> rank, error <span class="kw">in</span> convergence:
+    <span class="fn">print</span>(<span class="st">f"rank=</span>{rank:<span class="nu">2d</span>}<span class="st">  relative_error=</span>{error:<span class="nu">.6e</span>}<span class="st">"</span>)
+
+<span class="cm"># Find the elbow point</span>
+errors = np.<span class="fn">array</span>([e <span class="kw">for</span> _, e <span class="kw">in</span> convergence])
+drops = np.<span class="fn">diff</span>(errors)
+best_rank = np.<span class="fn">argmin</span>(drops) + <span class="nu">2</span>
+<span class="fn">print</span>(<span class="st">f"Suggested rank: </span>{best_rank}<span class="st">"</span>)</code></pre>
+      </div>
+
+      <!-- R panel -->
+      <div class="lang-panel" data-lang="r">
+<pre><code><span class="fn">library</span>(koopmandmd)
+
+<span class="cm"># Evaluate DMD error for ranks 1 through 20</span>
+rank_range <span class="op">&lt;-</span> <span class="nu">1</span>:<span class="nu">20</span>
+convergence <span class="op">&lt;-</span> <span class="fn">dmd_convergence</span>(data, rank_range)
+
+<span class="cm"># convergence is a data.frame with columns: rank, error</span>
+<span class="fn">print</span>(convergence)
+
+<span class="cm"># Plot the convergence curve</span>
+<span class="fn">plot</span>(convergence<span class="op">$</span>rank, convergence<span class="op">$</span>error,
+     type = <span class="st">"b"</span>, log = <span class="st">"y"</span>,
+     xlab = <span class="st">"Rank"</span>, ylab = <span class="st">"Relative Error"</span>,
+     main = <span class="st">"DMD Convergence"</span>)</code></pre>
+      </div>
+
+    </main>
+  </div>
+
+  <script src="js/main.js"></script>
+</body>
+</html>

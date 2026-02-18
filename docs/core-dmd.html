@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Core DMD - koopman-dmd</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- Top navigation -->
+<header class="topnav">
+  <a class="logo" href="index.html">koopman<span>-dmd</span></a>
+  <nav>
+    <a href="index.html">Home</a>
+    <a href="getting-started.html">Guide</a>
+    <a href="api-rust.html">API</a>
+  </nav>
+  <a class="gh-link" href="https://github.com/jimeharrisjr/rust-dmd">GitHub</a>
+</header>
+
+<div class="page-layout">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <h3>Getting Started</h3>
+    <a href="getting-started.html">Installation</a>
+
+    <h3>Features</h3>
+    <a href="core-dmd.html" class="active">Core DMD</a>
+    <a href="extended-dmd.html">Extended DMD</a>
+    <a href="hankel-dmd.html">Hankel-DMD</a>
+    <a href="gla.html">GLA</a>
+    <a href="harmonic.html">Harmonic Analysis</a>
+    <a href="maps.html">Dynamical Maps</a>
+    <a href="analysis.html">Analysis Tools</a>
+
+    <h3>API Reference</h3>
+    <a href="api-rust.html">Rust API</a>
+    <a href="api-python.html">Python API</a>
+    <a href="api-r.html">R API</a>
+  </aside>
+
+  <!-- Main content -->
+  <main class="content">
+    <h1>Core DMD</h1>
+    <p class="subtitle">Standard Dynamic Mode Decomposition for linear dynamical systems</p>
+
+    <!-- ============================================================
+         1. Mathematical Background
+         ============================================================ -->
+    <h2>Mathematical Background</h2>
+
+    <p>Dynamic Mode Decomposition (DMD) extracts spatiotemporal coherent
+    structures from time-series data by approximating the best-fit linear
+    operator that advances the state forward in time. Given a sequence of
+    snapshots arranged as columns of a data matrix <code>X</code>, the
+    algorithm proceeds as follows.</p>
+
+    <h3>Step 1 -- Split the data</h3>
+    <p>Partition <code>X</code> into two overlapping matrices: <code>X'</code>
+    containing the first <code>n-1</code> columns and <code>X''</code>
+    containing the last <code>n-1</code> columns. The relationship we seek
+    is:</p>
+    <div class="math">X'' = A X'</div>
+
+    <h3>Step 2 -- Compute the SVD</h3>
+    <p>Take the (optionally truncated) singular value decomposition of
+    <code>X'</code>:</p>
+    <div class="math">X' = U &Sigma; V*</div>
+    <p>where <code>U</code> is the left singular matrix, <code>&Sigma;</code>
+    is the diagonal matrix of singular values, and <code>V*</code> is the
+    conjugate transpose of the right singular matrix.</p>
+
+    <h3>Step 3 -- Project onto the POD basis</h3>
+    <p>Rather than constructing the full high-dimensional operator <code>A</code>,
+    project it onto the reduced basis spanned by the columns of <code>U</code>:</p>
+    <div class="math">A&#771; = U* X'' V &Sigma;<sup>-1</sup></div>
+    <p>This small <code>r x r</code> matrix <code>A&#771;</code> captures
+    the essential dynamics, where <code>r</code> is the truncation rank.</p>
+
+    <h3>Step 4 -- Eigendecomposition</h3>
+    <p>Compute the eigendecomposition of the projected matrix:</p>
+    <div class="math">A&#771; W = W &Lambda;</div>
+    <p>The DMD eigenvalues <code>&lambda;<sub>i</sub></code> lie on the
+    diagonal of <code>&Lambda;</code>. The high-dimensional DMD modes are
+    recovered as:</p>
+    <div class="math">&Phi; = X'' V &Sigma;<sup>-1</sup> W</div>
+
+    <h3>Step 5 -- Compute amplitudes</h3>
+    <p>Solve for the amplitude vector <code>b</code> that best matches the
+    initial snapshot <code>x<sub>0</sub></code>:</p>
+    <div class="math">&Phi; b = x<sub>0</sub></div>
+    <p>The amplitudes weight the contribution of each mode to the overall
+    dynamics.</p>
+
+    <!-- ============================================================
+         2. DmdConfig Options
+         ============================================================ -->
+    <h2>DmdConfig Options</h2>
+
+    <p>The <code>DmdConfig</code> struct controls how the decomposition is
+    performed. The following fields are available:</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Field</th>
+          <th>Type</th>
+          <th>Default</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>rank</code></td>
+          <td><code>Option&lt;usize&gt;</code></td>
+          <td><code>None</code></td>
+          <td>Truncation rank for the SVD. <code>None</code> selects rank
+          automatically via a singular-value threshold.</td>
+        </tr>
+        <tr>
+          <td><code>center</code></td>
+          <td><code>bool</code></td>
+          <td><code>false</code></td>
+          <td>Subtract the temporal mean from each row before decomposition.
+          The mean is stored and added back during reconstruction.</td>
+        </tr>
+        <tr>
+          <td><code>lifting</code></td>
+          <td><code>Option&lt;LiftingConfig&gt;</code></td>
+          <td><code>None</code></td>
+          <td>Optional nonlinear lifting (see
+          <a href="extended-dmd.html">Extended DMD</a>).</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="lang-tabs">
+      <button class="lang-tab active" data-lang="rust">Rust</button>
+      <button class="lang-tab" data-lang="python">Python</button>
+      <button class="lang-tab" data-lang="r">R</button>
+    </div>
+    <div class="lang-panel active" data-lang="rust">
+<pre><code><span class="kw">use</span> koopman_dmd::{<span class="ty">DmdConfig</span>};
+
+<span class="cm">// Auto-rank, no centering, no lifting</span>
+<span class="kw">let</span> config = <span class="ty">DmdConfig</span>::<span class="fn">default</span>();
+
+<span class="cm">// Explicit rank with centering</span>
+<span class="kw">let</span> config = <span class="ty">DmdConfig</span> {
+    rank: <span class="kw">Some</span>(<span class="nu">4</span>),
+    center: <span class="kw">true</span>,
+    lifting: <span class="kw">None</span>,
+};</code></pre>
+    </div>
+    <div class="lang-panel" data-lang="python">
+<pre><code><span class="kw">from</span> koopman_dmd <span class="kw">import</span> <span class="ty">DmdConfig</span>
+
+<span class="cm"># Auto-rank, no centering, no lifting</span>
+config = <span class="ty">DmdConfig</span>()
+
+<span class="cm"># Explicit rank with centering</span>
+config = <span class="ty">DmdConfig</span>(rank=<span class="nu">4</span>, center=<span class="kw">True</span>)</code></pre>
+    </div>
+    <div class="lang-panel" data-lang="r">
+<pre><code><span class="kw">library</span>(koopmandmd)
+
+<span class="cm"># Auto-rank, no centering, no lifting</span>
+config <span class="op">&lt;-</span> <span class="fn">dmd_config</span>()
+
+<span class="cm"># Explicit rank with centering</span>
+config <span class="op">&lt;-</span> <span class="fn">dmd_config</span>(rank = <span class="nu">4</span>, center = <span class="kw">TRUE</span>)</code></pre>
+    </div>
+
+    <!-- ============================================================
+         3. Basic Usage
+         ============================================================ -->
+    <h2>Basic Usage</h2>
+
+    <p>The core workflow is: build a configuration, pass your data matrix,
+    and call the fit function. The result contains eigenvalues, modes,
+    amplitudes, and metadata about the decomposition.</p>
+
+    <div class="lang-tabs">
+      <button class="lang-tab active" data-lang="rust">Rust</button>
+      <button class="lang-tab" data-lang="python">Python</button>
+      <button class="lang-tab" data-lang="r">R</button>
+    </div>
+    <div class="lang-panel active" data-lang="rust">
+<pre><code><span class="kw">use</span> koopman_dmd::{<span class="ty">DmdConfig</span>, <span class="fn">dmd_fit</span>};
+<span class="kw">use</span> nalgebra <span class="kw">as</span> na;
+
+<span class="cm">// Build a 3x100 data matrix (3 state variables, 100 snapshots)</span>
+<span class="kw">let</span> data: <span class="ty">Mat</span>&lt;<span class="ty">f64</span>&gt; = <span class="fn">generate_signal</span>(<span class="nu">3</span>, <span class="nu">100</span>);
+
+<span class="kw">let</span> config = <span class="ty">DmdConfig</span>::<span class="fn">default</span>();
+<span class="kw">let</span> result = <span class="fn">dmd_fit</span>(&amp;data, &amp;config);
+
+<span class="cm">// Inspect the result</span>
+<span class="mc">println!</span>(<span class="st">"Rank:        {}"</span>, result.rank);
+<span class="mc">println!</span>(<span class="st">"Data dim:    {}"</span>, result.data_dim);
+<span class="mc">println!</span>(<span class="st">"Eigenvalues: {:?}"</span>, result.eigenvalues);
+<span class="mc">println!</span>(<span class="st">"Modes shape: {:?}"</span>, result.modes.<span class="fn">shape</span>());
+<span class="mc">println!</span>(<span class="st">"Amplitudes:  {:?}"</span>, result.amplitudes);</code></pre>
+    </div>
+    <div class="lang-panel" data-lang="python">
+<pre><code><span class="kw">import</span> numpy <span class="kw">as</span> np
+<span class="kw">from</span> koopman_dmd <span class="kw">import</span> <span class="ty">DmdConfig</span>, <span class="fn">dmd_fit</span>
+
+<span class="cm"># Build a 3x100 data matrix (3 state variables, 100 snapshots)</span>
+data = <span class="fn">generate_signal</span>(<span class="nu">3</span>, <span class="nu">100</span>)
+
+config = <span class="ty">DmdConfig</span>()
+result = <span class="fn">dmd_fit</span>(data, config)
+
+<span class="cm"># Inspect the result</span>
+<span class="fn">print</span>(<span class="st">"Rank:       "</span>, result.rank)
+<span class="fn">print</span>(<span class="st">"Data dim:   "</span>, result.data_dim)
+<span class="fn">print</span>(<span class="st">"Eigenvalues:"</span>, result.eigenvalues)
+<span class="fn">print</span>(<span class="st">"Modes shape:"</span>, result.modes.shape)
+<span class="fn">print</span>(<span class="st">"Amplitudes: "</span>, result.amplitudes)</code></pre>
+    </div>
+    <div class="lang-panel" data-lang="r">
+<pre><code><span class="kw">library</span>(koopmandmd)
+
+<span class="cm"># Build a 3x100 data matrix (3 state variables, 100 snapshots)</span>
+data <span class="op">&lt;-</span> <span class="fn">generate_signal</span>(<span class="nu">3</span>, <span class="nu">100</span>)
+
+config <span class="op">&lt;-</span> <span class="fn">dmd_config</span>()
+result <span class="op">&lt;-</span> <span class="fn">dmd_fit</span>(data, config)
+
+<span class="cm"># Inspect the result</span>
+<span class="fn">cat</span>(<span class="st">"Rank:       "</span>, result<span class="op">$</span>rank, <span class="st">"\n"</span>)
+<span class="fn">cat</span>(<span class="st">"Data dim:   "</span>, result<span class="op">$</span>data_dim, <span class="st">"\n"</span>)
+<span class="fn">print</span>(result<span class="op">$</span>eigenvalues)
+<span class="fn">cat</span>(<span class="st">"Modes dim:  "</span>, <span class="fn">dim</span>(result<span class="op">$</span>modes), <span class="st">"\n"</span>)
+<span class="fn">print</span>(result<span class="op">$</span>amplitudes)</code></pre>
+    </div>
+
+    <!-- ============================================================
+         4. Mean Centering
+         ============================================================ -->
+    <h2>Mean Centering</h2>
+
+    <p>Setting <code>center = true</code> subtracts the temporal mean of each
+    row before the decomposition and stores it for later reconstruction. This
+    is useful when your data has a non-zero equilibrium or steady state.</p>
+
+    <div class="info-box">
+      <strong>When to center.</strong> If your system oscillates around a
+      non-zero baseline (e.g., temperature anomalies relative to a seasonal
+      mean), centering removes the constant offset and lets DMD focus on the
+      dynamic components. Without centering, the largest DMD mode may simply
+      represent the mean, consuming one degree of freedom in your rank budget.
+    </div>
+
+    <p>Effects on eigenvalues:</p>
+    <ul>
+      <li>Without centering, you may see a dominant eigenvalue near
+      <code>1 + 0i</code> that corresponds to the steady state.</li>
+      <li>With centering, that mode is absorbed into the stored mean and the
+      remaining eigenvalues capture genuine oscillatory or decaying
+      dynamics.</li>
+      <li>Continuous-time eigenvalues (obtained via logarithm) shift
+      accordingly: the near-zero continuous eigenvalue disappears when
+      centering is enabled.</li>
+    </ul>
+
+    <div class="info-box warn">
+      <strong>Caution.</strong> Do not center data from systems that genuinely
+      have a growing or shrinking mean trajectory. Centering assumes the mean
+      is static; applying it to non-stationary means can distort the
+      reconstructed dynamics.
+    </div>
+
+    <!-- ============================================================
+         5. Rank Selection
+         ============================================================ -->
+    <h2>Rank Selection</h2>
+
+    <h3>Automatic rank</h3>
+    <p>When <code>rank</code> is <code>None</code>, the library selects rank
+    automatically by examining the singular values of <code>X'</code>. Singular
+    values below a threshold (typically relative to the largest singular value)
+    are discarded. This is a good default for exploratory analysis.</p>
+
+    <h3>Manual rank</h3>
+    <p>Setting an explicit rank lets you control the trade-off between
+    reconstruction accuracy and model complexity. A lower rank produces a
+    smoother, more interpretable model but may miss fine-grained dynamics. A
+    higher rank captures more detail but can overfit to noise.</p>
+
+    <p>Guidelines for choosing rank:</p>
+    <ul>
+      <li>Plot the singular values in descending order. Look for an "elbow"
+      where the values drop sharply -- this is often a good truncation
+      point.</li>
+      <li>Start with auto-rank and examine the reconstruction error. If the
+      error is acceptable, the automatic choice is sufficient.</li>
+      <li>For systems with known physics, set the rank to the expected number
+      of dynamic modes (e.g., two for a simple harmonic oscillator).</li>
+      <li>Compare relative reconstruction error across several rank values
+      to find the point of diminishing returns.</li>
+    </ul>
+
+    <!-- ============================================================
+         6. Prediction
+         ============================================================ -->
+    <h2>Prediction</h2>
+
+    <p>The library provides two prediction strategies. Both extrapolate the
+    fitted model forward (or backward) in time, but they differ in how they
+    compute subsequent states.</p>
+
+    <h3>predict_modes</h3>
+    <p>Reconstruct each time step directly from the DMD eigenvalues, modes,
+    and amplitudes:</p>
+    <div class="math">x(k) = &sum;<sub>i</sub> &phi;<sub>i</sub> b<sub>i</sub> &lambda;<sub>i</sub><sup>k</sup></div>
+    <p>This method is non-recursive: every time step is computed independently
+    from the spectral decomposition. It does not accumulate numerical error
+    over long horizons, making it well-suited for long-range forecasts.</p>
+
+    <h3>predict_matrix</h3>
+    <p>Advance the state one step at a time by multiplying by the
+    reconstructed operator:</p>
+    <div class="math">x(k+1) = A x(k)</div>
+    <p>This is a recursive approach: each step depends on the previous one.
+    It can be faster for short horizons and naturally respects the linear
+    map structure, but numerical errors may accumulate over many steps.</p>
+
+    <h3>When to use each</h3>
+    <ul>
+      <li><strong>predict_modes</strong> -- preferred for long-range
+      extrapolation, frequency analysis, or when you need arbitrary time
+      indices (including non-integer steps in continuous time).</li>
+      <li><strong>predict_matrix</strong> -- preferred for short-range
+      forecasting, real-time streaming applications, or when the full
+      operator <code>A</code> is needed for control design.</li>
+    </ul>
+
+    <div class="lang-tabs">
+      <button class="lang-tab active" data-lang="rust">Rust</button>
+      <button class="lang-tab" data-lang="python">Python</button>
+      <button class="lang-tab" data-lang="r">R</button>
+    </div>
+    <div class="lang-panel active" data-lang="rust">
+<pre><code><span class="kw">use</span> koopman_dmd::{<span class="fn">dmd_fit</span>, <span class="fn">predict_modes</span>, <span class="fn">predict_matrix</span>, <span class="ty">DmdConfig</span>};
+
+<span class="kw">let</span> config = <span class="ty">DmdConfig</span>::<span class="fn">default</span>();
+<span class="kw">let</span> result = <span class="fn">dmd_fit</span>(&amp;data, &amp;config);
+
+<span class="cm">// Predict 50 future time steps via spectral formula</span>
+<span class="kw">let</span> forecast_modes = <span class="fn">predict_modes</span>(&amp;result, <span class="nu">50</span>);
+
+<span class="cm">// Predict 50 future time steps via recursive matrix multiply</span>
+<span class="kw">let</span> forecast_matrix = <span class="fn">predict_matrix</span>(&amp;result, <span class="nu">50</span>);</code></pre>
+    </div>
+    <div class="lang-panel" data-lang="python">
+<pre><code><span class="kw">from</span> koopman_dmd <span class="kw">import</span> <span class="fn">dmd_fit</span>, <span class="fn">predict_modes</span>, <span class="fn">predict_matrix</span>, <span class="ty">DmdConfig</span>
+
+config = <span class="ty">DmdConfig</span>()
+result = <span class="fn">dmd_fit</span>(data, config)
+
+<span class="cm"># Predict 50 future time steps via spectral formula</span>
+forecast_modes = <span class="fn">predict_modes</span>(result, <span class="nu">50</span>)
+
+<span class="cm"># Predict 50 future time steps via recursive matrix multiply</span>
+forecast_matrix = <span class="fn">predict_matrix</span>(result, <span class="nu">50</span>)</code></pre>
+    </div>
+    <div class="lang-panel" data-lang="r">
+<pre><code><span class="kw">library</span>(koopmandmd)
+
+config <span class="op">&lt;-</span> <span class="fn">dmd_config</span>()
+result <span class="op">&lt;-</span> <span class="fn">dmd_fit</span>(data, config)
+
+<span class="cm"># Predict 50 future time steps via spectral formula</span>
+forecast_modes <span class="op">&lt;-</span> <span class="fn">predict_modes</span>(result, <span class="nu">50</span>)
+
+<span class="cm"># Predict 50 future time steps via recursive matrix multiply</span>
+forecast_matrix <span class="op">&lt;-</span> <span class="fn">predict_matrix</span>(result, <span class="nu">50</span>)</code></pre>
+    </div>
+
+    <!-- ============================================================
+         7. Reconstruction and Error
+         ============================================================ -->
+    <h2>Reconstruction and Error</h2>
+
+    <p>After fitting, you typically want to assess how well the DMD model
+    reproduces the original data. The library provides two utilities for
+    this purpose.</p>
+
+    <h3>dmd_reconstruct</h3>
+    <p>Produces the fitted values by reconstructing each snapshot from the
+    DMD modes, eigenvalues, and amplitudes. If centering was used, the stored
+    mean is added back automatically. The result has the same dimensions as
+    the original data matrix.</p>
+
+    <h3>dmd_error</h3>
+    <p>Computes error metrics comparing the reconstruction to the original
+    data. Returns:</p>
+    <ul>
+      <li><strong>RMSE</strong> -- root mean squared error across all entries
+      of the data matrix.</li>
+      <li><strong>Relative error</strong> -- the Frobenius norm of the
+      residual divided by the Frobenius norm of the original data, expressed
+      as a fraction.</li>
+    </ul>
+
+    <div class="lang-tabs">
+      <button class="lang-tab active" data-lang="rust">Rust</button>
+      <button class="lang-tab" data-lang="python">Python</button>
+      <button class="lang-tab" data-lang="r">R</button>
+    </div>
+    <div class="lang-panel active" data-lang="rust">
+<pre><code><span class="kw">use</span> koopman_dmd::{<span class="fn">dmd_fit</span>, <span class="fn">dmd_reconstruct</span>, <span class="fn">dmd_error</span>, <span class="ty">DmdConfig</span>};
+
+<span class="kw">let</span> config = <span class="ty">DmdConfig</span> { rank: <span class="kw">Some</span>(<span class="nu">4</span>), ..<span class="ty">DmdConfig</span>::<span class="fn">default</span>() };
+<span class="kw">let</span> result = <span class="fn">dmd_fit</span>(&amp;data, &amp;config);
+
+<span class="cm">// Reconstruct the fitted values</span>
+<span class="kw">let</span> fitted = <span class="fn">dmd_reconstruct</span>(&amp;result);
+
+<span class="cm">// Compute error metrics</span>
+<span class="kw">let</span> err = <span class="fn">dmd_error</span>(&amp;data, &amp;result);
+<span class="mc">println!</span>(<span class="st">"RMSE:           {:.6}"</span>, err.rmse);
+<span class="mc">println!</span>(<span class="st">"Relative error: {:.6}"</span>, err.relative);</code></pre>
+    </div>
+    <div class="lang-panel" data-lang="python">
+<pre><code><span class="kw">from</span> koopman_dmd <span class="kw">import</span> <span class="fn">dmd_fit</span>, <span class="fn">dmd_reconstruct</span>, <span class="fn">dmd_error</span>, <span class="ty">DmdConfig</span>
+
+config = <span class="ty">DmdConfig</span>(rank=<span class="nu">4</span>)
+result = <span class="fn">dmd_fit</span>(data, config)
+
+<span class="cm"># Reconstruct the fitted values</span>
+fitted = <span class="fn">dmd_reconstruct</span>(result)
+
+<span class="cm"># Compute error metrics</span>
+err = <span class="fn">dmd_error</span>(data, result)
+<span class="fn">print</span>(<span class="st">f"RMSE:           </span>{err.rmse:<span class="nu">.6f</span>}<span class="st">"</span>)
+<span class="fn">print</span>(<span class="st">f"Relative error: </span>{err.relative:<span class="nu">.6f</span>}<span class="st">"</span>)</code></pre>
+    </div>
+    <div class="lang-panel" data-lang="r">
+<pre><code><span class="kw">library</span>(koopmandmd)
+
+config <span class="op">&lt;-</span> <span class="fn">dmd_config</span>(rank = <span class="nu">4</span>)
+result <span class="op">&lt;-</span> <span class="fn">dmd_fit</span>(data, config)
+
+<span class="cm"># Reconstruct the fitted values</span>
+fitted <span class="op">&lt;-</span> <span class="fn">dmd_reconstruct</span>(result)
+
+<span class="cm"># Compute error metrics</span>
+err <span class="op">&lt;-</span> <span class="fn">dmd_error</span>(data, result)
+<span class="fn">cat</span>(<span class="st">"RMSE:          "</span>, err<span class="op">$</span>rmse, <span class="st">"\n"</span>)
+<span class="fn">cat</span>(<span class="st">"Relative error:"</span>, err<span class="op">$</span>relative, <span class="st">"\n"</span>)</code></pre>
+    </div>
+
+  </main>
+</div>
+
+<script src="js/main.js"></script>
+</body>
+</html>

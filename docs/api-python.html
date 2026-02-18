@@ -1,0 +1,1632 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Python API Reference - koopman-dmd</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- Top navigation -->
+<header class="topnav">
+  <a class="logo" href="index.html">koopman<span>-dmd</span></a>
+  <nav>
+    <a href="index.html">Home</a>
+    <a href="getting-started.html">Guide</a>
+    <a href="api-rust.html">API</a>
+  </nav>
+  <a class="gh-link" href="https://github.com/jimeharrisjr/rust-dmd" target="_blank">
+    <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+    GitHub
+  </a>
+</header>
+
+<div class="page-layout">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <h3>Getting Started</h3>
+    <a href="getting-started.html">Installation &amp; Setup</a>
+
+    <h3>Features</h3>
+    <a href="core-dmd.html">Core DMD</a>
+    <a href="extended-dmd.html">Extended DMD</a>
+    <a href="hankel-dmd.html">Hankel-DMD</a>
+    <a href="gla.html">GLA</a>
+    <a href="harmonic.html">Harmonic Analysis</a>
+    <a href="maps.html">Dynamical Maps</a>
+    <a href="analysis.html">Analysis Tools</a>
+
+    <h3>API Reference</h3>
+    <a href="api-rust.html">Rust API</a>
+    <a href="api-python.html" class="active">Python API</a>
+    <a href="api-r.html">R API</a>
+  </aside>
+
+  <!-- Main content -->
+  <main class="content">
+    <h1>Python API Reference</h1>
+    <p class="subtitle">Complete reference for the <code>koopman_dmd</code> Python module (PyO3 bindings)</p>
+
+    <!-- ============================================================
+         Installation
+         ============================================================ -->
+    <h2 id="installation">Installation</h2>
+
+    <p>The Python bindings are built with <a href="https://pyo3.rs">PyO3</a> and
+    packaged using <a href="https://github.com/PyO3/maturin">maturin</a>. To build
+    and install from source:</p>
+
+<pre><code><span class="cm"># Install the build tool</span>
+pip install maturin
+
+<span class="cm"># Navigate to the Python binding directory</span>
+cd koopman-dmd-py
+
+<span class="cm"># Build and install in the current environment</span>
+maturin develop --release</code></pre>
+
+    <p>After installation, the module is available as <code>koopman_dmd</code>:</p>
+
+<pre><code><span class="kw">import</span> koopman_dmd</code></pre>
+
+    <div class="info-box">
+      <strong>Prerequisite.</strong> You need a working Rust toolchain (rustc, cargo)
+      installed on your system. See <a href="https://rustup.rs">rustup.rs</a> for
+      installation instructions.
+    </div>
+
+    <!-- ============================================================
+         DMD Class
+         ============================================================ -->
+    <h2 id="dmd">DMD</h2>
+
+    <p>The primary class for Dynamic Mode Decomposition. Supports standard DMD,
+    centering, and Extended DMD via lifting functions.</p>
+
+    <h3 id="dmd-constructor">Constructor</h3>
+
+<pre><code><span class="kw">class</span> <span class="fn">DMD</span>(rank=<span class="kw">None</span>, center=<span class="kw">False</span>, lifting=<span class="kw">None</span>, lifting_param=<span class="kw">None</span>)</code></pre>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Parameter</th>
+          <th>Type</th>
+          <th>Default</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>rank</code></td>
+          <td><code>int | None</code></td>
+          <td><code>None</code></td>
+          <td>SVD truncation rank. <code>None</code> selects rank automatically
+          via singular-value threshold.</td>
+        </tr>
+        <tr>
+          <td><code>center</code></td>
+          <td><code>bool</code></td>
+          <td><code>False</code></td>
+          <td>Subtract the temporal mean from each row before decomposition.
+          The mean is stored and added back during reconstruction.</td>
+        </tr>
+        <tr>
+          <td><code>lifting</code></td>
+          <td><code>str | None</code></td>
+          <td><code>None</code></td>
+          <td>Lifting function type. One of <code>"polynomial"</code>,
+          <code>"trigonometric"</code>, or <code>"delay"</code>.</td>
+        </tr>
+        <tr>
+          <td><code>lifting_param</code></td>
+          <td><code>int | None</code></td>
+          <td><code>None</code></td>
+          <td>Parameter for the lifting function. Interpreted as polynomial
+          degree, number of harmonics, or number of delays depending on
+          the <code>lifting</code> type.</td>
+        </tr>
+      </tbody>
+    </table>
+
+<pre><code><span class="kw">from</span> koopman_dmd <span class="kw">import</span> DMD
+
+<span class="cm"># Auto-rank, no centering</span>
+dmd = <span class="fn">DMD</span>()
+
+<span class="cm"># Explicit rank with centering</span>
+dmd = <span class="fn">DMD</span>(rank=<span class="nu">4</span>, center=<span class="kw">True</span>)
+
+<span class="cm"># Extended DMD with polynomial lifting (degree 3)</span>
+dmd = <span class="fn">DMD</span>(lifting=<span class="st">"polynomial"</span>, lifting_param=<span class="nu">3</span>)
+
+<span class="cm"># Extended DMD with trigonometric lifting (2 harmonics)</span>
+dmd = <span class="fn">DMD</span>(lifting=<span class="st">"trigonometric"</span>, lifting_param=<span class="nu">2</span>)
+
+<span class="cm"># Extended DMD with delay embedding (5 delays)</span>
+dmd = <span class="fn">DMD</span>(lifting=<span class="st">"delay"</span>, lifting_param=<span class="nu">5</span>)</code></pre>
+
+    <!-- DMD Methods -->
+    <h3 id="dmd-methods">Methods</h3>
+
+    <h4 id="dmd-fit"><code>fit(data)</code></h4>
+
+    <p>Fit the DMD model to a data matrix.</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Parameter</th>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>data</code></td>
+          <td><code>numpy.ndarray</code></td>
+          <td>Data matrix of shape <code>(n_vars, n_time)</code>. Each column is a
+          snapshot; each row is a state variable.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p><strong>Returns:</strong> <code>self</code> -- the fitted DMD object, enabling method chaining.</p>
+
+<pre><code><span class="kw">import</span> numpy <span class="kw">as</span> np
+<span class="kw">from</span> koopman_dmd <span class="kw">import</span> DMD
+
+data = np.<span class="fn">random</span>.<span class="fn">randn</span>(<span class="nu">3</span>, <span class="nu">100</span>)  <span class="cm"># 3 variables, 100 time steps</span>
+dmd = <span class="fn">DMD</span>(rank=<span class="nu">2</span>).<span class="fn">fit</span>(data)</code></pre>
+
+    <h4 id="dmd-predict"><code>predict(n_ahead, x0=None)</code></h4>
+
+    <p>Predict future states using the spectral decomposition. Each time step is
+    computed independently from eigenvalues, modes, and amplitudes (non-recursive).
+    Suitable for long-range forecasting.</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Parameter</th>
+          <th>Type</th>
+          <th>Default</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>n_ahead</code></td>
+          <td><code>int</code></td>
+          <td></td>
+          <td>Number of future time steps to predict.</td>
+        </tr>
+        <tr>
+          <td><code>x0</code></td>
+          <td><code>numpy.ndarray | None</code></td>
+          <td><code>None</code></td>
+          <td>Initial condition vector. If <code>None</code>, uses the first
+          snapshot from the training data.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p><strong>Returns:</strong> <code>numpy.ndarray</code> of shape <code>(n_vars, n_ahead)</code>.</p>
+
+<pre><code><span class="cm"># Predict 50 steps ahead from the training initial condition</span>
+forecast = dmd.<span class="fn">predict</span>(<span class="nu">50</span>)
+
+<span class="cm"># Predict from a custom initial condition</span>
+x0 = np.<span class="fn">array</span>([<span class="nu">1.0</span>, <span class="nu">0.0</span>, <span class="nu">-0.5</span>])
+forecast = dmd.<span class="fn">predict</span>(<span class="nu">50</span>, x0=x0)</code></pre>
+
+    <h4 id="dmd-predict-matrix"><code>predict_matrix(n_ahead, x0=None)</code></h4>
+
+    <p>Predict future states using recursive matrix multiplication. Each step is
+    computed by applying the reconstructed linear operator to the previous state.
+    Faster for short horizons.</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Parameter</th>
+          <th>Type</th>
+          <th>Default</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>n_ahead</code></td>
+          <td><code>int</code></td>
+          <td></td>
+          <td>Number of future time steps to predict.</td>
+        </tr>
+        <tr>
+          <td><code>x0</code></td>
+          <td><code>numpy.ndarray | None</code></td>
+          <td><code>None</code></td>
+          <td>Initial condition vector. If <code>None</code>, uses the first
+          snapshot from the training data.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p><strong>Returns:</strong> <code>numpy.ndarray</code> of shape <code>(n_vars, n_ahead)</code>.</p>
+
+<pre><code>forecast_mat = dmd.<span class="fn">predict_matrix</span>(<span class="nu">50</span>)</code></pre>
+
+    <h4 id="dmd-reconstruct"><code>reconstruct(n_time, x0=None)</code></h4>
+
+    <p>Reconstruct the fitted signal over a given number of time steps. Uses the
+    spectral decomposition to reproduce the training dynamics. If centering was
+    enabled, the stored mean is added back automatically.</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Parameter</th>
+          <th>Type</th>
+          <th>Default</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>n_time</code></td>
+          <td><code>int</code></td>
+          <td></td>
+          <td>Number of time steps to reconstruct.</td>
+        </tr>
+        <tr>
+          <td><code>x0</code></td>
+          <td><code>numpy.ndarray | None</code></td>
+          <td><code>None</code></td>
+          <td>Initial condition. If <code>None</code>, uses the first training snapshot.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p><strong>Returns:</strong> <code>numpy.ndarray</code> of shape <code>(n_vars, n_time)</code>.</p>
+
+<pre><code>fitted = dmd.<span class="fn">reconstruct</span>(<span class="nu">100</span>)</code></pre>
+
+    <h4 id="dmd-spectrum"><code>spectrum(dt)</code></h4>
+
+    <p>Compute the continuous-time spectral properties of the decomposition. Converts
+    discrete-time eigenvalues to frequencies, growth rates, and stability indicators.</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Parameter</th>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>dt</code></td>
+          <td><code>float</code></td>
+          <td>Time step between snapshots (seconds).</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p><strong>Returns:</strong> <code>list[dict]</code> -- one dictionary per mode with keys:</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Key</th>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>frequency</code></td>
+          <td><code>float</code></td>
+          <td>Oscillation frequency (Hz).</td>
+        </tr>
+        <tr>
+          <td><code>magnitude</code></td>
+          <td><code>float</code></td>
+          <td>Absolute value of the discrete-time eigenvalue.</td>
+        </tr>
+        <tr>
+          <td><code>growth_rate</code></td>
+          <td><code>float</code></td>
+          <td>Continuous-time growth rate (positive = growing, negative = decaying).</td>
+        </tr>
+        <tr>
+          <td><code>damping_ratio</code></td>
+          <td><code>float</code></td>
+          <td>Damping ratio of the mode.</td>
+        </tr>
+        <tr>
+          <td><code>stability</code></td>
+          <td><code>str</code></td>
+          <td>One of <code>"stable"</code>, <code>"unstable"</code>, or <code>"neutral"</code>.</td>
+        </tr>
+      </tbody>
+    </table>
+
+<pre><code>spec = dmd.<span class="fn">spectrum</span>(dt=<span class="nu">0.01</span>)
+<span class="kw">for</span> mode <span class="kw">in</span> spec:
+    <span class="fn">print</span>(<span class="st">f"freq=</span>{mode[<span class="st">'frequency'</span>]:<span class="nu">.4f</span>}<span class="st"> Hz, growth=</span>{mode[<span class="st">'growth_rate'</span>]:<span class="nu">.4f</span>}<span class="st">, </span>{mode[<span class="st">'stability'</span>]}<span class="st">"</span>)</code></pre>
+
+    <h4 id="dmd-stability"><code>stability(tol=1e-6)</code></h4>
+
+    <p>Assess the overall stability of the fitted linear system by examining the
+    eigenvalue magnitudes.</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Parameter</th>
+          <th>Type</th>
+          <th>Default</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>tol</code></td>
+          <td><code>float</code></td>
+          <td><code>1e-6</code></td>
+          <td>Tolerance for classifying eigenvalues as neutral (on the unit circle).</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p><strong>Returns:</strong> <code>dict</code> with keys:</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Key</th>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>spectral_radius</code></td>
+          <td><code>float</code></td>
+          <td>Maximum eigenvalue magnitude.</td>
+        </tr>
+        <tr>
+          <td><code>is_stable</code></td>
+          <td><code>bool</code></td>
+          <td><code>True</code> if all eigenvalue magnitudes are at most <code>1 + tol</code>.</td>
+        </tr>
+        <tr>
+          <td><code>is_unstable</code></td>
+          <td><code>bool</code></td>
+          <td><code>True</code> if any eigenvalue magnitude exceeds <code>1 + tol</code>.</td>
+        </tr>
+        <tr>
+          <td><code>n_growing</code></td>
+          <td><code>int</code></td>
+          <td>Number of eigenvalues with magnitude greater than <code>1 + tol</code>.</td>
+        </tr>
+        <tr>
+          <td><code>n_decaying</code></td>
+          <td><code>int</code></td>
+          <td>Number of eigenvalues with magnitude less than <code>1 - tol</code>.</td>
+        </tr>
+        <tr>
+          <td><code>n_neutral</code></td>
+          <td><code>int</code></td>
+          <td>Number of eigenvalues within <code>tol</code> of the unit circle.</td>
+        </tr>
+      </tbody>
+    </table>
+
+<pre><code>stab = dmd.<span class="fn">stability</span>()
+<span class="fn">print</span>(<span class="st">f"Spectral radius: </span>{stab[<span class="st">'spectral_radius'</span>]:<span class="nu">.6f</span>}<span class="st">"</span>)
+<span class="fn">print</span>(<span class="st">f"Stable: </span>{stab[<span class="st">'is_stable'</span>]}<span class="st">"</span>)
+<span class="fn">print</span>(<span class="st">f"Growing/Decaying/Neutral: </span>{stab[<span class="st">'n_growing'</span>]}<span class="st">/</span>{stab[<span class="st">'n_decaying'</span>]}<span class="st">/</span>{stab[<span class="st">'n_neutral'</span>]}<span class="st">"</span>)</code></pre>
+
+    <h4 id="dmd-error"><code>error(data)</code></h4>
+
+    <p>Compute reconstruction error metrics by comparing the DMD reconstruction to
+    the original data.</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Parameter</th>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>data</code></td>
+          <td><code>numpy.ndarray</code></td>
+          <td>Original data matrix of shape <code>(n_vars, n_time)</code>.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p><strong>Returns:</strong> <code>dict</code> with keys:</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Key</th>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>rmse</code></td>
+          <td><code>float</code></td>
+          <td>Root mean squared error across all entries.</td>
+        </tr>
+        <tr>
+          <td><code>relative_error</code></td>
+          <td><code>float</code></td>
+          <td>Frobenius norm of residual divided by Frobenius norm of data.</td>
+        </tr>
+        <tr>
+          <td><code>max_error</code></td>
+          <td><code>float</code></td>
+          <td>Maximum absolute pointwise error.</td>
+        </tr>
+      </tbody>
+    </table>
+
+<pre><code>err = dmd.<span class="fn">error</span>(data)
+<span class="fn">print</span>(<span class="st">f"RMSE:     </span>{err[<span class="st">'rmse'</span>]:<span class="nu">.6f</span>}<span class="st">"</span>)
+<span class="fn">print</span>(<span class="st">f"Relative: </span>{err[<span class="st">'relative_error'</span>]:<span class="nu">.6f</span>}<span class="st">"</span>)
+<span class="fn">print</span>(<span class="st">f"Max:      </span>{err[<span class="st">'max_error'</span>]:<span class="nu">.6f</span>}<span class="st">"</span>)</code></pre>
+
+    <h4 id="dmd-dominant-modes"><code>dominant_modes(criterion, n)</code></h4>
+
+    <p>Extract the most significant modes according to a ranking criterion.</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Parameter</th>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>criterion</code></td>
+          <td><code>str</code></td>
+          <td>Ranking criterion: <code>"amplitude"</code> (by amplitude magnitude)
+          or <code>"energy"</code> (by mode energy contribution).</td>
+        </tr>
+        <tr>
+          <td><code>n</code></td>
+          <td><code>int</code></td>
+          <td>Number of top modes to return.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p><strong>Returns:</strong> <code>list[dict]</code> -- one dictionary per mode, sorted by
+    the chosen criterion in descending order.</p>
+
+<pre><code>top = dmd.<span class="fn">dominant_modes</span>(criterion=<span class="st">"energy"</span>, n=<span class="nu">3</span>)
+<span class="kw">for</span> m <span class="kw">in</span> top:
+    <span class="fn">print</span>(m)</code></pre>
+
+    <h4 id="dmd-residual"><code>residual()</code></h4>
+
+    <p>Compute per-mode residual norms, measuring how well each individual mode
+    satisfies the DMD eigenvalue equation.</p>
+
+    <p><strong>Returns:</strong> <code>dict</code> with keys:</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Key</th>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>mode_residuals</code></td>
+          <td><code>list[float]</code></td>
+          <td>Residual norm for each mode.</td>
+        </tr>
+        <tr>
+          <td><code>max_residual</code></td>
+          <td><code>float</code></td>
+          <td>Maximum residual across all modes.</td>
+        </tr>
+        <tr>
+          <td><code>mean_residual</code></td>
+          <td><code>float</code></td>
+          <td>Mean residual across all modes.</td>
+        </tr>
+      </tbody>
+    </table>
+
+<pre><code>res = dmd.<span class="fn">residual</span>()
+<span class="fn">print</span>(<span class="st">f"Max residual:  </span>{res[<span class="st">'max_residual'</span>]:<span class="nu">.2e</span>}<span class="st">"</span>)
+<span class="fn">print</span>(<span class="st">f"Mean residual: </span>{res[<span class="st">'mean_residual'</span>]:<span class="nu">.2e</span>}<span class="st">"</span>)</code></pre>
+
+    <!-- DMD Properties -->
+    <h3 id="dmd-properties">Properties</h3>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Property</th>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>eigenvalues</code></td>
+          <td><code>list[complex]</code></td>
+          <td>Discrete-time DMD eigenvalues.</td>
+        </tr>
+        <tr>
+          <td><code>modes</code></td>
+          <td><code>numpy.ndarray</code> (complex)</td>
+          <td>DMD mode matrix of shape <code>(n_vars, rank)</code>. Each column is a mode.</td>
+        </tr>
+        <tr>
+          <td><code>amplitudes</code></td>
+          <td><code>list[complex]</code></td>
+          <td>Mode amplitudes (weights for the initial condition).</td>
+        </tr>
+        <tr>
+          <td><code>rank</code></td>
+          <td><code>int</code></td>
+          <td>Effective rank used in the decomposition.</td>
+        </tr>
+      </tbody>
+    </table>
+
+<pre><code><span class="fn">print</span>(<span class="st">"Eigenvalues:"</span>, dmd.eigenvalues)
+<span class="fn">print</span>(<span class="st">"Modes shape:"</span>, dmd.modes.shape)
+<span class="fn">print</span>(<span class="st">"Amplitudes: "</span>, dmd.amplitudes)
+<span class="fn">print</span>(<span class="st">"Rank:       "</span>, dmd.rank)</code></pre>
+
+    <!-- ============================================================
+         HankelDMD Class
+         ============================================================ -->
+    <h2 id="hankel-dmd">HankelDMD</h2>
+
+    <p>DMD with time-delay embedding via Hankel matrices. Captures higher-order
+    dynamics from scalar or low-dimensional measurements by augmenting the state
+    space with lagged copies of the data.</p>
+
+    <h3 id="hankel-constructor">Constructor</h3>
+
+<pre><code><span class="kw">class</span> <span class="fn">HankelDMD</span>(delays=<span class="kw">None</span>, rank=<span class="kw">None</span>, dt=<span class="nu">1.0</span>)</code></pre>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Parameter</th>
+          <th>Type</th>
+          <th>Default</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>delays</code></td>
+          <td><code>int | None</code></td>
+          <td><code>None</code></td>
+          <td>Number of time-delay embeddings. <code>None</code> selects automatically.</td>
+        </tr>
+        <tr>
+          <td><code>rank</code></td>
+          <td><code>int | None</code></td>
+          <td><code>None</code></td>
+          <td>SVD truncation rank. <code>None</code> selects automatically.</td>
+        </tr>
+        <tr>
+          <td><code>dt</code></td>
+          <td><code>float</code></td>
+          <td><code>1.0</code></td>
+          <td>Time step between snapshots.</td>
+        </tr>
+      </tbody>
+    </table>
+
+<pre><code><span class="kw">from</span> koopman_dmd <span class="kw">import</span> HankelDMD
+
+hdmd = <span class="fn">HankelDMD</span>(delays=<span class="nu">10</span>, rank=<span class="nu">4</span>, dt=<span class="nu">0.01</span>)</code></pre>
+
+    <h3 id="hankel-methods">Methods</h3>
+
+    <h4 id="hankel-fit"><code>fit(data)</code></h4>
+
+    <p>Fit the Hankel-DMD model. Internally constructs the Hankel matrix from
+    the input data, then performs standard DMD on the augmented state.</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Parameter</th>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>data</code></td>
+          <td><code>numpy.ndarray</code></td>
+          <td>Data matrix of shape <code>(n_vars, n_time)</code>.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p><strong>Returns:</strong> <code>self</code></p>
+
+    <h4 id="hankel-predict"><code>predict(n_ahead)</code></h4>
+
+    <p>Predict future states. Output is projected back to the original observation
+    dimension.</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Parameter</th>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>n_ahead</code></td>
+          <td><code>int</code></td>
+          <td>Number of future time steps to predict.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p><strong>Returns:</strong> <code>numpy.ndarray</code> of shape <code>(n_vars, n_ahead)</code>.</p>
+
+    <h4 id="hankel-reconstruct"><code>reconstruct()</code></h4>
+
+    <p>Reconstruct the training data from the Hankel-DMD model.</p>
+
+    <p><strong>Returns:</strong> <code>numpy.ndarray</code> of shape <code>(n_vars, n_time)</code>.</p>
+
+    <h3 id="hankel-properties">Properties</h3>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Property</th>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>eigenvalues</code></td>
+          <td><code>list[complex]</code></td>
+          <td>Discrete-time eigenvalues of the Hankel-DMD model.</td>
+        </tr>
+        <tr>
+          <td><code>rank</code></td>
+          <td><code>int</code></td>
+          <td>Effective rank used in the decomposition.</td>
+        </tr>
+      </tbody>
+    </table>
+
+<pre><code><span class="kw">import</span> numpy <span class="kw">as</span> np
+<span class="kw">from</span> koopman_dmd <span class="kw">import</span> HankelDMD
+
+<span class="cm"># Scalar time series with delay embedding</span>
+t = np.<span class="fn">linspace</span>(<span class="nu">0</span>, <span class="nu">10</span>, <span class="nu">500</span>)
+signal = np.<span class="fn">sin</span>(<span class="nu">2.0</span> * np.pi * t) + <span class="nu">0.5</span> * np.<span class="fn">sin</span>(<span class="nu">6.0</span> * np.pi * t)
+data = signal.<span class="fn">reshape</span>(<span class="nu">1</span>, <span class="nu">-1</span>)
+
+hdmd = <span class="fn">HankelDMD</span>(delays=<span class="nu">20</span>, rank=<span class="nu">4</span>).<span class="fn">fit</span>(data)
+
+<span class="fn">print</span>(<span class="st">"Eigenvalues:"</span>, hdmd.eigenvalues)
+<span class="fn">print</span>(<span class="st">"Rank:"</span>, hdmd.rank)
+
+recon = hdmd.<span class="fn">reconstruct</span>()
+forecast = hdmd.<span class="fn">predict</span>(<span class="nu">100</span>)</code></pre>
+
+    <!-- ============================================================
+         GLA Class
+         ============================================================ -->
+    <h2 id="gla">GLA</h2>
+
+    <p>Generalized Laplace Analysis for extracting Koopman eigenvalues and
+    eigenfunctions from trajectory data using spectral methods. GLA solves an
+    optimization problem to find the eigenvalues that best explain the observed
+    dynamics.</p>
+
+    <h3 id="gla-constructor">Constructor</h3>
+
+<pre><code><span class="kw">class</span> <span class="fn">GLA</span>(n_eigenvalues=<span class="nu">2</span>, tol=<span class="nu">1e-6</span>, max_iter=<span class="kw">None</span>)</code></pre>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Parameter</th>
+          <th>Type</th>
+          <th>Default</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>n_eigenvalues</code></td>
+          <td><code>int</code></td>
+          <td><code>2</code></td>
+          <td>Number of Koopman eigenvalues to extract.</td>
+        </tr>
+        <tr>
+          <td><code>tol</code></td>
+          <td><code>float</code></td>
+          <td><code>1e-6</code></td>
+          <td>Convergence tolerance for the iterative solver.</td>
+        </tr>
+        <tr>
+          <td><code>max_iter</code></td>
+          <td><code>int | None</code></td>
+          <td><code>None</code></td>
+          <td>Maximum iterations. <code>None</code> uses an internal default.</td>
+        </tr>
+      </tbody>
+    </table>
+
+<pre><code><span class="kw">from</span> koopman_dmd <span class="kw">import</span> GLA
+
+gla = <span class="fn">GLA</span>(n_eigenvalues=<span class="nu">4</span>, tol=<span class="nu">1e-8</span>)</code></pre>
+
+    <h3 id="gla-methods">Methods</h3>
+
+    <h4 id="gla-fit"><code>fit(data)</code></h4>
+
+    <p>Fit the GLA model to trajectory data.</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Parameter</th>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>data</code></td>
+          <td><code>numpy.ndarray</code></td>
+          <td>Data matrix of shape <code>(n_vars, n_time)</code>.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p><strong>Returns:</strong> <code>self</code></p>
+
+    <h4 id="gla-predict"><code>predict(n_ahead)</code></h4>
+
+    <p>Predict future states using the extracted Koopman eigenvalues.</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Parameter</th>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>n_ahead</code></td>
+          <td><code>int</code></td>
+          <td>Number of future time steps.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p><strong>Returns:</strong> <code>numpy.ndarray</code></p>
+
+    <h4 id="gla-reconstruct"><code>reconstruct()</code></h4>
+
+    <p>Reconstruct the training data from the GLA model.</p>
+
+    <p><strong>Returns:</strong> <code>numpy.ndarray</code></p>
+
+    <h3 id="gla-properties">Properties</h3>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Property</th>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>eigenvalues</code></td>
+          <td><code>list[complex]</code></td>
+          <td>Extracted Koopman eigenvalues.</td>
+        </tr>
+        <tr>
+          <td><code>convergence_rate</code></td>
+          <td><code>float</code></td>
+          <td>Convergence rate of the iterative solver at termination.</td>
+        </tr>
+      </tbody>
+    </table>
+
+<pre><code><span class="kw">import</span> numpy <span class="kw">as</span> np
+<span class="kw">from</span> koopman_dmd <span class="kw">import</span> GLA
+
+t = np.<span class="fn">linspace</span>(<span class="nu">0</span>, <span class="nu">20</span>, <span class="nu">1000</span>)
+signal = np.<span class="fn">cos</span>(<span class="nu">1.5</span> * t) + <span class="nu">0.3</span> * np.<span class="fn">cos</span>(<span class="nu">3.7</span> * t)
+data = signal.<span class="fn">reshape</span>(<span class="nu">1</span>, <span class="nu">-1</span>)
+
+gla = <span class="fn">GLA</span>(n_eigenvalues=<span class="nu">4</span>, tol=<span class="nu">1e-8</span>).<span class="fn">fit</span>(data)
+
+<span class="fn">print</span>(<span class="st">"Eigenvalues:"</span>, gla.eigenvalues)
+<span class="fn">print</span>(<span class="st">"Convergence rate:"</span>, gla.convergence_rate)
+
+recon = gla.<span class="fn">reconstruct</span>()
+forecast = gla.<span class="fn">predict</span>(<span class="nu">200</span>)</code></pre>
+
+    <!-- ============================================================
+         Functions
+         ============================================================ -->
+    <h2 id="functions">Functions</h2>
+
+    <!-- generate_trajectory -->
+    <h3 id="generate-trajectory"><code>generate_trajectory</code></h3>
+
+<pre><code><span class="fn">generate_trajectory</span>(ic, map_name, n_steps, params=<span class="kw">None</span>)</code></pre>
+
+    <p>Generate a trajectory from one of the built-in dynamical maps.</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Parameter</th>
+          <th>Type</th>
+          <th>Default</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>ic</code></td>
+          <td><code>list</code></td>
+          <td></td>
+          <td>Initial condition as a list of floats.</td>
+        </tr>
+        <tr>
+          <td><code>map_name</code></td>
+          <td><code>str</code></td>
+          <td></td>
+          <td>Name of the dynamical map. One of:
+            <code>"standard"</code>,
+            <code>"froeschle"</code>,
+            <code>"extended_standard"</code>,
+            <code>"henon"</code>,
+            <code>"logistic"</code>.
+          </td>
+        </tr>
+        <tr>
+          <td><code>n_steps</code></td>
+          <td><code>int</code></td>
+          <td></td>
+          <td>Number of iteration steps to compute.</td>
+        </tr>
+        <tr>
+          <td><code>params</code></td>
+          <td><code>dict | None</code></td>
+          <td><code>None</code></td>
+          <td>Map-specific parameters. Keys depend on the map (see below).</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p><strong>Returns:</strong> <code>numpy.ndarray</code> of shape <code>(n_vars, n_steps)</code>.</p>
+
+    <p><strong>Map parameters:</strong></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Map</th>
+          <th>Parameters</th>
+          <th>Default Values</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>"standard"</code></td>
+          <td><code>{"epsilon": float}</code></td>
+          <td><code>epsilon = 0.12</code></td>
+        </tr>
+        <tr>
+          <td><code>"froeschle"</code></td>
+          <td><code>{"epsilon": float}</code></td>
+          <td><code>epsilon = 0.12</code></td>
+        </tr>
+        <tr>
+          <td><code>"extended_standard"</code></td>
+          <td><code>{"epsilon": float}</code></td>
+          <td><code>epsilon = 0.12</code></td>
+        </tr>
+        <tr>
+          <td><code>"henon"</code></td>
+          <td><code>{"a": float, "b": float}</code></td>
+          <td><code>a = 1.4, b = 0.3</code></td>
+        </tr>
+        <tr>
+          <td><code>"logistic"</code></td>
+          <td><code>{"r": float}</code></td>
+          <td><code>r = 3.9</code></td>
+        </tr>
+      </tbody>
+    </table>
+
+<pre><code><span class="kw">from</span> koopman_dmd <span class="kw">import</span> generate_trajectory
+
+<span class="cm"># Standard map trajectory</span>
+traj = <span class="fn">generate_trajectory</span>(
+    ic=[<span class="nu">0.1</span>, <span class="nu">0.2</span>],
+    map_name=<span class="st">"standard"</span>,
+    n_steps=<span class="nu">10000</span>,
+    params={<span class="st">"epsilon"</span>: <span class="nu">0.12</span>}
+)
+
+<span class="cm"># Henon map with custom parameters</span>
+traj = <span class="fn">generate_trajectory</span>(
+    ic=[<span class="nu">0.0</span>, <span class="nu">0.0</span>],
+    map_name=<span class="st">"henon"</span>,
+    n_steps=<span class="nu">5000</span>,
+    params={<span class="st">"a"</span>: <span class="nu">1.4</span>, <span class="st">"b"</span>: <span class="nu">0.3</span>}
+)
+
+<span class="cm"># Logistic map</span>
+traj = <span class="fn">generate_trajectory</span>(
+    ic=[<span class="nu">0.5</span>],
+    map_name=<span class="st">"logistic"</span>,
+    n_steps=<span class="nu">1000</span>,
+    params={<span class="st">"r"</span>: <span class="nu">3.9</span>}
+)</code></pre>
+
+    <!-- harmonic_time_average -->
+    <h3 id="harmonic-time-average"><code>harmonic_time_average</code></h3>
+
+<pre><code><span class="fn">harmonic_time_average</span>(ic, map_name, observable, omega, n_iter, params=<span class="kw">None</span>)</code></pre>
+
+    <p>Compute the harmonic time average of an observable along a trajectory at a
+    specified frequency. The harmonic time average isolates the Fourier component
+    of the observable at frequency <code>omega</code>, providing a finite-time
+    approximation of the corresponding Koopman eigenfunction.</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Parameter</th>
+          <th>Type</th>
+          <th>Default</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>ic</code></td>
+          <td><code>list</code></td>
+          <td></td>
+          <td>Initial condition.</td>
+        </tr>
+        <tr>
+          <td><code>map_name</code></td>
+          <td><code>str</code></td>
+          <td></td>
+          <td>Name of the dynamical map.</td>
+        </tr>
+        <tr>
+          <td><code>observable</code></td>
+          <td><code>str</code></td>
+          <td></td>
+          <td>Observable function. One of:
+            <code>"identity"</code>,
+            <code>"sin_pi"</code>,
+            <code>"cos_pi"</code>,
+            <code>"sin_pi_xy"</code>,
+            <code>"quadratic"</code>.
+          </td>
+        </tr>
+        <tr>
+          <td><code>omega</code></td>
+          <td><code>float</code></td>
+          <td></td>
+          <td>Frequency at which to compute the harmonic average.</td>
+        </tr>
+        <tr>
+          <td><code>n_iter</code></td>
+          <td><code>int</code></td>
+          <td></td>
+          <td>Number of iterations for the time average.</td>
+        </tr>
+        <tr>
+          <td><code>params</code></td>
+          <td><code>dict | None</code></td>
+          <td><code>None</code></td>
+          <td>Map-specific parameters.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p><strong>Returns:</strong> <code>dict</code> with keys:</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Key</th>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>magnitude</code></td>
+          <td><code>float</code></td>
+          <td>Absolute value of the harmonic time average.</td>
+        </tr>
+        <tr>
+          <td><code>phase</code></td>
+          <td><code>float</code></td>
+          <td>Phase angle (radians).</td>
+        </tr>
+        <tr>
+          <td><code>real</code></td>
+          <td><code>float</code></td>
+          <td>Real part of the harmonic time average.</td>
+        </tr>
+        <tr>
+          <td><code>imag</code></td>
+          <td><code>float</code></td>
+          <td>Imaginary part of the harmonic time average.</td>
+        </tr>
+      </tbody>
+    </table>
+
+<pre><code><span class="kw">from</span> koopman_dmd <span class="kw">import</span> harmonic_time_average
+
+result = <span class="fn">harmonic_time_average</span>(
+    ic=[<span class="nu">0.1</span>, <span class="nu">0.2</span>],
+    map_name=<span class="st">"standard"</span>,
+    observable=<span class="st">"identity"</span>,
+    omega=<span class="nu">0.3</span>,
+    n_iter=<span class="nu">10000</span>,
+    params={<span class="st">"epsilon"</span>: <span class="nu">0.12</span>}
+)
+
+<span class="fn">print</span>(<span class="st">f"Magnitude: </span>{result[<span class="st">'magnitude'</span>]:<span class="nu">.6f</span>}<span class="st">"</span>)
+<span class="fn">print</span>(<span class="st">f"Phase:     </span>{result[<span class="st">'phase'</span>]:<span class="nu">.6f</span>}<span class="st">"</span>)
+<span class="fn">print</span>(<span class="st">f"Real:      </span>{result[<span class="st">'real'</span>]:<span class="nu">.6f</span>}<span class="st">"</span>)
+<span class="fn">print</span>(<span class="st">f"Imag:      </span>{result[<span class="st">'imag'</span>]:<span class="nu">.6f</span>}<span class="st">"</span>)</code></pre>
+
+    <!-- mesochronic_compute -->
+    <h3 id="mesochronic-compute"><code>mesochronic_compute</code></h3>
+
+<pre><code><span class="fn">mesochronic_compute</span>(map_name, x_range, y_range, resolution, observable, omega, n_iter, params=<span class="kw">None</span>)</code></pre>
+
+    <p>Compute the harmonic time average over a grid of initial conditions, producing
+    matrices suitable for mesochronic analysis and visualization. This function
+    evaluates the HTA at each grid point in the specified rectangular domain.</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Parameter</th>
+          <th>Type</th>
+          <th>Default</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>map_name</code></td>
+          <td><code>str</code></td>
+          <td></td>
+          <td>Name of the dynamical map.</td>
+        </tr>
+        <tr>
+          <td><code>x_range</code></td>
+          <td><code>tuple</code></td>
+          <td></td>
+          <td>Range of x-coordinates as <code>(x_min, x_max)</code>.</td>
+        </tr>
+        <tr>
+          <td><code>y_range</code></td>
+          <td><code>tuple</code></td>
+          <td></td>
+          <td>Range of y-coordinates as <code>(y_min, y_max)</code>.</td>
+        </tr>
+        <tr>
+          <td><code>resolution</code></td>
+          <td><code>int</code></td>
+          <td></td>
+          <td>Number of grid points along each axis.</td>
+        </tr>
+        <tr>
+          <td><code>observable</code></td>
+          <td><code>str</code></td>
+          <td></td>
+          <td>Observable function name.</td>
+        </tr>
+        <tr>
+          <td><code>omega</code></td>
+          <td><code>float</code></td>
+          <td></td>
+          <td>Frequency for the harmonic average.</td>
+        </tr>
+        <tr>
+          <td><code>n_iter</code></td>
+          <td><code>int</code></td>
+          <td></td>
+          <td>Number of iterations per grid point.</td>
+        </tr>
+        <tr>
+          <td><code>params</code></td>
+          <td><code>dict | None</code></td>
+          <td><code>None</code></td>
+          <td>Map-specific parameters.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p><strong>Returns:</strong> <code>dict</code> with keys:</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Key</th>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>hta_matrix</code></td>
+          <td><code>numpy.ndarray</code></td>
+          <td>HTA magnitude at each grid point, shape <code>(resolution, resolution)</code>.</td>
+        </tr>
+        <tr>
+          <td><code>phase_matrix</code></td>
+          <td><code>numpy.ndarray</code></td>
+          <td>HTA phase at each grid point, shape <code>(resolution, resolution)</code>.</td>
+        </tr>
+        <tr>
+          <td><code>x_coords</code></td>
+          <td><code>numpy.ndarray</code></td>
+          <td>x-axis coordinate values, shape <code>(resolution,)</code>.</td>
+        </tr>
+        <tr>
+          <td><code>y_coords</code></td>
+          <td><code>numpy.ndarray</code></td>
+          <td>y-axis coordinate values, shape <code>(resolution,)</code>.</td>
+        </tr>
+      </tbody>
+    </table>
+
+<pre><code><span class="kw">from</span> koopman_dmd <span class="kw">import</span> mesochronic_compute
+
+result = <span class="fn">mesochronic_compute</span>(
+    map_name=<span class="st">"standard"</span>,
+    x_range=(<span class="nu">0.0</span>, <span class="nu">1.0</span>),
+    y_range=(<span class="nu">0.0</span>, <span class="nu">1.0</span>),
+    resolution=<span class="nu">200</span>,
+    observable=<span class="st">"identity"</span>,
+    omega=<span class="nu">0.0</span>,
+    n_iter=<span class="nu">5000</span>,
+    params={<span class="st">"epsilon"</span>: <span class="nu">0.12</span>}
+)
+
+<span class="cm"># Visualize with matplotlib</span>
+<span class="kw">import</span> matplotlib.pyplot <span class="kw">as</span> plt
+plt.<span class="fn">pcolormesh</span>(
+    result[<span class="st">"x_coords"</span>],
+    result[<span class="st">"y_coords"</span>],
+    result[<span class="st">"hta_matrix"</span>],
+    cmap=<span class="st">"viridis"</span>
+)
+plt.<span class="fn">colorbar</span>(label=<span class="st">"HTA magnitude"</span>)
+plt.<span class="fn">xlabel</span>(<span class="st">"x"</span>)
+plt.<span class="fn">ylabel</span>(<span class="st">"y"</span>)
+plt.<span class="fn">title</span>(<span class="st">"Mesochronic plot -- Standard Map"</span>)
+plt.<span class="fn">show</span>()</code></pre>
+
+    <!-- classify_phase_space -->
+    <h3 id="classify-phase-space"><code>classify_phase_space</code></h3>
+
+<pre><code><span class="fn">classify_phase_space</span>(ic, map_name, omega, n_iter, params=<span class="kw">None</span>)</code></pre>
+
+    <p>Classify a single initial condition as belonging to a regular (quasiperiodic)
+    or chaotic region of phase space, based on the convergence behavior of the
+    harmonic time average.</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Parameter</th>
+          <th>Type</th>
+          <th>Default</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>ic</code></td>
+          <td><code>list</code></td>
+          <td></td>
+          <td>Initial condition.</td>
+        </tr>
+        <tr>
+          <td><code>map_name</code></td>
+          <td><code>str</code></td>
+          <td></td>
+          <td>Name of the dynamical map.</td>
+        </tr>
+        <tr>
+          <td><code>omega</code></td>
+          <td><code>float</code></td>
+          <td></td>
+          <td>Frequency for the harmonic average.</td>
+        </tr>
+        <tr>
+          <td><code>n_iter</code></td>
+          <td><code>int</code></td>
+          <td></td>
+          <td>Number of iterations.</td>
+        </tr>
+        <tr>
+          <td><code>params</code></td>
+          <td><code>dict | None</code></td>
+          <td><code>None</code></td>
+          <td>Map-specific parameters.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p><strong>Returns:</strong> <code>dict</code> with keys:</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Key</th>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>classification</code></td>
+          <td><code>str</code></td>
+          <td><code>"regular"</code> or <code>"chaotic"</code>.</td>
+        </tr>
+        <tr>
+          <td><code>hta_magnitude</code></td>
+          <td><code>float</code></td>
+          <td>Final HTA magnitude.</td>
+        </tr>
+        <tr>
+          <td><code>hta_phase</code></td>
+          <td><code>float</code></td>
+          <td>Final HTA phase (radians).</td>
+        </tr>
+      </tbody>
+    </table>
+
+<pre><code><span class="kw">from</span> koopman_dmd <span class="kw">import</span> classify_phase_space
+
+result = <span class="fn">classify_phase_space</span>(
+    ic=[<span class="nu">0.1</span>, <span class="nu">0.2</span>],
+    map_name=<span class="st">"standard"</span>,
+    omega=<span class="nu">0.0</span>,
+    n_iter=<span class="nu">50000</span>,
+    params={<span class="st">"epsilon"</span>: <span class="nu">0.12</span>}
+)
+
+<span class="fn">print</span>(<span class="st">f"Classification: </span>{result[<span class="st">'classification'</span>]}<span class="st">"</span>)
+<span class="fn">print</span>(<span class="st">f"HTA magnitude:  </span>{result[<span class="st">'hta_magnitude'</span>]:<span class="nu">.6f</span>}<span class="st">"</span>)</code></pre>
+
+    <!-- hta_convergence -->
+    <h3 id="hta-convergence"><code>hta_convergence</code></h3>
+
+<pre><code><span class="fn">hta_convergence</span>(ic, map_name, observable, omega, max_iter, step, params=<span class="kw">None</span>)</code></pre>
+
+    <p>Compute the harmonic time average at increasing iteration counts to study
+    its convergence behavior. Returns the HTA value at evenly spaced checkpoints,
+    which can be used to assess whether the average has stabilized or is still
+    fluctuating (indicating chaotic dynamics).</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Parameter</th>
+          <th>Type</th>
+          <th>Default</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>ic</code></td>
+          <td><code>list</code></td>
+          <td></td>
+          <td>Initial condition.</td>
+        </tr>
+        <tr>
+          <td><code>map_name</code></td>
+          <td><code>str</code></td>
+          <td></td>
+          <td>Name of the dynamical map.</td>
+        </tr>
+        <tr>
+          <td><code>observable</code></td>
+          <td><code>str</code></td>
+          <td></td>
+          <td>Observable function name.</td>
+        </tr>
+        <tr>
+          <td><code>omega</code></td>
+          <td><code>float</code></td>
+          <td></td>
+          <td>Frequency for the harmonic average.</td>
+        </tr>
+        <tr>
+          <td><code>max_iter</code></td>
+          <td><code>int</code></td>
+          <td></td>
+          <td>Maximum number of iterations.</td>
+        </tr>
+        <tr>
+          <td><code>step</code></td>
+          <td><code>int</code></td>
+          <td></td>
+          <td>Step size between checkpoints.</td>
+        </tr>
+        <tr>
+          <td><code>params</code></td>
+          <td><code>dict | None</code></td>
+          <td><code>None</code></td>
+          <td>Map-specific parameters.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p><strong>Returns:</strong> <code>dict</code> -- contains convergence data (iteration counts and
+    corresponding HTA values at each checkpoint).</p>
+
+<pre><code><span class="kw">from</span> koopman_dmd <span class="kw">import</span> hta_convergence
+
+conv = <span class="fn">hta_convergence</span>(
+    ic=[<span class="nu">0.1</span>, <span class="nu">0.2</span>],
+    map_name=<span class="st">"standard"</span>,
+    observable=<span class="st">"identity"</span>,
+    omega=<span class="nu">0.3</span>,
+    max_iter=<span class="nu">50000</span>,
+    step=<span class="nu">500</span>,
+    params={<span class="st">"epsilon"</span>: <span class="nu">0.12</span>}
+)</code></pre>
+
+    <!-- ============================================================
+         Complete Examples
+         ============================================================ -->
+    <h2 id="examples">Complete Examples</h2>
+
+    <h3 id="example-dmd">DMD: Fit, Predict, and Analyze</h3>
+
+<pre><code><span class="kw">import</span> numpy <span class="kw">as</span> np
+<span class="kw">from</span> koopman_dmd <span class="kw">import</span> DMD
+
+<span class="cm"># Generate a multi-component signal</span>
+n = <span class="nu">200</span>
+dt = <span class="nu">0.02</span>
+t = np.<span class="fn">arange</span>(n) * dt
+x1 = np.<span class="fn">sin</span>(<span class="nu">2.0</span> * np.pi * <span class="nu">1.5</span> * t)
+x2 = np.<span class="fn">cos</span>(<span class="nu">2.0</span> * np.pi * <span class="nu">1.5</span> * t) * np.<span class="fn">exp</span>(-<span class="nu">0.1</span> * t)
+x3 = np.<span class="fn">sin</span>(<span class="nu">2.0</span> * np.pi * <span class="nu">3.0</span> * t) * <span class="nu">0.5</span>
+data = np.<span class="fn">vstack</span>([x1, x2, x3])  <span class="cm"># shape (3, 200)</span>
+
+<span class="cm"># Fit the DMD model</span>
+dmd = <span class="fn">DMD</span>(rank=<span class="nu">4</span>, center=<span class="kw">True</span>).<span class="fn">fit</span>(data)
+
+<span class="cm"># Inspect eigenvalues and modes</span>
+<span class="fn">print</span>(<span class="st">"Rank:       "</span>, dmd.rank)
+<span class="fn">print</span>(<span class="st">"Eigenvalues:"</span>, dmd.eigenvalues)
+<span class="fn">print</span>(<span class="st">"Modes shape:"</span>, dmd.modes.shape)
+<span class="fn">print</span>(<span class="st">"Amplitudes: "</span>, dmd.amplitudes)
+
+<span class="cm"># Spectral analysis</span>
+spec = dmd.<span class="fn">spectrum</span>(dt=dt)
+<span class="kw">for</span> i, mode <span class="kw">in</span> <span class="fn">enumerate</span>(spec):
+    <span class="fn">print</span>(<span class="st">f"Mode </span>{i}<span class="st">: freq=</span>{mode[<span class="st">'frequency'</span>]:<span class="nu">.2f</span>}<span class="st"> Hz, "</span>
+          <span class="st">f"growth=</span>{mode[<span class="st">'growth_rate'</span>]:<span class="nu">.4f</span>}<span class="st">, </span>{mode[<span class="st">'stability'</span>]}<span class="st">"</span>)
+
+<span class="cm"># Stability check</span>
+stab = dmd.<span class="fn">stability</span>()
+<span class="fn">print</span>(<span class="st">f"System stable: </span>{stab[<span class="st">'is_stable'</span>]}<span class="st">"</span>)
+
+<span class="cm"># Reconstruction error</span>
+err = dmd.<span class="fn">error</span>(data)
+<span class="fn">print</span>(<span class="st">f"RMSE:           </span>{err[<span class="st">'rmse'</span>]:<span class="nu">.6f</span>}<span class="st">"</span>)
+<span class="fn">print</span>(<span class="st">f"Relative error: </span>{err[<span class="st">'relative_error'</span>]:<span class="nu">.6f</span>}<span class="st">"</span>)
+
+<span class="cm"># Dominant modes</span>
+top = dmd.<span class="fn">dominant_modes</span>(criterion=<span class="st">"energy"</span>, n=<span class="nu">2</span>)
+<span class="fn">print</span>(<span class="st">"Top 2 modes by energy:"</span>, top)
+
+<span class="cm"># Mode residuals</span>
+res = dmd.<span class="fn">residual</span>()
+<span class="fn">print</span>(<span class="st">f"Max residual:  </span>{res[<span class="st">'max_residual'</span>]:<span class="nu">.2e</span>}<span class="st">"</span>)
+
+<span class="cm"># Predict 100 steps ahead</span>
+forecast = dmd.<span class="fn">predict</span>(<span class="nu">100</span>)
+<span class="fn">print</span>(<span class="st">f"Forecast shape: </span>{forecast.shape}<span class="st">"</span>)
+
+<span class="cm"># Reconstruct the training window</span>
+fitted = dmd.<span class="fn">reconstruct</span>(n)
+<span class="fn">print</span>(<span class="st">f"Reconstruction shape: </span>{fitted.shape}<span class="st">"</span>)</code></pre>
+
+    <h3 id="example-extended">Extended DMD with Polynomial Lifting</h3>
+
+<pre><code><span class="kw">import</span> numpy <span class="kw">as</span> np
+<span class="kw">from</span> koopman_dmd <span class="kw">import</span> DMD
+
+<span class="cm"># Nonlinear signal: sin^2(t)</span>
+n = <span class="nu">300</span>
+dt = <span class="nu">0.05</span>
+t = np.<span class="fn">arange</span>(n) * dt
+signal = np.<span class="fn">sin</span>(t) ** <span class="nu">2</span>
+data = signal.<span class="fn">reshape</span>(<span class="nu">1</span>, <span class="nu">-1</span>)
+
+<span class="cm"># Standard DMD (will have high error on nonlinear signal)</span>
+dmd_std = <span class="fn">DMD</span>().<span class="fn">fit</span>(data)
+err_std = dmd_std.<span class="fn">error</span>(data)
+<span class="fn">print</span>(<span class="st">f"Standard DMD RMSE: </span>{err_std[<span class="st">'rmse'</span>]:<span class="nu">.6f</span>}<span class="st">"</span>)
+
+<span class="cm"># Extended DMD with polynomial lifting (degree 2)</span>
+dmd_ext = <span class="fn">DMD</span>(lifting=<span class="st">"polynomial"</span>, lifting_param=<span class="nu">2</span>).<span class="fn">fit</span>(data)
+err_ext = dmd_ext.<span class="fn">error</span>(data)
+<span class="fn">print</span>(<span class="st">f"Extended DMD RMSE: </span>{err_ext[<span class="st">'rmse'</span>]:<span class="nu">.6f</span>}<span class="st">"</span>)
+
+<span class="cm"># Predictions are automatically back-projected to original space</span>
+forecast = dmd_ext.<span class="fn">predict</span>(<span class="nu">100</span>)
+<span class="fn">print</span>(<span class="st">f"Forecast shape: </span>{forecast.shape}<span class="st">"</span>)  <span class="cm"># (1, 100)</span></code></pre>
+
+    <h3 id="example-hankel">Hankel-DMD for Scalar Time Series</h3>
+
+<pre><code><span class="kw">import</span> numpy <span class="kw">as</span> np
+<span class="kw">from</span> koopman_dmd <span class="kw">import</span> HankelDMD
+
+<span class="cm"># Two-frequency signal from scalar measurement</span>
+t = np.<span class="fn">linspace</span>(<span class="nu">0</span>, <span class="nu">10</span>, <span class="nu">500</span>)
+signal = np.<span class="fn">sin</span>(<span class="nu">2.0</span> * np.pi * t) + <span class="nu">0.5</span> * np.<span class="fn">sin</span>(<span class="nu">6.0</span> * np.pi * t)
+data = signal.<span class="fn">reshape</span>(<span class="nu">1</span>, <span class="nu">-1</span>)
+
+<span class="cm"># Hankel-DMD with time-delay embedding</span>
+hdmd = <span class="fn">HankelDMD</span>(delays=<span class="nu">20</span>, rank=<span class="nu">4</span>, dt=t[<span class="nu">1</span>] - t[<span class="nu">0</span>]).<span class="fn">fit</span>(data)
+
+<span class="fn">print</span>(<span class="st">"Eigenvalues:"</span>, hdmd.eigenvalues)
+<span class="fn">print</span>(<span class="st">"Rank:"</span>, hdmd.rank)
+
+<span class="cm"># Reconstruct and predict</span>
+recon = hdmd.<span class="fn">reconstruct</span>()
+forecast = hdmd.<span class="fn">predict</span>(<span class="nu">100</span>)
+
+<span class="fn">print</span>(<span class="st">f"Reconstruction shape: </span>{recon.shape}<span class="st">"</span>)
+<span class="fn">print</span>(<span class="st">f"Forecast shape:       </span>{forecast.shape}<span class="st">"</span>)</code></pre>
+
+    <h3 id="example-gla">GLA for Spectral Extraction</h3>
+
+<pre><code><span class="kw">import</span> numpy <span class="kw">as</span> np
+<span class="kw">from</span> koopman_dmd <span class="kw">import</span> GLA
+
+<span class="cm"># Signal with two distinct frequencies</span>
+t = np.<span class="fn">linspace</span>(<span class="nu">0</span>, <span class="nu">20</span>, <span class="nu">1000</span>)
+signal = np.<span class="fn">cos</span>(<span class="nu">1.5</span> * t) + <span class="nu">0.3</span> * np.<span class="fn">cos</span>(<span class="nu">3.7</span> * t)
+data = signal.<span class="fn">reshape</span>(<span class="nu">1</span>, <span class="nu">-1</span>)
+
+<span class="cm"># Extract 4 Koopman eigenvalues via GLA</span>
+gla = <span class="fn">GLA</span>(n_eigenvalues=<span class="nu">4</span>, tol=<span class="nu">1e-8</span>).<span class="fn">fit</span>(data)
+
+<span class="fn">print</span>(<span class="st">"Koopman eigenvalues:"</span>)
+<span class="kw">for</span> ev <span class="kw">in</span> gla.eigenvalues:
+    <span class="fn">print</span>(<span class="st">f"  </span>{ev}<span class="st">"</span>)
+<span class="fn">print</span>(<span class="st">f"Convergence rate: </span>{gla.convergence_rate:<span class="nu">.2e</span>}<span class="st">"</span>)
+
+<span class="cm"># Reconstruct and forecast</span>
+recon = gla.<span class="fn">reconstruct</span>()
+forecast = gla.<span class="fn">predict</span>(<span class="nu">200</span>)
+<span class="fn">print</span>(<span class="st">f"Forecast shape: </span>{forecast.shape}<span class="st">"</span>)</code></pre>
+
+    <h3 id="example-trajectory">Trajectory Generation and HTA Analysis</h3>
+
+<pre><code><span class="kw">import</span> numpy <span class="kw">as</span> np
+<span class="kw">from</span> koopman_dmd <span class="kw">import</span> (
+    generate_trajectory,
+    harmonic_time_average,
+    classify_phase_space,
+    hta_convergence,
+    mesochronic_compute,
+)
+
+<span class="cm"># Generate a trajectory on the standard map</span>
+traj = <span class="fn">generate_trajectory</span>(
+    ic=[<span class="nu">0.1</span>, <span class="nu">0.2</span>],
+    map_name=<span class="st">"standard"</span>,
+    n_steps=<span class="nu">10000</span>,
+    params={<span class="st">"epsilon"</span>: <span class="nu">0.12</span>}
+)
+<span class="fn">print</span>(<span class="st">f"Trajectory shape: </span>{traj.shape}<span class="st">"</span>)  <span class="cm"># (2, 10000)</span>
+
+<span class="cm"># Compute harmonic time average</span>
+hta = <span class="fn">harmonic_time_average</span>(
+    ic=[<span class="nu">0.1</span>, <span class="nu">0.2</span>],
+    map_name=<span class="st">"standard"</span>,
+    observable=<span class="st">"identity"</span>,
+    omega=<span class="nu">0.3</span>,
+    n_iter=<span class="nu">10000</span>,
+    params={<span class="st">"epsilon"</span>: <span class="nu">0.12</span>}
+)
+<span class="fn">print</span>(<span class="st">f"HTA magnitude: </span>{hta[<span class="st">'magnitude'</span>]:<span class="nu">.6f</span>}<span class="st">"</span>)
+<span class="fn">print</span>(<span class="st">f"HTA phase:     </span>{hta[<span class="st">'phase'</span>]:<span class="nu">.6f</span>}<span class="st">"</span>)
+
+<span class="cm"># Classify the initial condition</span>
+cls = <span class="fn">classify_phase_space</span>(
+    ic=[<span class="nu">0.1</span>, <span class="nu">0.2</span>],
+    map_name=<span class="st">"standard"</span>,
+    omega=<span class="nu">0.0</span>,
+    n_iter=<span class="nu">50000</span>,
+    params={<span class="st">"epsilon"</span>: <span class="nu">0.12</span>}
+)
+<span class="fn">print</span>(<span class="st">f"Region: </span>{cls[<span class="st">'classification'</span>]}<span class="st">"</span>)
+
+<span class="cm"># Study convergence of the HTA</span>
+conv = <span class="fn">hta_convergence</span>(
+    ic=[<span class="nu">0.1</span>, <span class="nu">0.2</span>],
+    map_name=<span class="st">"standard"</span>,
+    observable=<span class="st">"identity"</span>,
+    omega=<span class="nu">0.3</span>,
+    max_iter=<span class="nu">50000</span>,
+    step=<span class="nu">500</span>,
+    params={<span class="st">"epsilon"</span>: <span class="nu">0.12</span>}
+)
+
+<span class="cm"># Compute mesochronic plot data</span>
+meso = <span class="fn">mesochronic_compute</span>(
+    map_name=<span class="st">"standard"</span>,
+    x_range=(<span class="nu">0.0</span>, <span class="nu">1.0</span>),
+    y_range=(<span class="nu">0.0</span>, <span class="nu">1.0</span>),
+    resolution=<span class="nu">100</span>,
+    observable=<span class="st">"identity"</span>,
+    omega=<span class="nu">0.0</span>,
+    n_iter=<span class="nu">5000</span>,
+    params={<span class="st">"epsilon"</span>: <span class="nu">0.12</span>}
+)
+<span class="fn">print</span>(<span class="st">f"HTA matrix shape:   </span>{meso[<span class="st">'hta_matrix'</span>].shape}<span class="st">"</span>)
+<span class="fn">print</span>(<span class="st">f"Phase matrix shape: </span>{meso[<span class="st">'phase_matrix'</span>].shape}<span class="st">"</span>)</code></pre>
+
+  </main>
+</div>
+
+<script src="js/main.js"></script>
+</body>
+</html>
