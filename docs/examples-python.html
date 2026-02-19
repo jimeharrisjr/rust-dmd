@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Python Examples - koopman-dmd</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- Top navigation -->
+<header class="topnav">
+  <a class="logo" href="index.html">koopman<span>-dmd</span></a>
+  <nav>
+    <a href="index.html">Home</a>
+    <a href="getting-started.html">Guide</a>
+    <a href="api-rust.html">API</a>
+  </nav>
+  <a class="gh-link" href="https://github.com/jimeharrisjr/rust-dmd" target="_blank">
+    <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+    GitHub
+  </a>
+</header>
+
+<div class="page-layout">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <h3>Getting Started</h3>
+    <a href="getting-started.html">Installation &amp; Setup</a>
+
+    <h3>Features</h3>
+    <a href="core-dmd.html">Core DMD</a>
+    <a href="extended-dmd.html">Extended DMD</a>
+    <a href="hankel-dmd.html">Hankel-DMD</a>
+    <a href="gla.html">GLA</a>
+    <a href="harmonic.html">Harmonic Analysis</a>
+    <a href="maps.html">Dynamical Maps</a>
+    <a href="analysis.html">Analysis Tools</a>
+
+    <h3>Examples</h3>
+    <a href="examples-r.html">R Examples</a>
+    <a href="examples-python.html" class="active">Python Examples</a>
+
+    <h3>API Reference</h3>
+    <a href="api-rust.html">Rust API</a>
+    <a href="api-python.html">Python API</a>
+    <a href="api-r.html">R API</a>
+  </aside>
+
+  <!-- Main content -->
+  <main class="content">
+    <h1>Python Examples</h1>
+    <p class="subtitle">Complete worked examples using the <code>koopman_dmd</code> Python package</p>
+
+    <p>This page provides end-to-end Python examples for every major feature of the
+    <code>koopman_dmd</code> library. Each section includes runnable code, expected
+    output descriptions, and explanatory notes. The Python bindings call directly
+    into the Rust core via PyO3, so performance is identical to native Rust.</p>
+
+    <div class="info-box">
+      <strong>Prerequisites.</strong> Install the package with
+      <code>pip install maturin &amp;&amp; cd koopman-dmd-py &amp;&amp; maturin develop --release</code>.
+      You will also need <code>numpy</code> and, for plotting examples, <code>matplotlib</code>.
+    </div>
+
+    <!-- ============================================================
+         Section 1: Core DMD -- Fit, Analyze, Predict
+         ============================================================ -->
+    <h2 id="core-dmd">1. Core DMD -- Fit, Analyze, Predict</h2>
+
+    <p>The most common workflow: construct a damped oscillator signal, fit a DMD
+    model on the training window, then predict beyond the observed data. DMD
+    decomposes the dynamics into a small number of spatiotemporal modes, each
+    with an associated eigenvalue that encodes its oscillation frequency and
+    growth/decay rate.</p>
+
+<pre><code><span class="kw">import</span> numpy <span class="kw">as</span> np
+<span class="kw">from</span> koopman_dmd <span class="kw">import</span> DMD
+
+<span class="cm"># Damped oscillator: 2 variables, 300 time steps</span>
+dt = <span class="nu">0.05</span>
+t = np.<span class="fn">arange</span>(<span class="nu">300</span>) * dt
+x1 = np.<span class="fn">exp</span>(-<span class="nu">0.05</span> * t) * np.<span class="fn">sin</span>(<span class="nu">2</span> * np.pi * <span class="nu">0.5</span> * t)
+x2 = np.<span class="fn">exp</span>(-<span class="nu">0.05</span> * t) * np.<span class="fn">cos</span>(<span class="nu">2</span> * np.pi * <span class="nu">0.5</span> * t)
+data = np.<span class="fn">vstack</span>([x1, x2])
+
+<span class="cm"># Train on first 200, predict all 299</span>
+model = <span class="fn">DMD</span>(rank=<span class="nu">2</span>).<span class="fn">fit</span>(data[:, :<span class="nu">200</span>])
+pred = model.<span class="fn">predict</span>(<span class="nu">299</span>)
+
+<span class="fn">print</span>(<span class="st">f"Rank: </span>{model.rank}<span class="st">"</span>)
+<span class="fn">print</span>(<span class="st">f"Eigenvalues: </span>{model.eigenvalues}<span class="st">"</span>)
+<span class="fn">print</span>(<span class="st">f"Prediction shape: </span>{pred.shape}<span class="st">"</span>)  <span class="cm"># (2, 299)</span></code></pre>
+
+    <p>Because the underlying system is a damped linear oscillator, DMD with
+    rank 2 recovers it exactly (up to numerical precision). The two eigenvalues
+    form a complex conjugate pair whose magnitude is less than 1, encoding both
+    the 0.5 Hz oscillation frequency and the exponential decay rate. The
+    prediction extends cleanly beyond the 200-sample training window because
+    each time step is computed independently from the spectral decomposition,
+    not recursively.</p>
+
+    <img src="img/dmd_predict_vs_actual.png" alt="DMD prediction vs actual signal for a damped oscillator" style="width:100%;max-width:900px;border-radius:8px;border:1px solid #30363d;margin:16px 0;">
+    <p><em>Plot generated from equivalent R code. The Python output is numerically identical.</em></p>
+
+    <!-- ============================================================
+         Section 2: Spectral and Stability Analysis
+         ============================================================ -->
+    <h2 id="spectral-analysis">2. Spectral and Stability Analysis</h2>
+
+    <p>After fitting a DMD model, the <code>spectrum()</code> method converts
+    discrete-time eigenvalues into physical quantities: oscillation frequency
+    (Hz), eigenvalue magnitude, growth rate, and a stability label. The
+    <code>stability()</code> method summarizes the overall system behavior, and
+    <code>error()</code> quantifies reconstruction accuracy.</p>
+
+<pre><code><span class="cm"># Spectrum: frequency, magnitude, growth rate per mode</span>
+spectrum = model.<span class="fn">spectrum</span>(dt=<span class="nu">0.05</span>)
+<span class="kw">for</span> i, mode <span class="kw">in</span> <span class="fn">enumerate</span>(spectrum):
+    <span class="fn">print</span>(<span class="st">f"Mode </span>{i}<span class="st">: freq=</span>{mode[<span class="st">'frequency'</span>]:<span class="nu">.3f</span>}<span class="st"> Hz, "</span>
+          <span class="st">f"|lambda|=</span>{mode[<span class="st">'magnitude'</span>]:<span class="nu">.4f</span>}<span class="st">, "</span>
+          <span class="st">f"stability=</span>{mode[<span class="st">'stability'</span>]}<span class="st">"</span>)
+
+<span class="cm"># Stability summary</span>
+stab = model.<span class="fn">stability</span>()
+<span class="fn">print</span>(<span class="st">f"Spectral radius: </span>{stab[<span class="st">'spectral_radius'</span>]:<span class="nu">.6f</span>}<span class="st">"</span>)
+<span class="fn">print</span>(<span class="st">f"Stable: </span>{stab[<span class="st">'is_stable'</span>]}<span class="st">"</span>)
+
+<span class="cm"># Error metrics</span>
+err = model.<span class="fn">error</span>(data[:, :<span class="nu">200</span>])
+<span class="fn">print</span>(<span class="st">f"RMSE: </span>{err[<span class="st">'rmse'</span>]:<span class="nu">.2e</span>}<span class="st">"</span>)
+<span class="fn">print</span>(<span class="st">f"Relative error: </span>{err[<span class="st">'relative_error'</span>]:<span class="nu">.2e</span>}<span class="st">"</span>)</code></pre>
+
+    <p>For a damped oscillator, both modes will report <code>"stable"</code>
+    because their eigenvalue magnitudes are strictly less than 1. The spectral
+    radius (maximum eigenvalue magnitude) is the single most important number
+    for stability: values below 1 indicate decay, values above 1 indicate
+    exponential growth. The RMSE and relative error should be near machine
+    precision for this linear system.</p>
+
+    <img src="img/dmd_eigenvalues.png" alt="DMD eigenvalues plotted on the unit circle" style="width:100%;max-width:900px;border-radius:8px;border:1px solid #30363d;margin:16px 0;">
+    <p><em>Plot generated from equivalent R code. Eigenvalues inside the unit circle indicate stable (decaying) modes.</em></p>
+
+    <!-- ============================================================
+         Section 3: Extended DMD with Lifting
+         ============================================================ -->
+    <h2 id="extended-dmd">3. Extended DMD with Lifting</h2>
+
+    <p>Standard DMD assumes the data evolves under a linear operator. When
+    the dynamics are nonlinear, we can "lift" the state into a higher-dimensional
+    feature space where the evolution is approximately linear. Extended DMD
+    automates this: specify a lifting function, and the library handles the
+    feature expansion, DMD in the lifted space, and back-projection of
+    predictions to the original coordinates.</p>
+
+<pre><code><span class="kw">import</span> numpy <span class="kw">as</span> np
+<span class="kw">from</span> koopman_dmd <span class="kw">import</span> DMD
+
+<span class="cm"># Nonlinear signal: sin^2(t)</span>
+t = np.<span class="fn">arange</span>(<span class="nu">200</span>) * <span class="nu">0.05</span>
+data = np.<span class="fn">sin</span>(t)**<span class="nu">2</span>
+data = data.<span class="fn">reshape</span>(<span class="nu">1</span>, -<span class="nu">1</span>)
+
+<span class="cm"># Standard DMD</span>
+model_std = <span class="fn">DMD</span>().<span class="fn">fit</span>(data)
+err_std = model_std.<span class="fn">error</span>(data)
+
+<span class="cm"># Polynomial lifting (degree 2)</span>
+model_lift = <span class="fn">DMD</span>(lifting=<span class="st">"polynomial"</span>, lifting_param=<span class="nu">2</span>).<span class="fn">fit</span>(data)
+err_lift = model_lift.<span class="fn">error</span>(data)
+
+<span class="fn">print</span>(<span class="st">f"Standard RMSE: </span>{err_std[<span class="st">'rmse'</span>]:<span class="nu">.6f</span>}<span class="st">"</span>)
+<span class="fn">print</span>(<span class="st">f"Lifted RMSE:   </span>{err_lift[<span class="st">'rmse'</span>]:<span class="nu">.6f</span>}<span class="st">"</span>)
+
+<span class="cm"># Predictions are automatically back-projected</span>
+pred = model_lift.<span class="fn">predict</span>(<span class="nu">50</span>)
+<span class="fn">print</span>(<span class="st">f"Prediction shape: </span>{pred.shape}<span class="st">"</span>)  <span class="cm"># (1, 50)</span></code></pre>
+
+    <p>The signal <code>sin^2(t) = (1 - cos(2t))/2</code> is nonlinear in the
+    original coordinate but becomes linear after polynomial lifting. With degree-2
+    polynomials, the lifted state includes both <code>x</code> and <code>x^2</code>,
+    which spans the subspace needed to represent the dynamics exactly. You should
+    see a dramatic reduction in RMSE -- often several orders of magnitude -- compared
+    to standard DMD.</p>
+
+    <img src="img/extended_dmd_lifting.png" alt="Comparison of standard DMD vs extended DMD with polynomial lifting" style="width:100%;max-width:900px;border-radius:8px;border:1px solid #30363d;margin:16px 0;">
+    <p><em>Plot generated from equivalent R code. The lifted model captures the nonlinear oscillation that standard DMD cannot.</em></p>
+
+    <!-- ============================================================
+         Section 4: DMD with Centering
+         ============================================================ -->
+    <h2 id="centering">4. DMD with Centering</h2>
+
+    <p>When the signal has a non-zero mean (DC offset), standard DMD must
+    devote a mode to representing that constant component. Centering subtracts
+    the temporal mean before decomposition and adds it back during reconstruction,
+    freeing all DMD modes to capture the oscillatory dynamics.</p>
+
+<pre><code><span class="kw">import</span> numpy <span class="kw">as</span> np
+<span class="kw">from</span> koopman_dmd <span class="kw">import</span> DMD
+
+<span class="cm"># Signal with DC offset</span>
+t = np.<span class="fn">arange</span>(<span class="nu">300</span>) * <span class="nu">0.02</span>
+signal = <span class="nu">3.0</span> + <span class="nu">2.0</span> * np.<span class="fn">sin</span>(<span class="nu">2</span> * np.pi * t) + <span class="nu">0.5</span> * np.<span class="fn">sin</span>(<span class="nu">6</span> * np.pi * t)
+data = signal.<span class="fn">reshape</span>(<span class="nu">1</span>, -<span class="nu">1</span>)
+
+<span class="cm"># Without centering: must capture mean with an eigenvalue</span>
+model_no_center = <span class="fn">DMD</span>(rank=<span class="nu">4</span>).<span class="fn">fit</span>(data)
+
+<span class="cm"># With centering: mean subtracted, DMD focuses on dynamics</span>
+model_centered = <span class="fn">DMD</span>(rank=<span class="nu">4</span>, center=<span class="kw">True</span>).<span class="fn">fit</span>(data)
+
+pred_nc = model_no_center.<span class="fn">predict</span>(<span class="nu">299</span>)
+pred_c = model_centered.<span class="fn">predict</span>(<span class="nu">299</span>)
+
+err_nc = model_no_center.<span class="fn">error</span>(data)
+err_c = model_centered.<span class="fn">error</span>(data)
+
+<span class="fn">print</span>(<span class="st">f"Without centering -- RMSE: </span>{err_nc[<span class="st">'rmse'</span>]:<span class="nu">.6f</span>}<span class="st">"</span>)
+<span class="fn">print</span>(<span class="st">f"With centering    -- RMSE: </span>{err_c[<span class="st">'rmse'</span>]:<span class="nu">.6f</span>}<span class="st">"</span>)</code></pre>
+
+    <p>Centering is especially helpful when:</p>
+    <ul>
+      <li>The signal has a large DC offset relative to the oscillation amplitude.</li>
+      <li>You want a specific rank budget devoted entirely to dynamics, not the mean.</li>
+      <li>The system has a non-zero equilibrium point that you want to factor out.</li>
+    </ul>
+    <p>When centering is enabled, the stored mean is automatically added back to
+    all predictions and reconstructions, so the output is always in the original
+    coordinate system.</p>
+
+    <!-- ============================================================
+         Section 5: Hankel-DMD for Scalar Time Series
+         ============================================================ -->
+    <h2 id="hankel-dmd">5. Hankel-DMD for Scalar Time Series</h2>
+
+    <p>When you have a single measured variable (scalar time series), standard
+    DMD cannot recover multiple frequencies because the data matrix has only
+    one row. Hankel-DMD solves this by constructing a time-delay embedding:
+    it stacks lagged copies of the signal into a Hankel matrix, creating a
+    multi-row data matrix where DMD can identify the underlying modes.</p>
+
+<pre><code><span class="kw">import</span> numpy <span class="kw">as</span> np
+<span class="kw">from</span> koopman_dmd <span class="kw">import</span> HankelDMD
+
+<span class="cm"># Two-frequency scalar signal</span>
+dt = <span class="nu">0.02</span>
+t = np.<span class="fn">arange</span>(<span class="nu">500</span>) * dt
+signal = np.<span class="fn">sin</span>(<span class="nu">2</span> * np.pi * <span class="nu">1.0</span> * t) + <span class="nu">0.4</span> * np.<span class="fn">sin</span>(<span class="nu">2</span> * np.pi * <span class="nu">3.0</span> * t)
+data = signal.<span class="fn">reshape</span>(<span class="nu">1</span>, -<span class="nu">1</span>)
+
+<span class="cm"># Train on 400 samples</span>
+model = <span class="fn">HankelDMD</span>(delays=<span class="nu">30</span>, rank=<span class="nu">4</span>, dt=dt).<span class="fn">fit</span>(data[:, :<span class="nu">400</span>])
+
+<span class="cm"># Reconstruct training data</span>
+recon = model.<span class="fn">reconstruct</span>()
+<span class="fn">print</span>(<span class="st">f"Reconstruction shape: </span>{recon.shape}<span class="st">"</span>)
+
+<span class="cm"># Predict 100 future steps</span>
+pred = model.<span class="fn">predict</span>(<span class="nu">100</span>)
+<span class="fn">print</span>(<span class="st">f"Prediction shape: </span>{pred.shape}<span class="st">"</span>)
+
+<span class="cm"># Recovered eigenvalues</span>
+<span class="kw">for</span> ev <span class="kw">in</span> model.eigenvalues:
+    freq = <span class="fn">abs</span>(np.<span class="fn">angle</span>(ev)) / (<span class="nu">2</span> * np.pi * dt)
+    <span class="fn">print</span>(<span class="st">f"  lambda=</span>{ev:<span class="nu">.4f</span>}<span class="st">, |lambda|=</span>{<span class="fn">abs</span>(ev):<span class="nu">.4f</span>}<span class="st">, freq=</span>{freq:<span class="nu">.2f</span>}<span class="st"> Hz"</span>)</code></pre>
+
+    <p>With 30 delays and rank 4, Hankel-DMD recovers both the 1.0 Hz and
+    3.0 Hz components as complex conjugate eigenvalue pairs. The number of
+    delays should be at least 2-3 times the number of modes you expect. The
+    eigenvalue magnitudes should be very close to 1.0 for this undamped signal,
+    and the recovered frequencies should match 1.0 Hz and 3.0 Hz. Predictions
+    are automatically projected back from the augmented Hankel space to the
+    original scalar observation.</p>
+
+    <img src="img/hankel_dmd_prediction.png" alt="Hankel-DMD reconstruction and out-of-sample prediction" style="width:100%;max-width:900px;border-radius:8px;border:1px solid #30363d;margin:16px 0;">
+    <p><em>Plot generated from equivalent R code. The blue region is training data; the red region is the out-of-sample forecast.</em></p>
+
+    <!-- ============================================================
+         Section 6: GLA -- Generalized Laplace Analysis
+         ============================================================ -->
+    <h2 id="gla">6. GLA -- Generalized Laplace Analysis</h2>
+
+    <p>Generalized Laplace Analysis (GLA) is an alternative to DMD that
+    extracts Koopman eigenvalues by solving an optimization problem rather
+    than computing the SVD of a data matrix. GLA can be more accurate than
+    DMD for systems with eigenvalues exactly on the unit circle (pure
+    oscillators) and can handle longer time series without the memory cost
+    of storing large matrices.</p>
+
+<pre><code><span class="kw">import</span> numpy <span class="kw">as</span> np
+<span class="kw">from</span> koopman_dmd <span class="kw">import</span> GLA
+
+<span class="cm"># Pure oscillator</span>
+t = np.<span class="fn">arange</span>(<span class="nu">400</span>) * <span class="nu">0.1</span>
+data = np.<span class="fn">vstack</span>([np.<span class="fn">sin</span>(t), np.<span class="fn">cos</span>(t)])
+
+<span class="cm"># Fit GLA</span>
+model = <span class="fn">GLA</span>(n_eigenvalues=<span class="nu">2</span>, tol=<span class="nu">1e-4</span>).<span class="fn">fit</span>(data)
+<span class="fn">print</span>(<span class="st">f"Eigenvalues: </span>{model.eigenvalues}<span class="st">"</span>)
+
+<span class="cm"># Reconstruct and predict</span>
+recon = model.<span class="fn">reconstruct</span>()
+pred = model.<span class="fn">predict</span>(<span class="nu">100</span>)
+<span class="fn">print</span>(<span class="st">f"Reconstruction shape: </span>{recon.shape}<span class="st">"</span>)
+<span class="fn">print</span>(<span class="st">f"Prediction shape: </span>{pred.shape}<span class="st">"</span>)</code></pre>
+
+    <p>For a pure sine/cosine oscillator, GLA should recover two eigenvalues
+    that are complex conjugates lying exactly on the unit circle. The
+    convergence tolerance controls how precisely the eigenvalues are refined:
+    smaller values yield more accurate results at the cost of additional
+    iterations.</p>
+
+    <img src="img/gla_prediction.png" alt="GLA reconstruction and prediction for a pure oscillator" style="width:100%;max-width:900px;border-radius:8px;border:1px solid #30363d;margin:16px 0;">
+    <p><em>Plot generated from equivalent R code. GLA recovers eigenvalues on the unit circle exactly.</em></p>
+
+    <!-- ============================================================
+         Section 7: Trajectory Generation
+         ============================================================ -->
+    <h2 id="trajectory-generation">7. Trajectory Generation</h2>
+
+    <p>The library includes several classical dynamical maps implemented in
+    Rust for high performance. These serve as test systems for DMD analysis
+    and for studying the Koopman operator on systems with mixed regular and
+    chaotic dynamics.</p>
+
+<pre><code><span class="kw">from</span> koopman_dmd <span class="kw">import</span> generate_trajectory
+
+<span class="cm"># Standard map (regular orbit)</span>
+traj_reg = <span class="fn">generate_trajectory</span>(
+    ic=[<span class="nu">0.1</span>, <span class="nu">0.2</span>], map_name=<span class="st">"standard"</span>, n_steps=<span class="nu">5000</span>,
+    params={<span class="st">"epsilon"</span>: <span class="nu">0.12</span>}
+)
+<span class="fn">print</span>(<span class="st">f"Regular trajectory: </span>{traj_reg.shape}<span class="st">"</span>)
+
+<span class="cm"># Standard map (chaotic orbit)</span>
+traj_chaos = <span class="fn">generate_trajectory</span>(
+    ic=[<span class="nu">0.5</span>, <span class="nu">0.5</span>], map_name=<span class="st">"standard"</span>, n_steps=<span class="nu">50000</span>,
+    params={<span class="st">"epsilon"</span>: <span class="nu">0.97</span>}
+)
+
+<span class="cm"># Henon attractor</span>
+traj_henon = <span class="fn">generate_trajectory</span>(
+    ic=[<span class="nu">0.0</span>, <span class="nu">0.0</span>], map_name=<span class="st">"henon"</span>, n_steps=<span class="nu">20000</span>,
+    params={<span class="st">"a"</span>: <span class="nu">1.4</span>, <span class="st">"b"</span>: <span class="nu">0.3</span>}
+)
+
+<span class="cm"># Logistic map</span>
+traj_log = <span class="fn">generate_trajectory</span>(
+    ic=[<span class="nu">0.4</span>], map_name=<span class="st">"logistic"</span>, n_steps=<span class="nu">200</span>,
+    params={<span class="st">"r"</span>: <span class="nu">3.9</span>}
+)</code></pre>
+
+    <p>The standard map at <code>epsilon=0.12</code> is in a near-integrable
+    regime where most orbits lie on invariant circles (regular motion). At
+    <code>epsilon=0.97</code>, the phase space is largely chaotic. The Henon
+    map with classical parameters <code>a=1.4, b=0.3</code> produces its
+    famous strange attractor. The logistic map at <code>r=3.9</code> is in
+    the chaotic regime. All trajectories are returned as NumPy arrays of
+    shape <code>(n_vars, n_steps)</code>.</p>
+
+    <img src="img/dynamical_maps.png" alt="Phase portraits of the standard map and Henon attractor" style="width:100%;max-width:900px;border-radius:8px;border:1px solid #30363d;margin:16px 0;">
+    <p><em>Plot generated from equivalent R code. Left: standard map orbits. Right: Henon attractor.</em></p>
+
+    <!-- ============================================================
+         Section 8: Harmonic Time Averages
+         ============================================================ -->
+    <h2 id="harmonic-time-averages">8. Harmonic Time Averages</h2>
+
+    <p>Harmonic time averages (HTAs) provide a finite-time approximation
+    of Koopman eigenfunctions. At frequency <code>omega=0</code>, the HTA
+    converges to the time-average of the observable along the orbit. For
+    regular (quasiperiodic) orbits, the HTA converges; for chaotic orbits,
+    it does not. This convergence/divergence behavior is the basis for
+    classifying phase space regions.</p>
+
+<pre><code><span class="kw">from</span> koopman_dmd <span class="kw">import</span> harmonic_time_average, classify_phase_space
+
+<span class="cm"># HTA at a single point</span>
+hta = <span class="fn">harmonic_time_average</span>(
+    ic=[<span class="nu">0.1</span>, <span class="nu">0.2</span>], map_name=<span class="st">"standard"</span>,
+    observable=<span class="st">"sin_pi"</span>, omega=<span class="nu">0.0</span>, n_iter=<span class="nu">10000</span>,
+    params={<span class="st">"epsilon"</span>: <span class="nu">0.12</span>}
+)
+<span class="fn">print</span>(<span class="st">f"Magnitude: </span>{hta[<span class="st">'magnitude'</span>]:<span class="nu">.6f</span>}<span class="st">"</span>)
+<span class="fn">print</span>(<span class="st">f"Phase: </span>{hta[<span class="st">'phase'</span>]:<span class="nu">.6f</span>}<span class="st">"</span>)
+
+<span class="cm"># Classify phase space region</span>
+cls = <span class="fn">classify_phase_space</span>(
+    ic=[<span class="nu">0.1</span>, <span class="nu">0.2</span>], map_name=<span class="st">"standard"</span>,
+    omega=<span class="nu">0.0</span>, n_iter=<span class="nu">50000</span>,
+    params={<span class="st">"epsilon"</span>: <span class="nu">0.12</span>}
+)
+<span class="fn">print</span>(<span class="st">f"Classification: </span>{cls[<span class="st">'classification'</span>]}<span class="st">"</span>)</code></pre>
+
+    <p>The initial condition <code>[0.1, 0.2]</code> with <code>epsilon=0.12</code>
+    lies on a regular invariant circle of the standard map, so the classification
+    should return <code>"regular"</code>. The HTA magnitude is non-zero and stable.
+    For a chaotic initial condition, the HTA magnitude would fluctuate without
+    converging, and the classifier would return <code>"chaotic"</code>.</p>
+
+    <img src="img/hta_convergence.png" alt="HTA convergence comparison for regular vs chaotic orbits" style="width:100%;max-width:900px;border-radius:8px;border:1px solid #30363d;margin:16px 0;">
+    <p><em>Plot generated from equivalent R code. Regular orbits converge smoothly; chaotic orbits oscillate indefinitely.</em></p>
+
+    <!-- ============================================================
+         Section 9: Mesochronic Plots
+         ============================================================ -->
+    <h2 id="mesochronic-plots">9. Mesochronic Plots</h2>
+
+    <p>A mesochronic plot visualizes the harmonic time average over a grid
+    of initial conditions, producing a color-coded map of phase space. Regions
+    of regular motion appear as smooth, coherent bands of color; chaotic
+    regions appear noisy. The Rust backend parallelizes the grid computation
+    across all available CPU cores, making high-resolution mesochronic plots
+    practical.</p>
+
+<pre><code><span class="kw">from</span> koopman_dmd <span class="kw">import</span> mesochronic_compute
+
+<span class="cm"># Compute HTA over a 100x100 grid (parallelized in Rust)</span>
+meso = <span class="fn">mesochronic_compute</span>(
+    map_name=<span class="st">"standard"</span>,
+    x_range=(<span class="nu">0.0</span>, <span class="nu">1.0</span>), y_range=(<span class="nu">0.0</span>, <span class="nu">1.0</span>),
+    resolution=<span class="nu">100</span>, observable=<span class="st">"sin_pi"</span>,
+    omega=<span class="nu">0.0</span>, n_iter=<span class="nu">5000</span>,
+    params={<span class="st">"epsilon"</span>: <span class="nu">0.12</span>}
+)
+
+<span class="fn">print</span>(<span class="st">f"HTA matrix shape: </span>{meso[<span class="st">'hta_matrix'</span>].shape}<span class="st">"</span>)
+<span class="fn">print</span>(<span class="st">f"Phase matrix shape: </span>{meso[<span class="st">'phase_matrix'</span>].shape}<span class="st">"</span>)
+
+<span class="cm"># Visualize with matplotlib</span>
+<span class="kw">import</span> matplotlib.pyplot <span class="kw">as</span> plt
+fig, (ax1, ax2) = plt.<span class="fn">subplots</span>(<span class="nu">1</span>, <span class="nu">2</span>, figsize=(<span class="nu">12</span>, <span class="nu">5</span>))
+ax1.<span class="fn">pcolormesh</span>(meso[<span class="st">"x_coords"</span>], meso[<span class="st">"y_coords"</span>],
+               meso[<span class="st">"hta_matrix"</span>], cmap=<span class="st">"viridis"</span>)
+ax1.<span class="fn">set_title</span>(<span class="st">"|HTA| Magnitude"</span>)
+ax2.<span class="fn">pcolormesh</span>(meso[<span class="st">"x_coords"</span>], meso[<span class="st">"y_coords"</span>],
+               meso[<span class="st">"phase_matrix"</span>], cmap=<span class="st">"RdYlBu"</span>)
+ax2.<span class="fn">set_title</span>(<span class="st">"HTA Phase"</span>)
+plt.<span class="fn">tight_layout</span>()
+plt.<span class="fn">savefig</span>(<span class="st">"mesochronic.png"</span>, dpi=<span class="nu">150</span>)</code></pre>
+
+    <p>At resolution 100 with 5000 iterations per grid point, this computes
+    50 million map iterations total. The Rust parallelization makes this
+    feasible in seconds rather than minutes. Increasing the resolution to
+    200 or 500 produces publication-quality images at the cost of proportionally
+    longer computation.</p>
+
+    <img src="img/mesochronic_plot.png" alt="Mesochronic plot showing regular and chaotic regions of the standard map" style="width:100%;max-width:900px;border-radius:8px;border:1px solid #30363d;margin:16px 0;">
+    <p><em>Plot generated from equivalent R code. Smooth bands indicate invariant circles (regular motion); noisy regions indicate chaos.</em></p>
+
+    <!-- ============================================================
+         Section 10: Complete Workflow -- DMD on Map Trajectory
+         ============================================================ -->
+    <h2 id="complete-workflow">10. Complete Workflow -- DMD on Map Trajectory</h2>
+
+    <p>This example chains together trajectory generation and DMD analysis
+    into a complete workflow: generate data from a dynamical map, fit a DMD
+    model, analyze the spectrum and stability, compute errors, and forecast
+    beyond the training window.</p>
+
+<pre><code><span class="kw">import</span> numpy <span class="kw">as</span> np
+<span class="kw">from</span> koopman_dmd <span class="kw">import</span> DMD, generate_trajectory
+
+<span class="cm"># Generate standard map trajectory</span>
+traj = <span class="fn">generate_trajectory</span>(
+    ic=[<span class="nu">0.1</span>, <span class="nu">0.2</span>], map_name=<span class="st">"standard"</span>, n_steps=<span class="nu">2000</span>,
+    params={<span class="st">"epsilon"</span>: <span class="nu">0.12</span>}
+)
+
+<span class="cm"># Train DMD on first 1500 steps</span>
+model = <span class="fn">DMD</span>(rank=<span class="nu">4</span>).<span class="fn">fit</span>(traj[:, :<span class="nu">1500</span>])
+
+<span class="cm"># Analyze</span>
+<span class="fn">print</span>(<span class="st">f"Rank: </span>{model.rank}<span class="st">"</span>)
+spec = model.<span class="fn">spectrum</span>(dt=<span class="nu">1.0</span>)
+<span class="kw">for</span> s <span class="kw">in</span> spec:
+    <span class="fn">print</span>(<span class="st">f"  freq=</span>{s[<span class="st">'frequency'</span>]:<span class="nu">.4f</span>}<span class="st">, |lambda|=</span>{s[<span class="st">'magnitude'</span>]:<span class="nu">.4f</span>}<span class="st">"</span>)
+
+stab = model.<span class="fn">stability</span>()
+<span class="fn">print</span>(<span class="st">f"Stable: </span>{stab[<span class="st">'is_stable'</span>]}<span class="st">"</span>)
+
+err = model.<span class="fn">error</span>(traj[:, :<span class="nu">1500</span>])
+<span class="fn">print</span>(<span class="st">f"RMSE: </span>{err[<span class="st">'rmse'</span>]:<span class="nu">.6f</span>}<span class="st">"</span>)
+
+<span class="cm"># Predict out-of-sample</span>
+pred = model.<span class="fn">predict</span>(<span class="nu">500</span>)
+<span class="fn">print</span>(<span class="st">f"Forecast shape: </span>{pred.shape}<span class="st">"</span>)
+
+<span class="cm"># Dominant modes</span>
+top = model.<span class="fn">dominant_modes</span>(criterion=<span class="st">"energy"</span>, n=<span class="nu">2</span>)
+<span class="fn">print</span>(<span class="st">f"Top 2 modes by energy: </span>{top}<span class="st">"</span>)</code></pre>
+
+    <p>For the regular orbit at <code>epsilon=0.12</code>, DMD with rank 4
+    should recover eigenvalues very close to the unit circle (the system is
+    area-preserving and the orbit is quasiperiodic). The spectral radius
+    should be approximately 1.0, and the system should be classified as
+    stable. The frequencies correspond to the winding number of the invariant
+    circle. Out-of-sample prediction quality depends on how well the linear
+    approximation captures the local dynamics.</p>
+
+    <!-- ============================================================
+         Section 11: Visualization Recipes
+         ============================================================ -->
+    <h2 id="visualization-recipes">11. Visualization Recipes</h2>
+
+    <p>Below are reusable matplotlib patterns for the most common koopman-dmd
+    visualizations. Each recipe takes the output of a standard library call
+    and produces a publication-ready plot.</p>
+
+    <h3 id="viz-eigenvalue-circle">Eigenvalue Unit Circle Plot</h3>
+
+    <p>Plot DMD eigenvalues against the unit circle to visualize stability.
+    Eigenvalues inside the circle are decaying modes; outside are growing;
+    on the circle are neutral (energy-preserving).</p>
+
+<pre><code><span class="kw">import</span> numpy <span class="kw">as</span> np
+<span class="kw">import</span> matplotlib.pyplot <span class="kw">as</span> plt
+<span class="kw">from</span> koopman_dmd <span class="kw">import</span> DMD
+
+<span class="cm"># Fit a DMD model (assumes 'data' is defined)</span>
+model = <span class="fn">DMD</span>(rank=<span class="nu">4</span>).<span class="fn">fit</span>(data)
+
+<span class="cm"># Extract eigenvalues</span>
+evals = np.<span class="fn">array</span>(model.eigenvalues)
+
+<span class="cm"># Draw the unit circle</span>
+theta = np.<span class="fn">linspace</span>(<span class="nu">0</span>, <span class="nu">2</span> * np.pi, <span class="nu">200</span>)
+fig, ax = plt.<span class="fn">subplots</span>(<span class="nu">1</span>, <span class="nu">1</span>, figsize=(<span class="nu">6</span>, <span class="nu">6</span>))
+ax.<span class="fn">plot</span>(np.<span class="fn">cos</span>(theta), np.<span class="fn">sin</span>(theta), <span class="st">"--"</span>, color=<span class="st">"gray"</span>, lw=<span class="nu">0.8</span>)
+ax.<span class="fn">scatter</span>(evals.real, evals.imag, s=<span class="nu">80</span>, zorder=<span class="nu">5</span>,
+          edgecolors=<span class="st">"black"</span>, linewidths=<span class="nu">0.5</span>)
+ax.<span class="fn">set_xlabel</span>(<span class="st">"Re(lambda)"</span>)
+ax.<span class="fn">set_ylabel</span>(<span class="st">"Im(lambda)"</span>)
+ax.<span class="fn">set_title</span>(<span class="st">"DMD Eigenvalues"</span>)
+ax.<span class="fn">set_aspect</span>(<span class="st">"equal"</span>)
+ax.<span class="fn">grid</span>(<span class="kw">True</span>, alpha=<span class="nu">0.3</span>)
+plt.<span class="fn">tight_layout</span>()
+plt.<span class="fn">savefig</span>(<span class="st">"eigenvalue_circle.png"</span>, dpi=<span class="nu">150</span>)</code></pre>
+
+    <h3 id="viz-predicted-vs-actual">Predicted vs Actual Time Series</h3>
+
+    <p>Overlay the DMD prediction on the true signal to visually assess
+    both reconstruction accuracy (training region) and forecast quality
+    (out-of-sample region).</p>
+
+<pre><code><span class="kw">import</span> numpy <span class="kw">as</span> np
+<span class="kw">import</span> matplotlib.pyplot <span class="kw">as</span> plt
+<span class="kw">from</span> koopman_dmd <span class="kw">import</span> DMD
+
+<span class="cm"># Assuming 'data' shape (n_vars, n_time) and model is fitted</span>
+n_train = <span class="nu">200</span>
+model = <span class="fn">DMD</span>(rank=<span class="nu">2</span>).<span class="fn">fit</span>(data[:, :n_train])
+pred = model.<span class="fn">predict</span>(data.shape[<span class="nu">1</span>])
+
+fig, ax = plt.<span class="fn">subplots</span>(figsize=(<span class="nu">10</span>, <span class="nu">4</span>))
+t = np.<span class="fn">arange</span>(data.shape[<span class="nu">1</span>])
+ax.<span class="fn">plot</span>(t, data[<span class="nu">0</span>], label=<span class="st">"Actual"</span>, color=<span class="st">"#58a6ff"</span>)
+ax.<span class="fn">plot</span>(t[:pred.shape[<span class="nu">1</span>]], pred[<span class="nu">0</span>].real, <span class="st">"--"</span>,
+       label=<span class="st">"DMD prediction"</span>, color=<span class="st">"#f78166"</span>)
+ax.<span class="fn">axvline</span>(n_train, ls=<span class="st">":"</span>, color=<span class="st">"gray"</span>, label=<span class="st">"Train/test split"</span>)
+ax.<span class="fn">set_xlabel</span>(<span class="st">"Time step"</span>)
+ax.<span class="fn">set_ylabel</span>(<span class="st">"x[0]"</span>)
+ax.<span class="fn">legend</span>()
+ax.<span class="fn">set_title</span>(<span class="st">"DMD Prediction vs Actual"</span>)
+plt.<span class="fn">tight_layout</span>()
+plt.<span class="fn">savefig</span>(<span class="st">"predict_vs_actual.png"</span>, dpi=<span class="nu">150</span>)</code></pre>
+
+    <h3 id="viz-error-heatmap">Reconstruction Error Heatmap</h3>
+
+    <p>For multi-variable systems, visualize the pointwise reconstruction
+    error as a heatmap with variables on the y-axis and time on the x-axis.
+    This reveals which variables and time regions have the highest error.</p>
+
+<pre><code><span class="kw">import</span> numpy <span class="kw">as</span> np
+<span class="kw">import</span> matplotlib.pyplot <span class="kw">as</span> plt
+<span class="kw">from</span> koopman_dmd <span class="kw">import</span> DMD
+
+<span class="cm"># Fit and reconstruct</span>
+n_time = data.shape[<span class="nu">1</span>]
+model = <span class="fn">DMD</span>(rank=<span class="nu">4</span>).<span class="fn">fit</span>(data)
+recon = model.<span class="fn">reconstruct</span>(n_time)
+
+<span class="cm"># Pointwise absolute error</span>
+error_matrix = np.<span class="fn">abs</span>(data - recon.real)
+
+fig, ax = plt.<span class="fn">subplots</span>(figsize=(<span class="nu">10</span>, <span class="nu">3</span>))
+im = ax.<span class="fn">imshow</span>(error_matrix, aspect=<span class="st">"auto"</span>, cmap=<span class="st">"inferno"</span>,
+               interpolation=<span class="st">"nearest"</span>)
+ax.<span class="fn">set_xlabel</span>(<span class="st">"Time step"</span>)
+ax.<span class="fn">set_ylabel</span>(<span class="st">"Variable"</span>)
+ax.<span class="fn">set_title</span>(<span class="st">"Reconstruction Error"</span>)
+plt.<span class="fn">colorbar</span>(im, ax=ax, label=<span class="st">"Absolute error"</span>)
+plt.<span class="fn">tight_layout</span>()
+plt.<span class="fn">savefig</span>(<span class="st">"error_heatmap.png"</span>, dpi=<span class="nu">150</span>)</code></pre>
+
+    <h3 id="viz-spectrum-bar">Spectrum Bar Chart</h3>
+
+    <p>Visualize the frequency content of the DMD decomposition as a bar
+    chart, with bar height proportional to mode amplitude. This is the
+    DMD analog of a Fourier power spectrum.</p>
+
+<pre><code><span class="kw">import</span> numpy <span class="kw">as</span> np
+<span class="kw">import</span> matplotlib.pyplot <span class="kw">as</span> plt
+<span class="kw">from</span> koopman_dmd <span class="kw">import</span> DMD
+
+dt = <span class="nu">0.02</span>
+model = <span class="fn">DMD</span>(rank=<span class="nu">6</span>).<span class="fn">fit</span>(data)
+spec = model.<span class="fn">spectrum</span>(dt=dt)
+
+freqs = [s[<span class="st">"frequency"</span>] <span class="kw">for</span> s <span class="kw">in</span> spec]
+amps = [<span class="fn">abs</span>(a) <span class="kw">for</span> a <span class="kw">in</span> model.amplitudes]
+
+fig, ax = plt.<span class="fn">subplots</span>(figsize=(<span class="nu">8</span>, <span class="nu">4</span>))
+ax.<span class="fn">bar</span>(freqs, amps, width=<span class="nu">0.3</span>, edgecolor=<span class="st">"black"</span>, linewidth=<span class="nu">0.5</span>)
+ax.<span class="fn">set_xlabel</span>(<span class="st">"Frequency (Hz)"</span>)
+ax.<span class="fn">set_ylabel</span>(<span class="st">"Amplitude"</span>)
+ax.<span class="fn">set_title</span>(<span class="st">"DMD Spectrum"</span>)
+ax.<span class="fn">grid</span>(<span class="kw">True</span>, axis=<span class="st">"y"</span>, alpha=<span class="nu">0.3</span>)
+plt.<span class="fn">tight_layout</span>()
+plt.<span class="fn">savefig</span>(<span class="st">"spectrum_bar.png"</span>, dpi=<span class="nu">150</span>)</code></pre>
+
+  </main>
+</div>
+
+<script src="js/main.js"></script>
+</body>
+</html>

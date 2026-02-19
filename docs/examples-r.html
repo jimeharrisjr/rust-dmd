@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>R Examples - koopman-dmd</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- Top navigation -->
+<header class="topnav">
+  <a class="logo" href="index.html">koopman<span>-dmd</span></a>
+  <nav>
+    <a href="index.html">Home</a>
+    <a href="getting-started.html">Guide</a>
+    <a href="api-rust.html">API</a>
+  </nav>
+  <a class="gh-link" href="https://github.com/jimeharrisjr/rust-dmd">GitHub</a>
+</header>
+
+<div class="page-layout">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <h3>Getting Started</h3>
+    <a href="getting-started.html">Installation</a>
+
+    <h3>Features</h3>
+    <a href="core-dmd.html">Core DMD</a>
+    <a href="extended-dmd.html">Extended DMD</a>
+    <a href="hankel-dmd.html">Hankel-DMD</a>
+    <a href="gla.html">GLA</a>
+    <a href="harmonic.html">Harmonic Analysis</a>
+    <a href="maps.html">Dynamical Maps</a>
+    <a href="analysis.html">Analysis Tools</a>
+
+    <h3>Examples</h3>
+    <a href="examples-r.html" class="active">R Examples</a>
+    <a href="examples-python.html">Python Examples</a>
+
+    <h3>API Reference</h3>
+    <a href="api-rust.html">Rust API</a>
+    <a href="api-python.html">Python API</a>
+    <a href="api-r.html">R API</a>
+  </aside>
+
+  <!-- Main content -->
+  <main class="content">
+    <h1>R Examples</h1>
+    <p class="subtitle">Complete worked examples with plots showing predicted vs actual results</p>
+
+    <!-- ============================================================
+         Section 1: Core DMD -- Predicted vs Actual
+         ============================================================ -->
+    <h2 id="core-dmd-prediction">1. Core DMD -- Predicted vs Actual</h2>
+
+    <p>This example fits a standard DMD model to a damped oscillator and
+    predicts beyond the training window.</p>
+
+<pre><code><span class="kw">library</span>(koopman.dmd)
+
+<span class="cm"># Create a damped oscillator signal</span>
+dt <span class="op">&lt;-</span> <span class="nu">0.05</span>
+n_train <span class="op">&lt;-</span> <span class="nu">200</span>; n_total <span class="op">&lt;-</span> <span class="nu">300</span>
+t_all <span class="op">&lt;-</span> <span class="fn">seq</span>(<span class="nu">0</span>, (n_total <span class="op">-</span> <span class="nu">1</span>) <span class="op">*</span> dt, by <span class="op">=</span> dt)
+x1 <span class="op">&lt;-</span> <span class="fn">exp</span>(<span class="op">-</span><span class="nu">0.05</span> <span class="op">*</span> t_all) <span class="op">*</span> <span class="fn">sin</span>(<span class="nu">2</span> <span class="op">*</span> pi <span class="op">*</span> <span class="nu">0.5</span> <span class="op">*</span> t_all)
+x2 <span class="op">&lt;-</span> <span class="fn">exp</span>(<span class="op">-</span><span class="nu">0.05</span> <span class="op">*</span> t_all) <span class="op">*</span> <span class="fn">cos</span>(<span class="nu">2</span> <span class="op">*</span> pi <span class="op">*</span> <span class="nu">0.5</span> <span class="op">*</span> t_all)
+X_train <span class="op">&lt;-</span> <span class="fn">rbind</span>(x1[<span class="nu">1</span>:n_train], x2[<span class="nu">1</span>:n_train])
+
+<span class="cm"># Fit DMD with rank 2</span>
+result <span class="op">&lt;-</span> <span class="fn">dmd</span>(X_train, rank <span class="op">=</span> <span class="nu">2</span>, dt <span class="op">=</span> dt)
+<span class="fn">summary</span>(result)
+
+<span class="cm"># Predict the full time range (including out-of-sample)</span>
+pred <span class="op">&lt;-</span> <span class="fn">predict</span>(result, n_ahead <span class="op">=</span> n_total <span class="op">-</span> <span class="nu">1</span>)</code></pre>
+
+    <img src="img/dmd_predict_vs_actual.png" alt="Core DMD predicted vs actual for a damped oscillator signal" style="width:100%;max-width:900px;border-radius:8px;border:1px solid #30363d;margin:16px 0;">
+
+    <p>DMD captures the damped oscillation dynamics perfectly. The dashed line
+    extends beyond the training window (vertical line) and matches the true
+    signal.</p>
+
+    <!-- ============================================================
+         Section 2: Eigenvalue Spectrum
+         ============================================================ -->
+    <h2 id="eigenvalue-spectrum">2. Eigenvalue Spectrum</h2>
+
+    <p>Examining the eigenvalues in the complex plane reveals the stability
+    and frequency content of the decomposition.</p>
+
+<pre><code><span class="cm"># Eigenvalues in the complex plane</span>
+spec <span class="op">&lt;-</span> <span class="fn">dmd_spectrum</span>(result)
+<span class="fn">print</span>(spec)
+
+<span class="cm"># Stability analysis</span>
+stab <span class="op">&lt;-</span> <span class="fn">dmd_stability</span>(result)
+<span class="fn">cat</span>(<span class="st">"Spectral radius:"</span>, stab<span class="op">$</span>spectral_radius, <span class="st">"\n"</span>)
+<span class="fn">cat</span>(<span class="st">"Stable:"</span>, stab<span class="op">$</span>is_stable, <span class="st">"\n"</span>)</code></pre>
+
+    <img src="img/dmd_eigenvalues.png" alt="DMD eigenvalues plotted in the complex plane relative to the unit circle" style="width:100%;max-width:900px;border-radius:8px;border:1px solid #30363d;margin:16px 0;">
+
+    <p>Both eigenvalues lie just inside the unit circle (|lambda|=0.9975),
+    confirming the slight damping. The frequency 0.5 Hz matches the input
+    signal.</p>
+
+    <!-- ============================================================
+         Section 3: Reconstruction Residuals
+         ============================================================ -->
+    <h2 id="reconstruction-residuals">3. Reconstruction Residuals</h2>
+
+    <p>Reconstruction error quantifies how well DMD approximates the
+    original data.</p>
+
+<pre><code>recon <span class="op">&lt;-</span> <span class="fn">dmd_reconstruct</span>(result)
+err <span class="op">&lt;-</span> <span class="fn">dmd_error</span>(result)
+<span class="fn">cat</span>(<span class="st">"RMSE:"</span>, err<span class="op">$</span>rmse, <span class="st">"\n"</span>)
+<span class="fn">cat</span>(<span class="st">"Relative error:"</span>, err<span class="op">$</span>relative_error, <span class="st">"\n"</span>)</code></pre>
+
+    <img src="img/dmd_residuals.png" alt="DMD reconstruction residuals over time showing near-zero error" style="width:100%;max-width:900px;border-radius:8px;border:1px solid #30363d;margin:16px 0;">
+
+    <p>For a purely linear system with rank matching the true rank, DMD
+    achieves near-zero reconstruction error.</p>
+
+    <!-- ============================================================
+         Section 4: Extended DMD with Polynomial Lifting
+         ============================================================ -->
+    <h2 id="extended-dmd-lifting">4. Extended DMD with Polynomial Lifting</h2>
+
+    <p>When the dynamics are nonlinear, polynomial lifting maps the data
+    into a higher-dimensional space where DMD can better approximate the
+    Koopman operator.</p>
+
+<pre><code><span class="cm"># Nonlinear signal: sin^2(t)</span>
+t3 <span class="op">&lt;-</span> <span class="fn">seq</span>(<span class="nu">0</span>, <span class="nu">9.95</span>, by <span class="op">=</span> <span class="nu">0.05</span>)
+X3 <span class="op">&lt;-</span> <span class="fn">matrix</span>(<span class="fn">sin</span>(t3)<span class="op">^</span><span class="nu">2</span>, nrow <span class="op">=</span> <span class="nu">1</span>)
+
+<span class="cm"># Standard DMD</span>
+res_std <span class="op">&lt;-</span> <span class="fn">dmd</span>(X3, dt <span class="op">=</span> <span class="nu">0.05</span>)
+
+<span class="cm"># Extended DMD with degree-2 polynomial lifting</span>
+res_lift <span class="op">&lt;-</span> <span class="fn">dmd</span>(X3, lifting <span class="op">=</span> <span class="st">"polynomial"</span>, lifting_param <span class="op">=</span> <span class="nu">2</span>, dt <span class="op">=</span> <span class="nu">0.05</span>)
+
+<span class="cm"># Compare errors</span>
+<span class="fn">cat</span>(<span class="st">"Standard RMSE:"</span>, <span class="fn">dmd_error</span>(res_std)<span class="op">$</span>rmse, <span class="st">"\n"</span>)
+<span class="fn">cat</span>(<span class="st">"Lifted RMSE:  "</span>, <span class="fn">dmd_error</span>(res_lift)<span class="op">$</span>rmse, <span class="st">"\n"</span>)</code></pre>
+
+    <img src="img/extended_dmd_lifting.png" alt="Comparison of standard DMD vs extended DMD with polynomial lifting on a nonlinear signal" style="width:100%;max-width:900px;border-radius:8px;border:1px solid #30363d;margin:16px 0;">
+
+    <p>Polynomial lifting maps the nonlinear sin^2 signal into a space where
+    DMD can better approximate the dynamics.</p>
+
+    <!-- ============================================================
+         Section 5: Hankel-DMD for Scalar Time Series
+         ============================================================ -->
+    <h2 id="hankel-dmd-prediction">5. Hankel-DMD for Scalar Time Series</h2>
+
+    <p>Hankel-DMD augments a scalar measurement with time-delay embeddings,
+    enabling DMD to recover multiple frequencies from a single observable.</p>
+
+<pre><code><span class="cm"># Two-frequency scalar signal</span>
+dt4 <span class="op">&lt;-</span> <span class="nu">0.02</span>; t4 <span class="op">&lt;-</span> <span class="fn">seq</span>(<span class="nu">0</span>, <span class="nu">9.98</span>, by <span class="op">=</span> dt4)
+signal <span class="op">&lt;-</span> <span class="fn">sin</span>(<span class="nu">2</span> <span class="op">*</span> pi <span class="op">*</span> <span class="nu">1.0</span> <span class="op">*</span> t4) <span class="op">+</span> <span class="nu">0.4</span> <span class="op">*</span> <span class="fn">sin</span>(<span class="nu">2</span> <span class="op">*</span> pi <span class="op">*</span> <span class="nu">3.0</span> <span class="op">*</span> t4)
+X4 <span class="op">&lt;-</span> <span class="fn">matrix</span>(signal, nrow <span class="op">=</span> <span class="nu">1</span>)
+
+<span class="cm"># Train on first 400 samples, predict last 100</span>
+hresult <span class="op">&lt;-</span> <span class="fn">hankel_dmd</span>(X4[, <span class="nu">1</span>:<span class="nu">400</span>, drop <span class="op">=</span> <span class="kw">FALSE</span>], delays <span class="op">=</span> <span class="nu">30</span>, rank <span class="op">=</span> <span class="nu">4</span>, dt <span class="op">=</span> dt4)
+
+<span class="cm"># Reconstruct and predict</span>
+hrecon <span class="op">&lt;-</span> <span class="fn">hankel_reconstruct</span>(hresult, <span class="nu">400</span>)
+hpred <span class="op">&lt;-</span> <span class="fn">predict</span>(hresult, n_ahead <span class="op">=</span> <span class="nu">100</span>)
+
+<span class="cm"># Recovered frequencies</span>
+eig_freq <span class="op">&lt;-</span> <span class="fn">abs</span>(<span class="fn">atan2</span>(hresult<span class="op">$</span>eigenvalues_im, hresult<span class="op">$</span>eigenvalues_re)) <span class="op">/</span> (<span class="nu">2</span> <span class="op">*</span> pi <span class="op">*</span> dt4)
+<span class="fn">cat</span>(<span class="st">"Recovered frequencies:"</span>, <span class="fn">round</span>(eig_freq, <span class="nu">2</span>), <span class="st">"Hz\n"</span>)</code></pre>
+
+    <img src="img/hankel_dmd_prediction.png" alt="Hankel-DMD reconstruction and prediction of a two-frequency scalar signal" style="width:100%;max-width:900px;border-radius:8px;border:1px solid #30363d;margin:16px 0;">
+
+    <p>Hankel-DMD recovers the correct frequencies (1.0 Hz and 3.0 Hz) from
+    a scalar measurement via time-delay embedding.</p>
+
+    <!-- ============================================================
+         Section 6: GLA Reconstruction and Prediction
+         ============================================================ -->
+    <h2 id="gla-prediction">6. GLA Reconstruction and Prediction</h2>
+
+    <p>Generalized Laplace Analysis (GLA) directly computes Koopman
+    eigenfunctions from trajectory data using an iterative algorithm.</p>
+
+<pre><code><span class="cm"># Simple oscillator</span>
+t5 <span class="op">&lt;-</span> <span class="fn">seq</span>(<span class="nu">0</span>, <span class="nu">39.9</span>, by <span class="op">=</span> <span class="nu">0.1</span>)
+gla_data <span class="op">&lt;-</span> <span class="fn">rbind</span>(<span class="fn">sin</span>(t5), <span class="fn">cos</span>(t5))
+
+<span class="cm"># GLA with 2 eigenvalues</span>
+gresult <span class="op">&lt;-</span> <span class="fn">gla</span>(gla_data, n_eigenvalues <span class="op">=</span> <span class="nu">2</span>, tol <span class="op">=</span> <span class="nu">1e-4</span>)
+grecon <span class="op">&lt;-</span> <span class="fn">gla_reconstruct</span>(gresult)
+gpred <span class="op">&lt;-</span> <span class="fn">predict</span>(gresult, n_ahead <span class="op">=</span> <span class="nu">100</span>)</code></pre>
+
+    <img src="img/gla_prediction.png" alt="GLA reconstruction and out-of-sample prediction for a pure oscillator" style="width:100%;max-width:900px;border-radius:8px;border:1px solid #30363d;margin:16px 0;">
+
+    <p>GLA directly computes Koopman eigenfunctions. For a pure oscillator,
+    it achieves exact reconstruction and accurate extrapolation.</p>
+
+    <!-- ============================================================
+         Section 7: Dynamical Map Phase Portraits
+         ============================================================ -->
+    <h2 id="dynamical-maps">7. Dynamical Map Phase Portraits</h2>
+
+    <p>The library includes several classic dynamical systems for
+    generating trajectories and studying phase space structure.</p>
+
+<pre><code><span class="cm"># Standard map -- regular and chaotic</span>
+traj_reg <span class="op">&lt;-</span> <span class="fn">generate_trajectory</span>(<span class="st">"standard"</span>, <span class="fn">c</span>(<span class="nu">0.1</span>, <span class="nu">0.2</span>), <span class="nu">5000</span>, epsilon <span class="op">=</span> <span class="nu">0.12</span>)
+traj_chaos <span class="op">&lt;-</span> <span class="fn">generate_trajectory</span>(<span class="st">"standard"</span>, <span class="fn">c</span>(<span class="nu">0.5</span>, <span class="nu">0.5</span>), <span class="nu">50000</span>, epsilon <span class="op">=</span> <span class="nu">0.97</span>)
+
+<span class="cm"># Henon attractor</span>
+traj_henon <span class="op">&lt;-</span> <span class="fn">generate_trajectory</span>(<span class="st">"henon"</span>, <span class="fn">c</span>(<span class="nu">0</span>, <span class="nu">0</span>), <span class="nu">20000</span>, a <span class="op">=</span> <span class="nu">1.4</span>, b <span class="op">=</span> <span class="nu">0.3</span>)
+
+<span class="cm"># Logistic map</span>
+traj_log <span class="op">&lt;-</span> <span class="fn">generate_trajectory</span>(<span class="st">"logistic"</span>, <span class="nu">0.4</span>, <span class="nu">200</span>, r <span class="op">=</span> <span class="nu">3.9</span>)</code></pre>
+
+    <img src="img/dynamical_maps.png" alt="Phase portraits of the standard map, Henon attractor, and logistic map" style="width:100%;max-width:900px;border-radius:8px;border:1px solid #30363d;margin:16px 0;">
+
+    <p>The library includes classic dynamical systems. The standard map
+    transitions from regular islands to global chaos as epsilon increases.
+    The Henon map shows a strange attractor, and the logistic map exhibits
+    chaotic time evolution.</p>
+
+    <!-- ============================================================
+         Section 8: HTA Convergence
+         ============================================================ -->
+    <h2 id="hta-convergence">8. HTA Convergence</h2>
+
+    <p>The harmonic time average (HTA) converges differently for regular
+    and chaotic orbits, providing a diagnostic for orbit classification.</p>
+
+<pre><code><span class="cm"># Regular orbit converges to a non-zero value</span>
+conv_reg <span class="op">&lt;-</span> <span class="fn">hta_convergence</span>(<span class="st">"standard"</span>, <span class="fn">c</span>(<span class="nu">0.1</span>, <span class="nu">0.2</span>),
+                             observable <span class="op">=</span> <span class="st">"sin_pi"</span>, omega <span class="op">=</span> <span class="nu">0.0</span>,
+                             n_iter <span class="op">=</span> <span class="nu">50000</span>, epsilon <span class="op">=</span> <span class="nu">0.12</span>)
+
+<span class="cm"># Chaotic orbit decays toward zero</span>
+conv_chaos <span class="op">&lt;-</span> <span class="fn">hta_convergence</span>(<span class="st">"standard"</span>, <span class="fn">c</span>(<span class="nu">0.5</span>, <span class="nu">0.5</span>),
+                               observable <span class="op">=</span> <span class="st">"sin_pi"</span>, omega <span class="op">=</span> <span class="nu">0.0</span>,
+                               n_iter <span class="op">=</span> <span class="nu">50000</span>, epsilon <span class="op">=</span> <span class="nu">0.97</span>)</code></pre>
+
+    <img src="img/hta_convergence.png" alt="HTA convergence comparison between regular and chaotic orbits" style="width:100%;max-width:900px;border-radius:8px;border:1px solid #30363d;margin:16px 0;">
+
+    <p>The HTA magnitude converges to a stable non-zero value for regular
+    orbits (phase-locked to the frequency), while it decays for chaotic
+    orbits (no persistent periodicity).</p>
+
+    <!-- ============================================================
+         Section 9: Mesochronic Harmonic Plot
+         ============================================================ -->
+    <h2 id="mesochronic-plot">9. Mesochronic Harmonic Plot</h2>
+
+    <p>The mesochronic plot computes the HTA over a grid of initial
+    conditions, revealing the phase space structure of a dynamical system.</p>
+
+<pre><code>meso <span class="op">&lt;-</span> <span class="fn">mesochronic_compute</span>(<span class="st">"standard"</span>,
+                             x_range <span class="op">=</span> <span class="fn">c</span>(<span class="nu">0</span>, <span class="nu">1</span>), y_range <span class="op">=</span> <span class="fn">c</span>(<span class="nu">0</span>, <span class="nu">1</span>),
+                             resolution <span class="op">=</span> <span class="nu">100</span>, observable <span class="op">=</span> <span class="st">"sin_pi"</span>,
+                             omega <span class="op">=</span> <span class="nu">0.0</span>, n_iter <span class="op">=</span> <span class="nu">5000</span>, epsilon <span class="op">=</span> <span class="nu">0.12</span>)
+
+<span class="cm"># Plot magnitude heatmap</span>
+<span class="fn">image</span>(meso<span class="op">$</span>x_coords, meso<span class="op">$</span>y_coords, meso<span class="op">$</span>hta_matrix,
+      col <span class="op">=</span> <span class="fn">hcl.colors</span>(<span class="nu">256</span>, <span class="st">"viridis"</span>),
+      xlab <span class="op">=</span> <span class="st">"x"</span>, ylab <span class="op">=</span> <span class="st">"y"</span>, main <span class="op">=</span> <span class="st">"|HTA| Magnitude"</span>)</code></pre>
+
+    <img src="img/mesochronic_plot.png" alt="Mesochronic heatmap of the standard map showing regular islands and chaotic regions" style="width:100%;max-width:900px;border-radius:8px;border:1px solid #30363d;margin:16px 0;">
+
+    <p>The mesochronic plot reveals the phase space structure of the standard
+    map. Bright regions correspond to regular islands where orbits resonate
+    with the test frequency. Dark regions indicate chaotic motion.</p>
+
+    <!-- ============================================================
+         Section 10: Method Comparison
+         ============================================================ -->
+    <h2 id="method-comparison">10. Method Comparison</h2>
+
+    <p>This example applies all three decomposition methods to the same
+    multi-frequency signal and compares their out-of-sample prediction
+    accuracy.</p>
+
+<pre><code><span class="cm"># Multi-frequency test signal</span>
+dt10 <span class="op">&lt;-</span> <span class="nu">0.01</span>; t10 <span class="op">&lt;-</span> <span class="fn">seq</span>(<span class="nu">0</span>, <span class="nu">2.99</span>, by <span class="op">=</span> dt10)
+signal <span class="op">&lt;-</span> <span class="fn">sin</span>(<span class="nu">2</span> <span class="op">*</span> pi <span class="op">*</span> <span class="nu">2</span> <span class="op">*</span> t10) <span class="op">+</span> <span class="nu">0.3</span> <span class="op">*</span> <span class="fn">sin</span>(<span class="nu">2</span> <span class="op">*</span> pi <span class="op">*</span> <span class="nu">7</span> <span class="op">*</span> t10)
+X10 <span class="op">&lt;-</span> <span class="fn">matrix</span>(signal, nrow <span class="op">=</span> <span class="nu">1</span>)
+
+<span class="cm"># Train on 250 samples, predict 50</span>
+X10_train <span class="op">&lt;-</span> X10[, <span class="nu">1</span>:<span class="nu">250</span>, drop <span class="op">=</span> <span class="kw">FALSE</span>]
+
+dmd_res <span class="op">&lt;-</span> <span class="fn">dmd</span>(X10_train, rank <span class="op">=</span> <span class="nu">4</span>, dt <span class="op">=</span> dt10)
+hdmd_res <span class="op">&lt;-</span> <span class="fn">hankel_dmd</span>(X10_train, delays <span class="op">=</span> <span class="nu">30</span>, rank <span class="op">=</span> <span class="nu">4</span>, dt <span class="op">=</span> dt10)
+gla_res <span class="op">&lt;-</span> <span class="fn">gla</span>(X10_train, n_eigenvalues <span class="op">=</span> <span class="nu">4</span>, tol <span class="op">=</span> <span class="nu">1e-4</span>)
+
+<span class="cm"># Compare prediction RMSE</span>
+dmd_pred <span class="op">&lt;-</span> <span class="fn">predict</span>(dmd_res, n_ahead <span class="op">=</span> <span class="nu">50</span>)
+hdmd_pred <span class="op">&lt;-</span> <span class="fn">predict</span>(hdmd_res, n_ahead <span class="op">=</span> <span class="nu">50</span>)
+gla_pred <span class="op">&lt;-</span> <span class="fn">predict</span>(gla_res, n_ahead <span class="op">=</span> <span class="nu">50</span>)</code></pre>
+
+    <img src="img/method_comparison.png" alt="Out-of-sample prediction comparison between standard DMD, Hankel-DMD, and GLA" style="width:100%;max-width:900px;border-radius:8px;border:1px solid #30363d;margin:16px 0;">
+
+    <p>All three methods are compared on the same out-of-sample prediction
+    task. Performance varies by signal characteristics -- standard DMD works
+    well for multi-variable systems, Hankel-DMD excels at scalar frequency
+    extraction, and GLA provides direct eigenfunction computation.</p>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <p>koopman-dmd -- Dynamic Mode Decomposition with Koopman operator theory.</p>
+      <p>Released under the MIT License. Built with Rust, Python, and R.</p>
+    </footer>
+
+  </main>
+</div>
+
+<script src="js/main.js"></script>
+</body>
+</html>
