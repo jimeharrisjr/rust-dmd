@@ -29,8 +29,31 @@ jobs:
         run: cargo build -p koopman-dmd
       - name: Test
         run: cargo test -p koopman-dmd
+      - name: Verify package contents
+        run: cargo package -p koopman-dmd --list
       - name: Doc
         run: cargo doc -p koopman-dmd --no-deps
+
+  msrv:
+    name: MSRV (rust-version in Cargo.toml)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read declared MSRV
+        id: msrv
+        run: echo "version=$(sed -n 's/^rust-version *= *"\(.*\)"/\1/p' koopman-dmd/Cargo.toml)" >> "$GITHUB_OUTPUT"
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ steps.msrv.outputs.version }}
+      # Build the crate standalone with a fresh resolve, so this tests what a downstream
+      # user actually gets from `cargo add koopman-dmd` rather than our pinned workspace lock.
+      - name: Build at MSRV with a fresh resolve
+        run: |
+          cp -r koopman-dmd "${RUNNER_TEMP}/msrv-check"
+          cd "${RUNNER_TEMP}/msrv-check"
+          printf '\n[workspace]\n' >> Cargo.toml
+          rm -f Cargo.lock
+          cargo build
 
   python:
     name: Python Bindings

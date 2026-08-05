@@ -4,6 +4,8 @@ version = "0.1.0"
 edition = "2021"
 description = "R bindings for koopman-dmd"
 license = "MIT"
+# Distributed inside the CRAN package `koopman.dmd`, not as a crates.io crate.
+publish = false
 
 [lib]
 crate-type = ["staticlib"]

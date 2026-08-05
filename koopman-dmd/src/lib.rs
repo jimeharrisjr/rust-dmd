@@ -43,6 +43,12 @@
 //! - Mezic (2020), arXiv:2009.05883
 //! - Levnajic & Mezic (2014), arXiv:0808.2182v2
 
+// Compile and run the README's examples as doctests, so they cannot drift from the API.
+// Gated on `cfg(doctest)`, so this adds nothing to the rendered documentation.
+#[cfg(doctest)]
+#[doc = include_str!("../README.md")]
+pub struct ReadmeDoctests;
+
 pub mod lifting;
 pub mod types;
 

@@ -4,6 +4,8 @@ version = "0.1.0"
 edition = "2021"
 description = "Python bindings for koopman-dmd"
 license = "MIT"
+# Distributed as a PyPI wheel via maturin, not as a crates.io crate.
+publish = false
 
 [lib]
 name = "koopman_dmd"
