@@ -2,11 +2,19 @@
 name = "koopman-dmd"
 version = "0.1.0"
 edition = "2021"
+# Floor is set by `generativity` (edition 2024), a transitive dependency of `faer`.
+# faer itself declares 1.84.0; verify with `cargo +1.85 build` on a fresh resolve before lowering.
+rust-version = "1.85"
+authors = ["James Harris <jimeharrisjr@gmail.com>"]
 description = "Dynamic Mode Decomposition with Koopman operator theory"
 license = "MIT"
+readme = "README.md"
 repository = "https://github.com/jimeharrisjr/rust-dmd"
+homepage = "https://jimeharrisjr.github.io/rust-dmd/"
+documentation = "https://docs.rs/koopman-dmd"
 keywords = ["dmd", "koopman", "dynamical-systems", "spectral-analysis"]
 categories = ["science", "mathematics"]
+exclude = ["tests/cross_validation.py"]
 
 [dependencies]
 faer = "0.22"

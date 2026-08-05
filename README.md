@@ -30,8 +30,10 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-koopman-dmd = { git = "https://github.com/jimeharrisjr/rust-dmd" }
+koopman-dmd = "0.1"
 ```
+
+Requires Rust 1.85 or later.
 
 ### Python
 
