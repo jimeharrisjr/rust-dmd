@@ -4,6 +4,9 @@ version = "0.1.0"
 edition = "2021"
 description = "Python bindings for koopman-dmd"
 license = "MIT"
+repository = "https://github.com/jimeharrisjr/rust-dmd"
+homepage = "https://jimeharrisjr.github.io/rust-dmd/"
+rust-version = "1.85"
 # Distributed as a PyPI wheel via maturin, not as a crates.io crate.
 publish = false
 
@@ -13,6 +16,10 @@ crate-type = ["cdylib"]
 
 [dependencies]
 faer = "0.22"
-koopman-dmd = { path = "../koopman-dmd" }
-pyo3 = { version = "0.23", features = ["extension-module"] }
+# `version` keeps the dependency resolvable when built from an sdist, where the
+# sibling directory may not be present; `path` takes precedence for local builds.
+koopman-dmd = { version = "0.1", path = "../koopman-dmd" }
+# abi3-py39 builds a single stable-ABI wheel per platform that works on all
+# supported Python versions, instead of one wheel per Python version.
+pyo3 = { version = "0.23", features = ["extension-module", "abi3-py39"] }
 numpy = "0.23"

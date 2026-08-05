@@ -37,7 +37,12 @@ Requires Rust 1.85 or later.
 
 ### Python
 
-Requires Rust toolchain and maturin:
+```bash
+pip install koopman-dmd
+```
+
+Prebuilt wheels for Linux, macOS, and Windows on Python 3.9+. To build from a checkout
+instead, requires a Rust toolchain:
 
 ```bash
 pip install maturin
@@ -96,18 +101,17 @@ let pred = predict_modes(&result, 10, None).unwrap();
 import numpy as np
 from koopman_dmd import DMD
 
-# Oscillating signal
+# Oscillating signal, one row per variable
 t = np.linspace(0, 10, 100)
 data = np.vstack([np.sin(t), np.cos(t)])
 
-# Fit DMD
-model = DMD(rank=2)
-model.fit(data)
+# Fit DMD -- data is passed to the constructor, there is no separate fit() step
+model = DMD(data, rank=2, dt=t[1] - t[0])
 
 # Predict
 predictions = model.predict(10)
 print(f"Eigenvalues: {model.eigenvalues}")
-print(f"Spectrum: {model.spectrum(dt=0.1)}")
+print(f"Spectrum: {model.spectrum()}")
 ```
 
 ### R

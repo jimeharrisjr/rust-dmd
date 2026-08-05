@@ -5,10 +5,43 @@ build-backend = "maturin"
 [project]
 name = "koopman-dmd"
 version = "0.1.0"
-description = "Dynamic Mode Decomposition with Koopman operator theory"
+description = "Dynamic Mode Decomposition with Koopman operator theory, powered by Rust"
+readme = "README.md"
 license = { text = "MIT" }
-requires-python = ">=3.8"
+authors = [{ name = "James Harris", email = "jimeharrisjr@gmail.com" }]
+maintainers = [{ name = "James Harris", email = "jimeharrisjr@gmail.com" }]
+requires-python = ">=3.9"
 dependencies = ["numpy"]
+keywords = [
+    "dmd",
+    "koopman",
+    "dynamic-mode-decomposition",
+    "dynamical-systems",
+    "spectral-analysis",
+    "time-series",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Rust",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Mathematics",
+    "Topic :: Scientific/Engineering :: Physics",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+Homepage = "https://jimeharrisjr.github.io/rust-dmd/"
+Repository = "https://github.com/jimeharrisjr/rust-dmd"
+Issues = "https://github.com/jimeharrisjr/rust-dmd/issues"
+Changelog = "https://github.com/jimeharrisjr/rust-dmd/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
 dev = ["pytest", "numpy"]
