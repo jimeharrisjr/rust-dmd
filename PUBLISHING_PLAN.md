@@ -186,25 +186,43 @@ Each is a rejection trigger:
   check machines use distro-packaged Rust, which lags badly. The policy asks for testing with
   a cargo at least two years old, preferably four or more.
 
-  > **This is now a confirmed conflict, not a hypothetical.** Phase 1 measured the crate's
-  > true MSRV as **Rust 1.85** (released Feb 2025) — set not by our code but by
-  > `generativity 1.2.1`, an edition-2024 transitive dependency of `faer`. Rust 1.85 is
-  > roughly *18 months old*, well short of the two-to-four years CRAN asks for, and newer
-  > than what Debian stable and older Ubuntu LTS ship. Options, to be decided before 3c
-  > work begins:
-  > 1. **Pin older deps in the vendored tree.** `generativity 1.1.0` is edition 2021 and
-  >    works on 1.84; the vendor lockfile can pin it. Gains one Rust version — probably
-  >    not enough on its own, but stacks with option 2.
-  > 2. **Pin an older `faer`** for the CRAN build than the crates.io crate depends on,
-  >    accepting that the R package lags the Rust core. Needs an MSRV bisection across
-  >    faer versions to find one that clears a realistically old toolchain.
-  > 3. **Declare the requirement** in `SystemRequirements` (e.g. `rustc (>= 1.85)`) and
-  >    let `configure` fail with a clear message. Permitted — the policy says to "state
-  >    carefully any version requirement" — but raises the odds of a reviewer objection
-  >    and of failures on CRAN's own older check machines.
+  > **Bisection done — resolved, and less painful than feared.**
   >
-  > Do the faer MSRV bisection **before** investing in the documentation work in 3c; if no
-  > acceptable combination exists, that changes whether CRAN is viable at all.
+  > What the toolchains actually provide:
+  >
+  > | Distribution | rustc |
+  > |---|---|
+  > | Debian bookworm (oldstable, 2023) | 1.63 |
+  > | **Debian trixie (stable, Aug 2025)** | **1.85.0** |
+  > | Debian sid / forky (what CRAN's r-devel tracks) | 1.94 / 1.95 |
+  >
+  > Achievable MSRV floor per `faer` version, using an MSRV-aware resolve with a pinned
+  > lockfile (which is what the vendored CRAN build ships):
+  >
+  > | `faer` | Floor | Set by | Code change needed |
+  > |---|---|---|---|
+  > | **0.22 (current)** | **1.84** | `faer` itself | **none** |
+  > | 0.21 | 1.84 | `faer` itself | API migration |
+  > | 0.20 | 1.81 | `faer` itself | API migration |
+  > | 0.19 + pinned `half` | 1.71 | `serde_derive` | major rewrite |
+  >
+  > **Decision: stay on `faer` 0.22 and pin the vendored lockfile.** That alone drops the
+  > floor from 1.85 to **1.84** at zero cost — the 1.85 requirement comes solely from
+  > edition-2024 `generativity 1.2.1`, and pinning `generativity 1.1.0` avoids it.
+  > Verified against the real R-binding crate: resolves to a 1.84 floor, selects
+  > `generativity 1.1.0`, and still builds on current stable.
+  >
+  > Downgrading `faer` is not worth it. Moving to 0.20 buys three Rust versions in
+  > exchange for an API migration, and even the extreme case — 0.19 with a hand-pinned
+  > `half`, a major rewrite — only reaches 1.71, which *still* fails Debian oldstable's
+  > 1.63. No reachable configuration rescues bookworm, so there is nothing to buy.
+  >
+  > Residual risk is now narrow: declare `SystemRequirements: ... rustc (>= 1.84)`. That
+  > is higher than any Rust package currently on CRAN (`arcgisutils` declares >= 1.67,
+  > `orbweaver` >= 1.70), so a reviewer may question it. The strong argument is that
+  > **Debian stable itself ships 1.85**, and CRAN's own check machines run 1.94+.
+  >
+  > This no longer blocks the 3c documentation work.
 - The build must be **fully offline** — `cargo build --offline` against the vendored
   sources, with a `.cargo/config.toml` generated at build time pointing at `vendor/`.
 - `CARGO_HOME` must be set **inside the build directory** and cleaned up. Cargo must not
@@ -274,7 +292,7 @@ Extend `.github/workflows/`:
 |---|---|---|
 | CRAN rejects on tarball size | Medium | Measured at 4.1 MB pruned; `prqlr` ships 9.0 MB today |
 | Vendor-prune script breaks on a `faer`/`extendr` bump | Medium | CI size + build guard; prune list is data-driven, not hardcoded paths |
-| Distro cargo/rustc on CRAN's Linux farm too old for `faer` | **High — confirmed** | MSRV measured at Rust 1.85 (Feb 2025) via `generativity`/edition-2024 under `faer`. Shorter than CRAN's requested 2–4 year window. Bisect faer versions for a lower floor before starting 3c |
+| Reviewer objects to `rustc (>= 1.84)` in SystemRequirements | Low–Medium — *was High, now bisected* | Pinned vendored lockfile brings the floor to 1.84 with no code change. Debian stable ships 1.85 and CRAN's farm runs 1.94+. Downgrading `faer` is ruled out: best case 1.71, still short of oldstable's 1.63 |
 | CRAN reviewer objects to bundled Rust sources | Low | Precedent is well established; `inst/AUTHORS` + `cran-comments.md` address it |
 | Writing 24+ runnable examples takes longer than expected | Medium | Largest single task; start it in parallel with Phase 1 |
 | Name squatted between now and publication | Low | Claim crates.io + PyPI names early (Phases 1–2 are fast) |
