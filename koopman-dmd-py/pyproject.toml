@@ -7,7 +7,13 @@ name = "koopman-dmd"
 version = "0.1.0"
 description = "Dynamic Mode Decomposition with Koopman operator theory, powered by Rust"
 readme = "README.md"
-license = { text = "MIT" }
+# PEP 639: an SPDX expression plus explicit license-files. Do not use the legacy
+# `license = { text = "MIT" }` form — under Metadata 2.4 it emits a free-text
+# `License:` field alongside `License-File:`, and PyPI then resolves the license
+# path with legacy rules and rejects the upload with
+# "License-File LICENSE does not exist in distribution file".
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [{ name = "James Harris", email = "jimeharrisjr@gmail.com" }]
 maintainers = [{ name = "James Harris", email = "jimeharrisjr@gmail.com" }]
 requires-python = ">=3.9"
@@ -23,7 +29,8 @@ keywords = [
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: MIT License",
+    # No "License :: OSI Approved ::" classifier — PEP 639 forbids pairing a
+    # license classifier with a License-Expression, and PyPI rejects the combination.
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
