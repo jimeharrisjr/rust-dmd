@@ -4,14 +4,31 @@ This is a new submission of koopman.dmd 0.1.0.
 
 ## Test environments
 
+* Debian GNU/Linux forky/sid, R 4.6.1, x86_64 (container, full check with LaTeX)
+* Debian GNU/Linux forky/sid, R 4.6.1, aarch64 (container, full check with LaTeX)
 * Ubuntu 24.04 (GitHub Actions), R release and R devel
 * macOS 14 (GitHub Actions), R release
 * Windows Server 2022 (GitHub Actions), R release
-* win-builder, R devel and R release
 
 ## R CMD check results
 
-0 errors | 0 warnings | 0 notes
+| Platform | Result |
+|---|---|
+| Debian, R 4.6.1, **x86_64** | **0 errors, 1 warning, 0 notes** |
+| Debian, R 4.6.1, aarch64 | 0 errors, 1 warning, 1 note |
+| Ubuntu 24.04, R release | 0 errors, 1 warning, 0 notes |
+| Ubuntu 24.04, R devel   | 0 errors, 1 warning, 0 notes |
+| macOS 14, R release     | Status: OK |
+| Windows Server 2022, R release | Status: OK |
+
+The warning is `checking compiled code` and is explained below. We do not believe
+it is removable from a Rust package; if you would prefer it handled differently,
+please say so and we will follow your guidance.
+
+The additional note on aarch64 is `Compilation used the following non-portable
+flag(s): '-mbranch-protection=standard'`. That flag comes from R's own CFLAGS as
+configured by Debian on arm64, not from this package's `Makevars`, and it does not
+appear on x86_64.
 
 ## Notes for the reviewer
 
@@ -64,3 +81,13 @@ which is linked into every Rust static library; they are not called by this
 package's own code, and no Rust package can avoid exporting them. The R-facing
 code never terminates the R process: all fallible operations return an R
 condition through 'extendr', and the package sets no panic handler that aborts.
+
+### Installed size
+
+`checking installed package size` reports roughly 13 Mb on x86_64, almost all of
+it the compiled Rust static library under `libs/`. This is the cost of a compiled
+Rust backend rather than avoidable payload: the library provides the whole
+numerical implementation, including the linear algebra, so the package needs no
+external BLAS or LAPACK. The build already strips debug information
+(`-C strip=debuginfo` via the release profile). If CRAN would prefer this reduced
+further, we are happy to discuss options.
