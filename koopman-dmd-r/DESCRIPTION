@@ -19,7 +19,6 @@ License: MIT + file LICENSE
 Encoding: UTF-8
 SystemRequirements: Cargo (Rust's package manager), rustc (>= 1.85)
 Depends: R (>= 4.0)
-Imports: stats, graphics, grDevices
 Suggests: testthat (>= 3.0.0), knitr, rmarkdown
 VignetteBuilder: knitr
 URL: https://github.com/jimeharrisjr/rust-dmd, https://jimeharrisjr.github.io/rust-dmd/

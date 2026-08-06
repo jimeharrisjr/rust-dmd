@@ -1,4 +1,7 @@
 use extendr_api::prelude::*;
+// extendr 0.9 dropped `Result` from its prelude, so `Result<T>` would otherwise
+// resolve to std's two-parameter version. Import the alias explicitly.
+use extendr_api::Result;
 use koopman_dmd as kdmd;
 
 // ============================================================================

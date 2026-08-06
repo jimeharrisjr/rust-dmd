@@ -17,7 +17,7 @@ crate-type = ["staticlib"]
 [workspace]
 
 [dependencies]
-extendr-api = "0.8"
+extendr-api = "0.9"
 faer = "0.22"
 # Registry dependency, not a path: a CRAN tarball contains only the package
 # directory, so a path escaping it cannot build. Resolved once on the maintainer's

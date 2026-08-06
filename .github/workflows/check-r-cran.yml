@@ -62,6 +62,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
+      # Makevars.win targets x86_64-pc-windows-gnu to match Rtools, but the runner's
+      # default toolchain is MSVC, so that target has to be added explicitly.
+      - name: Add the Rtools-compatible Rust target
+        if: runner.os == 'Windows'
+        run: rustup target add x86_64-pc-windows-gnu
       - uses: r-lib/actions/setup-r@v2
         with:
           r-version: ${{ matrix.config.r }}
@@ -73,6 +78,9 @@ jobs:
       - uses: r-lib/actions/check-r-package@v2
         with:
           working-directory: koopman-dmd-r
-          args: 'c("--as-cran")'
+          # --no-manual: the runners have no LaTeX, so building the PDF manual fails
+          # with an error that reflects the CI image rather than the package. CRAN's
+          # own machines have LaTeX and will build it there.
+          args: 'c("--no-manual", "--as-cran")'
           error-on: '"warning"'
           upload-snapshots: true
