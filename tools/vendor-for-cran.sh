@@ -126,8 +126,11 @@ find . -mindepth 2 -maxdepth 3 -type d \
      \( -name tests -o -name benches -o -name examples -o -name fuzz \
         -o -name .github -o -name docs -o -name book -o -name ci \) \
      -exec rm -rf {} + 2>/dev/null || true
+# Markdown is deliberately NOT deleted. Crates commonly pull their README into the
+# crate docs with #![doc = include_str!("../README.md")], and removing it breaks the
+# build -- atomic-wait does exactly this. The saving is negligible next to the risk.
 find . -mindepth 2 -maxdepth 2 -type f \
-     \( -name '*.md' -o -name '*.png' -o -name '*.jpg' -o -name '*.gif' \
+     \( -name '*.png' -o -name '*.jpg' -o -name '*.gif' \
         -o -name '*.svg' -o -name '*.yml' -o -name '*.yaml' \) \
      -delete 2>/dev/null || true
 

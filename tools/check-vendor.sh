@@ -51,12 +51,37 @@ echo "==> rustc version (as the CRAN policy asks packages to report)"
 rustc --version
 
 echo "==> Building offline with -j 2, from src/ via --manifest-path (as R does)"
-if cargo build --lib --release --offline --locked -j 2 \
+if ! cargo build --lib --release --offline --locked -j 2 \
      --manifest-path=./rust/Cargo.toml --target-dir ./rust/target 2>&1 | tail -25; then
-  echo
-  echo "==> OFFLINE BUILD OK -- vendor.tar.xz is self-contained"
-else
   echo
   echo "!! OFFLINE BUILD FAILED -- the prune list in vendor-for-cran.sh removed something needed" >&2
   exit 1
 fi
+echo "==> host build OK"
+
+# faer enables private-gemm-x86 only on x86_64, and that subtree (spindle,
+# atomic-wait, ...) is invisible to a build on an aarch64 host. Checking an x86_64
+# target as well is what catches pruning mistakes in those crates -- a host-only
+# check on Apple Silicon once passed while CI failed on exactly this.
+X86_TARGET=""
+for t in x86_64-apple-darwin x86_64-unknown-linux-gnu; do
+  if rustc --print target-libdir --target "$t" >/dev/null 2>&1; then X86_TARGET="$t"; break; fi
+done
+
+if [ -z "$X86_TARGET" ]; then
+  echo "!! WARNING: no x86_64 target installed, so the private-gemm-x86 subtree" >&2
+  echo "!! (spindle, atomic-wait, ...) was NOT exercised. Install one with:" >&2
+  echo "!!     rustup target add x86_64-apple-darwin" >&2
+else
+  echo "==> Cross-checking the x86_64-only dependency subtree ($X86_TARGET)"
+  if cargo check --lib --release --offline --locked -j 2 --target "$X86_TARGET" \
+       --manifest-path=./rust/Cargo.toml --target-dir ./rust/target-x86 2>&1 | tail -20; then
+    echo "==> x86_64 subtree OK"
+  else
+    echo "!! x86_64 CHECK FAILED -- pruning broke a crate reachable only on x86_64" >&2
+    exit 1
+  fi
+fi
+
+echo
+echo "==> OFFLINE BUILD OK -- vendor.tar.xz is self-contained"
