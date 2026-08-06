@@ -123,6 +123,12 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           repository-url: https://test.pypi.org/legacy/
+          # TestPyPI accumulates artifacts across dry runs, and a filename can never
+          # be reused once uploaded. Skip files already present so a re-run validates
+          # the artifacts that are still outstanding instead of failing on collisions.
+          # Deliberately NOT set for the real PyPI step below, where a duplicate
+          # filename means something is wrong and should fail loudly.
+          skip-existing: true
       - name: Publish to PyPI
         if: github.event_name == 'push' || inputs.publish == 'pypi'
         uses: pypa/gh-action-pypi-publish@release/v1
