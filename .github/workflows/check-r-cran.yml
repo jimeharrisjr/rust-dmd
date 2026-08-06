@@ -1,0 +1,99 @@
+name: R CMD check (as-cran)
+
+# Builds the CRAN source tarball and runs `R CMD check --as-cran` across the
+# platforms CRAN checks on. This is what keeps the package submittable between
+# submissions, and it is the only place the full check runs -- the vendored Rust
+# build makes local checking awkward and the maintainer's macOS toolchain cannot
+# currently compile R packages at all.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "koopman-dmd-r/**"
+      - "tools/vendor-for-cran.sh"
+      - ".github/workflows/check-r-cran.yml"
+  pull_request:
+    paths:
+      - "koopman-dmd-r/**"
+      - "tools/vendor-for-cran.sh"
+      - ".github/workflows/check-r-cran.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  vendor-size:
+    name: Vendor tarball within CRAN budget
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check vendor.tar.xz size
+        run: |
+          f=koopman-dmd-r/src/rust/vendor.tar.xz
+          test -f "$f" || { echo "::error::$f is missing - run tools/vendor-for-cran.sh"; exit 1; }
+          bytes=$(wc -c < "$f")
+          mb=$(awk -v b="$bytes" 'BEGIN{printf "%.2f", b/1048576}')
+          echo "vendor.tar.xz is ${mb} MB"
+          # CRAN's guidance is ~5 MB for the whole tarball; fail early if a
+          # dependency bump silently pushes the vendored tree past budget.
+          if [ "$bytes" -gt $((5 * 1024 * 1024)) ]; then
+            echo "::error::vendor.tar.xz is ${mb} MB, over the 5 MB budget"
+            exit 1
+          fi
+
+  check:
+    name: R CMD check (${{ matrix.config.os }}, R ${{ matrix.config.r }})
+    runs-on: ${{ matrix.config.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+          - { os: ubuntu-latest,  r: release }
+          - { os: ubuntu-latest,  r: devel }
+          - { os: macos-latest,   r: release }
+          - { os: windows-latest, r: release }
+    env:
+      R_KEEP_PKG_SOURCE: yes
+      _R_CHECK_CRAN_INCOMING_REMOTE_: false
+      # Exercise the same offline, vendored path CRAN will use.
+      NOT_CRAN: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      # Makevars.win targets x86_64-pc-windows-gnu to match Rtools, but the runner's
+      # default toolchain is MSVC, so that target has to be added explicitly.
+      - name: Add the Rtools-compatible Rust target
+        if: runner.os == 'Windows'
+        run: rustup target add x86_64-pc-windows-gnu
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: ${{ matrix.config.r }}
+          use-public-rspm: true
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          working-directory: koopman-dmd-r
+          extra-packages: any::rcmdcheck, any::testthat, any::knitr, any::rmarkdown
+      - uses: r-lib/actions/check-r-package@v2
+        with:
+          working-directory: koopman-dmd-r
+          # --no-manual: the runners have no LaTeX, so building the PDF manual fails
+          # with an error that reflects the CI image rather than the package. CRAN's
+          # own machines have LaTeX and will build it there.
+          args: 'c("--no-manual", "--as-cran")'
+          # "error" rather than "warning": every Rust-backed package trips
+          # `checking compiled code ... WARNING` because the static library exports
+          # exit/abort/_exit from Rust's standard library panic machinery. That is not
+          # removable from our side, so gating on warnings would keep CI permanently
+          # red and hide real regressions. Review warnings/notes in the job output.
+          error-on: '"error"'
+          upload-snapshots: true
+      # 00install.out holds the actual compiler failure; the check output only points
+      # at it, which makes install failures needlessly hard to diagnose from the log.
+      - name: Show install log on failure
+        if: failure()
+        shell: bash
+        run: |
+          f=$(find koopman-dmd-r/check -name 00install.out | head -1)
+          [ -n "$f" ] && { echo "===== $f ====="; tail -60 "$f"; } || echo "no 00install.out found"

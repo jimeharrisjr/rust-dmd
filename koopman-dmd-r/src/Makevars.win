@@ -1,26 +1,51 @@
-TARGET = $(subst 64,x86_64,$(subst 32,i686,$(WIN)))-pc-windows-gnu
+TARGET = x86_64-pc-windows-gnu
 TARGET_DIR = ./rust/target
 LIBDIR = $(TARGET_DIR)/$(TARGET)/release
 STATLIB = $(LIBDIR)/libkoopman_dmd_r.a
 PKG_LIBS = -L$(LIBDIR) -lkoopman_dmd_r -lws2_32 -ladvapi32 -luserenv -lbcrypt -lntdll
 
-all: C_clean
+# Kept inside the build tree: CRAN packages must not write to the user's home.
+CARGOTMP = $(CURDIR)/.cargo
+VENDOR_DIR = $(CURDIR)/rust/vendor
+
+all: $(SHLIB) rust_clean
 
 $(SHLIB): $(STATLIB)
 
 $(STATLIB):
-	mkdir -p $(TARGET_DIR)/libgcc_mock
-	cd $(TARGET_DIR)/libgcc_mock && \
-		touch gcc_mock.c && \
-		gcc -c gcc_mock.c -o gcc_mock.o && \
-		ar -r libgcc_eh.a gcc_mock.o && \
-		cp libgcc_eh.a libgcc_s.a
+	# The vendored tree supplies every dependency; CRAN's machines are offline.
+	# The source-replacement config must live in CARGO_HOME rather than beside the
+	# manifest, because cargo resolves .cargo/config.toml relative to its working
+	# directory (src/), not to --manifest-path.
+	mkdir -p $(CARGOTMP)
+	# Rtools' make reports $(CURDIR) as an MSYS path (/d/a/...), but cargo is a native
+	# Windows binary and reads that as drive-relative, producing D:\d\a\... and failing
+	# with "failed to read root of directory source". cygpath -m converts to a Windows
+	# path with forward slashes, which is both correct and safe to embed in TOML.
 	export PATH="$(PATH):$(HOME)/.cargo/bin" && \
-		export LIBRARY_PATH="$(CURDIR)/$(TARGET_DIR)/libgcc_mock" && \
-		cargo build --target=$(TARGET) --lib --release --manifest-path=./rust/Cargo.toml --target-dir $(TARGET_DIR)
+		export CARGO_HOME=`cygpath -m "$(CARGOTMP)" 2>/dev/null || echo "$(CARGOTMP)"` && \
+		if [ -f ./rust/vendor.tar.xz ]; then \
+			tar xf ./rust/vendor.tar.xz -C ./rust && \
+			VENDOR_WIN=`cygpath -m "$(VENDOR_DIR)" 2>/dev/null || echo "$(VENDOR_DIR)"` && \
+			printf '[source.crates-io]\nreplace-with = "vendored-sources"\n\n[source.vendored-sources]\ndirectory = "%s"\n' "$$VENDOR_WIN" > $(CARGOTMP)/config.toml && \
+			cargo build --target=$(TARGET) --lib --release --offline --locked -j 2 \
+				--manifest-path=./rust/Cargo.toml --target-dir $(TARGET_DIR); \
+		else \
+			cargo build --target=$(TARGET) --lib --release -j 2 \
+				--manifest-path=./rust/Cargo.toml --target-dir $(TARGET_DIR); \
+		fi
+	if [ "$(NOT_CRAN)" != "true" ]; then \
+		rm -Rf $(CARGOTMP) $(VENDOR_DIR) && \
+		rm -Rf $(LIBDIR)/build; \
+	fi
+
+rust_clean:
+	rm -Rf $(CARGOTMP) $(VENDOR_DIR)
 
 C_clean:
 	rm -Rf $(SHLIB) $(STATLIB) $(OBJECTS)
 
 clean:
-	rm -Rf $(SHLIB) $(STATLIB) $(OBJECTS) $(TARGET_DIR)
+	rm -Rf $(SHLIB) $(STATLIB) $(OBJECTS) $(TARGET_DIR) $(CARGOTMP) $(VENDOR_DIR)
+
+.PHONY: all rust_clean C_clean clean

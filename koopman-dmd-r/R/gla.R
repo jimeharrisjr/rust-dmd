@@ -6,6 +6,13 @@
 #' @param tol Convergence tolerance.
 #' @param max_iter Maximum iterations, or NULL.
 #' @return An S3 object of class "gla".
+#'
+#' @examples
+#' t <- seq(0, 10, length.out = 200)
+#' y <- rbind(sin(t), cos(t))
+#'
+#' g <- gla(y, n_eigenvalues = 2)
+#' print(g)
 #' @export
 gla <- function(y, eigenvalues = NULL, n_eigenvalues = 5,
                 tol = 1e-6, max_iter = NULL) {
@@ -36,6 +43,14 @@ print.gla <- function(x, ...) {
 #' @param object A gla object.
 #' @param modes_to_use Integer vector of mode indices (1-based), or NULL.
 #' @return Numeric matrix.
+#'
+#' @examples
+#' t <- seq(0, 10, length.out = 200)
+#' y <- rbind(sin(t), cos(t))
+#' g <- gla(y, n_eigenvalues = 2)
+#'
+#' recon <- gla_reconstruct(g)
+#' dim(recon)
 #' @export
 gla_reconstruct <- function(object, modes_to_use = NULL) {
   rust_gla_reconstruct(object$`_result_ptr`, modes_to_use)
@@ -47,6 +62,13 @@ gla_reconstruct <- function(object, modes_to_use = NULL) {
 #' @param n_ahead Number of steps to predict.
 #' @param ... Additional arguments (ignored).
 #' @return Numeric matrix.
+#'
+#' @examples
+#' t <- seq(0, 10, length.out = 200)
+#' y <- rbind(sin(t), cos(t))
+#' g <- gla(y, n_eigenvalues = 2)
+#'
+#' pred <- predict(g, n_ahead = 5)
 #' @export
 predict.gla <- function(object, n_ahead = 10, ...) {
   rust_gla_predict(object$`_result_ptr`, as.integer(n_ahead))

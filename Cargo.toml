@@ -1,3 +1,7 @@
 [workspace]
-members = ["koopman-dmd", "koopman-dmd-py", "koopman-dmd-r/src/rust"]
+# koopman-dmd-r/src/rust is deliberately NOT a workspace member. The CRAN package
+# ships a vendored, self-contained copy of its dependency tree, so it needs its own
+# Cargo.lock -- a shared workspace lock would drag in dev-dependencies (criterion ->
+# plotters -> web-sys) that inflate the vendor tarball past CRAN's size guidance.
+members = ["koopman-dmd", "koopman-dmd-py"]
 resolver = "2"

@@ -6,6 +6,15 @@
 #' @param n_iter Integer number of iterations.
 #' @param ... Map parameters passed as named arguments.
 #' @return Numeric matrix (n_dim x n_iter+1).
+#'
+#' @examples
+#' # Chirikov standard map with default parameters
+#' traj <- generate_trajectory("standard", c(0.1, 0.2), 100)
+#' dim(traj)
+#'
+#' # Map parameters are passed through `...`
+#' henon <- generate_trajectory("henon", c(0, 0), 100, a = 1.4, b = 0.3)
+#' logistic <- generate_trajectory("logistic", 0.5, 100, r = 3.9)
 #' @export
 generate_trajectory <- function(map_name, initial_condition, n_iter, ...) {
   params <- list(...)
@@ -16,6 +25,13 @@ generate_trajectory <- function(map_name, initial_condition, n_iter, ...) {
 #' @param state Numeric vector c(x, y).
 #' @param epsilon Perturbation parameter.
 #' @return Updated state vector.
+#'
+#' @examples
+#' # One iteration from a given state
+#' standard_map(c(0.1, 0.2))
+#'
+#' # Stronger nonlinearity
+#' standard_map(c(0.1, 0.2), epsilon = 0.5)
 #' @export
 standard_map <- function(state, epsilon = 0.12) {
   traj <- rust_generate_trajectory("standard", state, 1L, list(epsilon = epsilon))
@@ -28,6 +44,9 @@ standard_map <- function(state, epsilon = 0.12) {
 #' @param epsilon2 Second perturbation.
 #' @param eta Coupling parameter.
 #' @return Updated state vector.
+#'
+#' @examples
+#' froeschle_map(c(0.1, 0.2, 0.3, 0.4))
 #' @export
 froeschle_map <- function(state, epsilon1 = 0.02, epsilon2 = 0.02, eta = 0.01) {
   traj <- rust_generate_trajectory("froeschle", state, 1L,
@@ -40,6 +59,9 @@ froeschle_map <- function(state, epsilon1 = 0.02, epsilon2 = 0.02, eta = 0.01) {
 #' @param epsilon Perturbation parameter.
 #' @param delta Coupling parameter.
 #' @return Updated state vector.
+#'
+#' @examples
+#' extended_standard_map(c(0.1, 0.2, 0.3))
 #' @export
 extended_standard_map <- function(state, epsilon = 0.01, delta = 0.001) {
   traj <- rust_generate_trajectory("extended_standard", state, 1L,
@@ -52,6 +74,12 @@ extended_standard_map <- function(state, epsilon = 0.01, delta = 0.001) {
 #' @param a Parameter a.
 #' @param b Parameter b.
 #' @return Updated state vector.
+#'
+#' @examples
+#' henon_map(c(0, 0))
+#'
+#' # Classic chaotic parameters
+#' henon_map(c(0, 0), a = 1.4, b = 0.3)
 #' @export
 henon_map <- function(state, a = 1.4, b = 0.3) {
   traj <- rust_generate_trajectory("henon", state, 1L, list(a = a, b = b))
@@ -62,6 +90,12 @@ henon_map <- function(state, a = 1.4, b = 0.3) {
 #' @param state Numeric scalar.
 #' @param r Growth rate parameter.
 #' @return Updated state value.
+#'
+#' @examples
+#' logistic_map(0.5)
+#'
+#' # In the chaotic regime
+#' logistic_map(0.5, r = 3.9)
 #' @export
 logistic_map <- function(state, r = 3.9) {
   traj <- rust_generate_trajectory("logistic", state, 1L, list(r = r))
