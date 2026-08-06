@@ -11,7 +11,17 @@ This is a new submission of koopman.dmd 0.1.0.
 
 ## R CMD check results
 
-0 errors | 0 warnings | 0 notes
+| Platform | Result |
+|---|---|
+| Ubuntu 24.04, R release | 0 errors, 1 warning, 0 notes |
+| Ubuntu 24.04, R devel   | 0 errors, 1 warning, 0 notes |
+| macOS 14, R release     | Status: OK |
+| Windows Server 2022, R release | Status: OK |
+
+The single warning is on Linux only, from `checking compiled code`, and is
+explained under "Notes for the reviewer" below. We believe it is not removable
+from a Rust package; if you would prefer it handled differently, please say so
+and we will follow your guidance.
 
 ## Notes for the reviewer
 

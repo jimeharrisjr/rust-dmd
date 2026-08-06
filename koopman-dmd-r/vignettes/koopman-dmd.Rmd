@@ -1,0 +1,242 @@
+---
+title: "Getting started with koopman.dmd"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Getting started with koopman.dmd}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", fig.width = 6, fig.height = 4)
+```
+
+```{r setup}
+library(koopman.dmd)
+set.seed(1)
+```
+
+## What this package does
+
+Dynamic Mode Decomposition (DMD) takes a sequence of measurements from a
+dynamical system and fits a linear operator that advances the state one step in
+time. Diagonalising that operator decomposes the data into **modes**, each with
+its own frequency and growth or decay rate.
+
+The connection to Koopman operator theory is what makes this more than a linear
+method. The Koopman operator describes how *observables* of a system evolve, and
+it is linear even when the underlying dynamics are not — at the cost of acting on
+an infinite-dimensional space. DMD and its extensions here are finite-dimensional
+approximations of that operator, which is why they can capture nonlinear
+behaviour that a naive linear fit would miss.
+
+The numerics are implemented in Rust and reached through
+[extendr](https://extendr.github.io/). No BLAS or LAPACK installation is needed.
+
+## Data layout
+
+Every function takes data as a matrix with **one row per variable and one column
+per time step**. This is the transpose of the usual "tidy" layout, and it is the
+most common source of confusing results.
+
+```{r}
+t <- seq(0, 10, length.out = 200)
+X <- rbind(sin(t), cos(t))
+dim(X)   # 2 variables, 200 time steps
+```
+
+## Core DMD
+
+```{r}
+d <- dmd(X, rank = 2, dt = t[2] - t[1])
+summary(d)
+```
+
+The spectrum reports each mode's frequency, growth rate and amplitude. For this
+pure oscillation the modes sit essentially on the unit circle, meaning neither
+growth nor decay:
+
+```{r}
+dmd_spectrum(d)
+```
+
+`dmd_stability()` summarises that directly. A spectral radius at 1 is a system
+that neither grows nor decays:
+
+```{r}
+dmd_stability(d)
+```
+
+### Forecasting
+
+Because the fitted operator advances the state one step, applying it repeatedly
+extrapolates forward:
+
+```{r}
+pred <- predict(d, n_ahead = 50)
+dim(pred)
+```
+
+```{r, fig.alt = "Observed signal with the DMD forecast appended"}
+plot(t, X[1, ], type = "l", xlab = "time", ylab = "x1",
+     xlim = c(0, 13), main = "DMD forecast")
+t_future <- seq(max(t) + (t[2] - t[1]), by = t[2] - t[1], length.out = 50)
+lines(t_future, pred[1, ], col = "red", lwd = 2)
+legend("bottomleft", c("observed", "forecast"), col = c("black", "red"),
+       lty = 1, bty = "n")
+```
+
+### How good is the fit?
+
+```{r}
+dmd_error(d)
+dmd_residual(d)
+```
+
+## Extended DMD: when the dynamics are nonlinear
+
+Standard DMD fits a linear operator to the measured coordinates. If the dynamics
+are nonlinear in those coordinates, that fit will be poor. **Lifting** maps the
+data into a richer set of observables where the dynamics are closer to linear —
+a direct, finite-dimensional stand-in for what the Koopman operator does exactly.
+
+Consider a signal whose second component is a quadratic function of the first:
+
+```{r}
+t2 <- seq(0, 10, length.out = 200)
+Xn <- rbind(sin(t2), sin(t2)^2)
+
+plain  <- dmd(Xn, rank = 2)
+lifted <- dmd(Xn, lifting = "polynomial", lifting_param = 2)
+
+plain_err  <- dmd_error(plain)
+lifted_err <- dmd_error(lifted)
+c(plain = plain_err$rmse, lifted = lifted_err$rmse)
+```
+
+Available lifting functions are `"polynomial"`, `"polynomial_cross"`,
+`"trigonometric"` and `"delay"`, with `lifting_param` giving the degree, the
+number of harmonics, or the number of delays.
+
+## Hankel-DMD: one measured variable
+
+Often only a single scalar signal is observed. Time-delay embedding reconstructs
+a higher-dimensional state from that one series, which is enough for DMD to work
+with — this is Takens' embedding idea applied to the Koopman setting.
+
+```{r}
+tt <- seq(0, 4 * pi, length.out = 200)
+y  <- matrix(sin(tt), nrow = 1)   # a single row
+
+h <- hankel_dmd(y, delays = 20)
+h
+```
+
+Leaving `rank = NULL` lets the rank be chosen automatically. Asking for more
+modes than the signal supports — a pure sinusoid supports two — leaves the
+reduced operator near-singular and the eigendecomposition can fail to converge.
+
+```{r}
+pred_h <- predict(h, n_ahead = 20)
+dim(pred_h)
+```
+
+## Generalized Laplace Analysis
+
+GLA computes Koopman eigenfunctions directly, through weighted time averages,
+rather than by diagonalising a fitted operator. It is a useful cross-check on a
+DMD result, since the two arrive at the spectrum by different routes.
+
+```{r}
+g <- gla(X, n_eigenvalues = 2)
+g
+```
+
+## Phase space analysis
+
+The second half of the package addresses a different question. For area-preserving
+maps, the interest is not forecasting but *classifying* orbits: which initial
+conditions lead to regular motion, and which to chaos.
+
+Several standard maps are built in:
+
+```{r}
+traj <- generate_trajectory("standard", c(0.1, 0.2), 2000, epsilon = 0.9)
+dim(traj)
+```
+
+```{r, fig.alt = "Orbit of the Chirikov standard map in phase space"}
+plot(traj[1, ], traj[2, ], pch = ".", xlab = "x", ylab = "p",
+     main = "Chirikov standard map, epsilon = 0.9")
+```
+
+### Harmonic time averages
+
+The harmonic time average (HTA) evaluates an observable along an orbit, weighted
+by a rotation at frequency `omega`. For a regular orbit the average converges to
+a non-zero value; for a chaotic one it decays toward zero. The magnitude
+therefore separates the two regimes.
+
+```{r}
+regular <- harmonic_time_average("standard", c(0.5, 0.0), "sin_pi", 0.5, 2000,
+                                 epsilon = 0.9)
+chaotic <- harmonic_time_average("standard", c(0.1, 0.2), "sin_pi", 0.5, 2000,
+                                 epsilon = 0.9)
+c(regular = regular$magnitude, chaotic = chaotic$magnitude)
+```
+
+`hta_convergence()` shows how the average settles as the orbit is iterated:
+
+```{r}
+conv <- hta_convergence("standard", c(0.5, 0.0), "sin_pi", 0.5, 2000,
+                        epsilon = 0.9)
+conv$dynamics_type
+```
+
+### Mesochronic plots
+
+Computing the HTA over a grid of initial conditions produces a mesochronic plot,
+which renders the phase space structure directly. The grid below is deliberately
+coarse to keep the vignette quick; raise `resolution` and `n_iter` for a real
+figure, as both cost roughly linear time.
+
+```{r, fig.alt = "Mesochronic harmonic plot of the standard map"}
+mhp <- mesochronic_compute("standard", c(0, 1), c(0, 1), 40, "sin_pi", 0.5, 300,
+                           epsilon = 0.9)
+image(mhp$x_coords, mhp$y_coords, mhp$hta_matrix,
+      col = hcl.colors(64, "YlGnBu", rev = TRUE),
+      xlab = "x", ylab = "p", main = "Mesochronic harmonic plot")
+```
+
+Bright regions are regular orbits with a large time average; dark regions are the
+chaotic sea. `classify_phase_space()` turns those magnitudes into labels:
+
+```{r}
+labels <- classify_phase_space(as.vector(mhp$hta_matrix))
+table(factor(labels, levels = 1:3,
+             labels = c("resonating", "chaotic", "non-resonating")))
+```
+
+## Where to go next
+
+- `?dmd` and `?hankel_dmd` for the full argument lists
+- `?mesochronic_compute` for the phase space tools
+- The Rust crate [`koopman-dmd`](https://crates.io/crates/koopman-dmd) and the
+  Python package [`koopman-dmd`](https://pypi.org/project/koopman-dmd/) expose
+  the same functionality
+
+## References
+
+Schmid, P.J. (2010). Dynamic mode decomposition of numerical and experimental
+data. *Journal of Fluid Mechanics*, 656, 5–28.
+<https://doi.org/10.1017/S0022112010001217>
+
+Kutz, J.N., Brunton, S.L., Brunton, B.W., & Proctor, J.L. (2016). *Dynamic Mode
+Decomposition: Data-Driven Modeling of Complex Systems*. SIAM.
+<https://doi.org/10.1137/1.9781611974508>
+
+Mezić, I. (2020). Spectrum of the Koopman operator, spectral expansions in
+functional spaces, and state-space geometry. <https://doi.org/10.48550/arXiv.2009.05883>
+
+Levnajić, Z. & Mezić, I. (2014). Ergodic theory and visualization.
+<https://doi.org/10.48550/arXiv.0808.2182>
