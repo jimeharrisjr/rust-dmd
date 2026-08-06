@@ -111,11 +111,18 @@ for ws in windows-sys-0.4*; do
   W="$ws/src/Windows/Win32"
   [ -d "$W" ] || continue
   # atomic-wait imports only Win32::System::{Threading,WindowsProgramming} and Foundation.
+  #
+  # Prune DIRECTORIES ONLY. The `mod.rs` files that sit alongside them declare the
+  # module tree, and deleting those breaks the build with
+  #   error[E0583]: file not found for module `Win32`
+  # regardless of which submodules survive.
   for d in "$W"/*; do
+    [ -d "$d" ] || continue
     b="$(basename "$d")"
     [ "$b" = "System" ] || [ "$b" = "Foundation" ] || rm -rf "$d"
   done
   for d in "$W"/System/*; do
+    [ -d "$d" ] || continue
     b="$(basename "$d")"
     [ "$b" = "Threading" ] || [ "$b" = "WindowsProgramming" ] || rm -rf "$d"
   done

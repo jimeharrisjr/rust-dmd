@@ -83,5 +83,24 @@ else
   fi
 fi
 
+# windows-sys and the Windows import libraries compile on Windows targets only, so
+# neither the host build nor the x86_64 check above touches them. Pruning mistakes
+# there (an over-broad glob once removed Win32/mod.rs) surface only here. `cargo
+# check` needs no linker, so this works cross-platform.
+WIN_TARGET="x86_64-pc-windows-gnu"
+if rustc --print target-libdir --target "$WIN_TARGET" >/dev/null 2>&1; then
+  echo "==> Cross-checking the Windows-only dependency subtree ($WIN_TARGET)"
+  if cargo check --lib --release --offline --locked -j 2 --target "$WIN_TARGET" \
+       --manifest-path=./rust/Cargo.toml --target-dir ./rust/target-win 2>&1 | tail -20; then
+    echo "==> Windows subtree OK"
+  else
+    echo "!! WINDOWS CHECK FAILED -- pruning broke windows-sys or an import library" >&2
+    exit 1
+  fi
+else
+  echo "!! WARNING: $WIN_TARGET not installed, so windows-sys was NOT exercised." >&2
+  echo "!! Install it with:  rustup target add $WIN_TARGET" >&2
+fi
+
 echo
 echo "==> OFFLINE BUILD OK -- vendor.tar.xz is self-contained"
