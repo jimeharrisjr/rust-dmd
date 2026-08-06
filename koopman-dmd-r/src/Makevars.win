@@ -14,15 +14,15 @@ $(SHLIB): $(STATLIB)
 
 $(STATLIB):
 	# The vendored tree supplies every dependency; CRAN's machines are offline.
-	if [ -f ./rust/vendor.tar.xz ]; then \
-		tar xf ./rust/vendor.tar.xz -C ./rust && \
-		mkdir -p $(CARGOTMP) ./rust/.cargo && \
-		printf '[source.crates-io]\nreplace-with = "vendored-sources"\n\n[source.vendored-sources]\ndirectory = "vendor"\n' \
-			> ./rust/.cargo/config.toml; \
-	fi
+	# The source-replacement config must live in CARGO_HOME rather than beside the
+	# manifest, because cargo resolves .cargo/config.toml relative to its working
+	# directory (src/), not to --manifest-path.
+	mkdir -p $(CARGOTMP)
 	export PATH="$(PATH):$(HOME)/.cargo/bin" && \
 		export CARGO_HOME=$(CARGOTMP) && \
-		if [ -f ./rust/.cargo/config.toml ]; then \
+		if [ -f ./rust/vendor.tar.xz ]; then \
+			tar xf ./rust/vendor.tar.xz -C ./rust && \
+			printf '[source.crates-io]\nreplace-with = "vendored-sources"\n\n[source.vendored-sources]\ndirectory = "$(VENDOR_DIR)"\n' > $(CARGOTMP)/config.toml && \
 			cargo build --target=$(TARGET) --lib --release --offline --locked -j 2 \
 				--manifest-path=./rust/Cargo.toml --target-dir $(TARGET_DIR); \
 		else \
@@ -30,17 +30,17 @@ $(STATLIB):
 				--manifest-path=./rust/Cargo.toml --target-dir $(TARGET_DIR); \
 		fi
 	if [ "$(NOT_CRAN)" != "true" ]; then \
-		rm -Rf $(CARGOTMP) $(VENDOR_DIR) ./rust/.cargo && \
+		rm -Rf $(CARGOTMP) $(VENDOR_DIR) && \
 		rm -Rf $(LIBDIR)/build; \
 	fi
 
 rust_clean:
-	rm -Rf $(CARGOTMP) $(VENDOR_DIR) ./rust/.cargo
+	rm -Rf $(CARGOTMP) $(VENDOR_DIR)
 
 C_clean:
 	rm -Rf $(SHLIB) $(STATLIB) $(OBJECTS)
 
 clean:
-	rm -Rf $(SHLIB) $(STATLIB) $(OBJECTS) $(TARGET_DIR) $(CARGOTMP) $(VENDOR_DIR) ./rust/.cargo
+	rm -Rf $(SHLIB) $(STATLIB) $(OBJECTS) $(TARGET_DIR) $(CARGOTMP) $(VENDOR_DIR)
 
 .PHONY: all rust_clean C_clean clean

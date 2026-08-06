@@ -16,19 +16,17 @@ $(STATLIB):
 	# CRAN build machines have no network access, so the whole dependency tree ships
 	# in vendor.tar.xz and cargo is pointed at it and run with --offline. See
 	# https://cran.r-project.org/web/packages/using_rust.html
-	if [ -f ./rust/vendor.tar.xz ]; then \
-		tar xf ./rust/vendor.tar.xz -C ./rust && \
-		mkdir -p $(CARGOTMP) && \
-		printf '[source.crates-io]\nreplace-with = "vendored-sources"\n\n[source.vendored-sources]\ndirectory = "vendor"\n' \
-			> ./rust/.cargo-config-vendor.toml; \
-	fi
-	# rustup installs are often absent from PATH in non-interactive builds.
+	#
+	# The source-replacement config goes in CARGO_HOME, NOT beside the manifest:
+	# cargo looks for .cargo/config.toml relative to its working directory, which is
+	# src/ here, so a config at src/rust/.cargo/config.toml is never read. The
+	# vendor directory is given as an absolute path for the same reason.
+	mkdir -p $(CARGOTMP)
 	export PATH="$(PATH):$(HOME)/.cargo/bin" && \
 		export CARGO_HOME=$(CARGOTMP) && \
-		export CARGO_BUILD_JOBS=2 && \
-		if [ -f ./rust/.cargo-config-vendor.toml ]; then \
-			mkdir -p ./rust/.cargo && \
-			cp ./rust/.cargo-config-vendor.toml ./rust/.cargo/config.toml && \
+		if [ -f ./rust/vendor.tar.xz ]; then \
+			tar xf ./rust/vendor.tar.xz -C ./rust && \
+			printf '[source.crates-io]\nreplace-with = "vendored-sources"\n\n[source.vendored-sources]\ndirectory = "$(VENDOR_DIR)"\n' > $(CARGOTMP)/config.toml && \
 			cargo build --lib --release --offline --locked -j 2 \
 				--manifest-path=./rust/Cargo.toml --target-dir $(TARGET_DIR); \
 		else \
@@ -37,18 +35,17 @@ $(STATLIB):
 		fi
 	# Reclaim space unless a developer asked to keep it (NOT_CRAN=true).
 	if [ "$(NOT_CRAN)" != "true" ]; then \
-		rm -Rf $(CARGOTMP) $(VENDOR_DIR) ./rust/.cargo ./rust/.cargo-config-vendor.toml && \
+		rm -Rf $(CARGOTMP) $(VENDOR_DIR) && \
 		rm -Rf $(LIBDIR)/build; \
 	fi
 
 rust_clean:
-	rm -Rf $(CARGOTMP) $(VENDOR_DIR) ./rust/.cargo ./rust/.cargo-config-vendor.toml
+	rm -Rf $(CARGOTMP) $(VENDOR_DIR)
 
 C_clean:
 	rm -Rf $(SHLIB) $(STATLIB) $(OBJECTS)
 
 clean:
-	rm -Rf $(SHLIB) $(STATLIB) $(OBJECTS) $(TARGET_DIR) $(CARGOTMP) $(VENDOR_DIR) \
-		./rust/.cargo ./rust/.cargo-config-vendor.toml
+	rm -Rf $(SHLIB) $(STATLIB) $(OBJECTS) $(TARGET_DIR) $(CARGOTMP) $(VENDOR_DIR)
 
 .PHONY: all rust_clean C_clean clean
