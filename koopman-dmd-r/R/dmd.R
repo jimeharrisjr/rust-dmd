@@ -9,6 +9,19 @@
 #' @param lifting Character lifting type or NULL.
 #' @param lifting_param Integer lifting parameter or NULL.
 #' @return An S3 object of class "dmd".
+#'
+#' @examples
+#' # One row per variable, one column per time step
+#' t <- seq(0, 10, length.out = 100)
+#' X <- rbind(sin(t), cos(t))
+#'
+#' d <- dmd(X, rank = 2, dt = t[2] - t[1])
+#' print(d)
+#' summary(d)
+#'
+#' # Extended DMD: lift into a higher-dimensional space where nonlinear
+#' # dynamics become approximately linear
+#' d2 <- dmd(X, lifting = "polynomial", lifting_param = 2)
 #' @export
 dmd <- function(X, rank = NULL, center = FALSE, dt = 1.0,
                 lifting = NULL, lifting_param = NULL) {
@@ -51,6 +64,15 @@ summary.dmd <- function(object, ...) {
 #' @param method "modes" (default) or "matrix".
 #' @param ... Additional arguments (ignored).
 #' @return Numeric matrix of predictions.
+#'
+#' @examples
+#' t <- seq(0, 10, length.out = 100)
+#' X <- rbind(sin(t), cos(t))
+#' d <- dmd(X, rank = 2, dt = t[2] - t[1])
+#'
+#' # Forecast 10 steps beyond the input
+#' pred <- predict(d, n_ahead = 10)
+#' dim(pred)
 #' @export
 predict.dmd <- function(object, n_ahead = 10, x0 = NULL,
                         method = c("modes", "matrix"), ...) {
@@ -64,6 +86,14 @@ predict.dmd <- function(object, n_ahead = 10, x0 = NULL,
 #' @param n_steps Number of time steps. Defaults to original length.
 #' @param modes Integer vector of mode indices (1-based), or NULL for all.
 #' @return Numeric matrix.
+#'
+#' @examples
+#' t <- seq(0, 10, length.out = 100)
+#' X <- rbind(sin(t), cos(t))
+#' d <- dmd(X, rank = 2, dt = t[2] - t[1])
+#'
+#' recon <- dmd_reconstruct(d, n_steps = ncol(X))
+#' dim(recon)
 #' @export
 dmd_reconstruct <- function(object, n_steps = NULL, modes = NULL) {
   if (is.null(n_steps)) n_steps <- object$data_dim[2]
@@ -75,6 +105,14 @@ dmd_reconstruct <- function(object, n_steps = NULL, modes = NULL) {
 #' @param object A dmd object.
 #' @param dt Time step. Uses stored dt by default.
 #' @return Data frame with mode information.
+#'
+#' @examples
+#' t <- seq(0, 10, length.out = 100)
+#' X <- rbind(sin(t), cos(t))
+#' d <- dmd(X, rank = 2, dt = t[2] - t[1])
+#'
+#' # Frequency, growth rate, amplitude and stability of each mode
+#' dmd_spectrum(d)
 #' @export
 dmd_spectrum <- function(object, dt = NULL) {
   if (is.null(dt)) dt <- object$dt
@@ -87,6 +125,13 @@ dmd_spectrum <- function(object, dt = NULL) {
 #' @param object A dmd object.
 #' @param tol Tolerance for marginal classification.
 #' @return List with stability information.
+#'
+#' @examples
+#' t <- seq(0, 10, length.out = 100)
+#' X <- rbind(sin(t), cos(t))
+#' d <- dmd(X, rank = 2, dt = t[2] - t[1])
+#'
+#' dmd_stability(d)
 #' @export
 dmd_stability <- function(object, tol = 1e-6) {
   rust_dmd_stability(object$`_result_ptr`, tol)
@@ -96,6 +141,14 @@ dmd_stability <- function(object, tol = 1e-6) {
 #'
 #' @param object A dmd object.
 #' @return List with error metrics (rmse, mae, mape, relative_error).
+#'
+#' @examples
+#' t <- seq(0, 10, length.out = 100)
+#' X <- rbind(sin(t), cos(t))
+#' d <- dmd(X, rank = 2, dt = t[2] - t[1])
+#'
+#' # Reconstruction error metrics
+#' dmd_error(d)
 #' @export
 dmd_error <- function(object) {
   rust_dmd_error(object$`_result_ptr`, object$`_x_ptr`)
@@ -107,6 +160,14 @@ dmd_error <- function(object) {
 #' @param n Number of modes.
 #' @param criterion "amplitude", "energy", or "stability".
 #' @return Integer vector of 1-based mode indices.
+#'
+#' @examples
+#' t <- seq(0, 10, length.out = 100)
+#' X <- rbind(sin(t), cos(t))
+#' d <- dmd(X, rank = 2, dt = t[2] - t[1])
+#'
+#' # Indices of the most significant modes
+#' dmd_dominant_modes(d, n = 1)
 #' @export
 dmd_dominant_modes <- function(object, n = 3,
                                criterion = c("amplitude", "energy", "stability")) {
@@ -118,6 +179,13 @@ dmd_dominant_modes <- function(object, n = 3,
 #'
 #' @param object A dmd object.
 #' @return List with residual_norm and residual_relative.
+#'
+#' @examples
+#' t <- seq(0, 10, length.out = 100)
+#' X <- rbind(sin(t), cos(t))
+#' d <- dmd(X, rank = 2, dt = t[2] - t[1])
+#'
+#' dmd_residual(d)
 #' @export
 dmd_residual <- function(object) {
   rust_dmd_residual(object$`_result_ptr`, object$`_x_ptr`)

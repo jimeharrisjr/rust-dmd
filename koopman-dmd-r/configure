@@ -1,0 +1,76 @@
+#!/bin/sh
+# Verify a usable Rust toolchain before the build starts, as required by
+# https://cran.r-project.org/web/packages/using_rust.html
+#
+# The policy asks that packages check for cargo and rustc (including personal
+# installs under ~/.cargo/bin, which are frequently not on PATH), report the rustc
+# version into the installation log the way R does for C/C++/Fortran compilers, and
+# direct the user to install the toolchain themselves rather than doing it for them.
+
+set -e
+
+# Minimum supported Rust. Set by the koopman-dmd crate, whose dependency faer
+# requires an edition-2024 transitive dependency below this point. Debian stable
+# (trixie) ships 1.85.0, so distribution toolchains from 2025 onward satisfy it.
+MIN_RUST_MAJOR=1
+MIN_RUST_MINOR=85
+
+# Personal rustup installs are commonly absent from PATH in non-interactive shells.
+if [ -d "${HOME}/.cargo/bin" ]; then
+  PATH="${PATH}:${HOME}/.cargo/bin"
+  export PATH
+fi
+
+missing_toolchain() {
+  cat >&2 <<EOF
+------------------------------ [ koopman.dmd ] ------------------------------
+Building this package requires the Rust toolchain ($1 not found).
+
+Install it with your system package manager, for example:
+
+    apt-get install cargo rustc      # Debian, Ubuntu
+    dnf install cargo                # Fedora, RHEL
+    brew install rust                # macOS with Homebrew
+
+or install rustup from https://rustup.rs/ .
+
+Rust $MIN_RUST_MAJOR.$MIN_RUST_MINOR or later is required. If you installed Rust
+via rustup, note that ~/.cargo/bin must be on PATH for non-interactive builds.
+-----------------------------------------------------------------------------
+EOF
+  exit 1
+}
+
+command -v cargo >/dev/null 2>&1 || missing_toolchain "cargo"
+command -v rustc >/dev/null 2>&1 || missing_toolchain "rustc"
+
+# Report the toolchain before compiling, so a failure downstream is diagnosable.
+RUSTC_VERSION=$(rustc --version 2>/dev/null || echo "unknown")
+CARGO_VERSION=$(cargo --version 2>/dev/null || echo "unknown")
+echo "** using ${RUSTC_VERSION}"
+echo "** using ${CARGO_VERSION}"
+
+# Compare against the minimum. A version we cannot parse is allowed through with a
+# warning rather than failing the build outright -- distributions sometimes carry
+# unusual version strings, and a false refusal is worse than a clear compile error.
+RUST_VER=$(echo "$RUSTC_VERSION" | sed -n 's/^rustc \([0-9][0-9]*\.[0-9][0-9]*\).*/\1/p')
+if [ -z "$RUST_VER" ]; then
+  echo "** note: could not parse the rustc version; continuing"
+else
+  RUST_MAJOR=${RUST_VER%%.*}
+  RUST_MINOR=${RUST_VER#*.}
+  if [ "$RUST_MAJOR" -lt "$MIN_RUST_MAJOR" ] || \
+     { [ "$RUST_MAJOR" -eq "$MIN_RUST_MAJOR" ] && [ "$RUST_MINOR" -lt "$MIN_RUST_MINOR" ]; }; then
+    cat >&2 <<EOF
+------------------------------ [ koopman.dmd ] ------------------------------
+Rust $MIN_RUST_MAJOR.$MIN_RUST_MINOR or later is required, but found $RUST_VER.
+
+Upgrade with your system package manager, or install a current toolchain via
+rustup from https://rustup.rs/ .
+-----------------------------------------------------------------------------
+EOF
+    exit 1
+  fi
+fi
+
+exit 0

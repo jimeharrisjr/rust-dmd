@@ -5,6 +5,14 @@
 #' @param rank Integer truncation rank, or NULL for automatic.
 #' @param dt Numeric time step.
 #' @return An S3 object of class "hankel_dmd".
+#'
+#' @examples
+#' # A scalar signal, as a 1-row matrix
+#' t <- seq(0, 4 * pi, length.out = 200)
+#' y <- matrix(sin(t), nrow = 1)
+#'
+#' h <- hankel_dmd(y, delays = 10)
+#' print(h)
 #' @export
 hankel_dmd <- function(y, delays = NULL, rank = NULL, dt = 1.0) {
   if (!is.matrix(y)) y <- as.matrix(y)
@@ -25,6 +33,13 @@ print.hankel_dmd <- function(x, ...) {
 #' @param object A hankel_dmd object.
 #' @param n_steps Number of time steps.
 #' @return Numeric matrix.
+#'
+#' @examples
+#' t <- seq(0, 4 * pi, length.out = 200)
+#' y <- matrix(sin(t), nrow = 1)
+#' h <- hankel_dmd(y, delays = 10)
+#'
+#' recon <- hankel_reconstruct(h, 50)
 #' @export
 hankel_reconstruct <- function(object, n_steps) {
   rust_hankel_reconstruct(object$`_result_ptr`, as.integer(n_steps))
@@ -36,6 +51,13 @@ hankel_reconstruct <- function(object, n_steps) {
 #' @param n_ahead Number of steps to predict.
 #' @param ... Additional arguments (ignored).
 #' @return Numeric matrix.
+#'
+#' @examples
+#' t <- seq(0, 4 * pi, length.out = 200)
+#' y <- matrix(sin(t), nrow = 1)
+#' h <- hankel_dmd(y, delays = 10)
+#'
+#' pred <- predict(h, n_ahead = 10)
 #' @export
 predict.hankel_dmd <- function(object, n_ahead = 10, ...) {
   rust_hankel_predict(object$`_result_ptr`, as.integer(n_ahead))

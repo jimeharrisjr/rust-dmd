@@ -3,24 +3,52 @@ LIBDIR = $(TARGET_DIR)/release
 STATLIB = $(LIBDIR)/libkoopman_dmd_r.a
 PKG_LIBS = -L$(LIBDIR) -lkoopman_dmd_r -lresolv
 
-all: C_clean
+# CARGO_HOME is kept inside the build tree. CRAN packages must not write to the
+# user's home directory, and cargo would otherwise populate ~/.cargo.
+CARGOTMP = $(CURDIR)/.cargo
+VENDOR_DIR = $(CURDIR)/rust/vendor
+
+all: $(SHLIB) rust_clean
 
 $(SHLIB): $(STATLIB)
 
-CARGOTMP = $(CURDIR)/.cargo
-
 $(STATLIB):
-	# In some environments, ~/.cargo/bin might not be in PATH, so we need
-	# to set it here.
+	# CRAN build machines have no network access, so the whole dependency tree ships
+	# in vendor.tar.xz and cargo is pointed at it and run with --offline. See
+	# https://cran.r-project.org/web/packages/using_rust.html
+	if [ -f ./rust/vendor.tar.xz ]; then \
+		tar xf ./rust/vendor.tar.xz -C ./rust && \
+		mkdir -p $(CARGOTMP) && \
+		printf '[source.crates-io]\nreplace-with = "vendored-sources"\n\n[source.vendored-sources]\ndirectory = "vendor"\n' \
+			> ./rust/.cargo-config-vendor.toml; \
+	fi
+	# rustup installs are often absent from PATH in non-interactive builds.
 	export PATH="$(PATH):$(HOME)/.cargo/bin" && \
-		cargo build --lib --release --manifest-path=./rust/Cargo.toml --target-dir $(TARGET_DIR)
+		export CARGO_HOME=$(CARGOTMP) && \
+		export CARGO_BUILD_JOBS=2 && \
+		if [ -f ./rust/.cargo-config-vendor.toml ]; then \
+			mkdir -p ./rust/.cargo && \
+			cp ./rust/.cargo-config-vendor.toml ./rust/.cargo/config.toml && \
+			cargo build --lib --release --offline --locked -j 2 \
+				--manifest-path=./rust/Cargo.toml --target-dir $(TARGET_DIR); \
+		else \
+			cargo build --lib --release -j 2 \
+				--manifest-path=./rust/Cargo.toml --target-dir $(TARGET_DIR); \
+		fi
+	# Reclaim space unless a developer asked to keep it (NOT_CRAN=true).
 	if [ "$(NOT_CRAN)" != "true" ]; then \
-		rm -Rf $(CARGOTMP) && \
+		rm -Rf $(CARGOTMP) $(VENDOR_DIR) ./rust/.cargo ./rust/.cargo-config-vendor.toml && \
 		rm -Rf $(LIBDIR)/build; \
 	fi
+
+rust_clean:
+	rm -Rf $(CARGOTMP) $(VENDOR_DIR) ./rust/.cargo ./rust/.cargo-config-vendor.toml
 
 C_clean:
 	rm -Rf $(SHLIB) $(STATLIB) $(OBJECTS)
 
 clean:
-	rm -Rf $(SHLIB) $(STATLIB) $(OBJECTS) $(TARGET_DIR)
+	rm -Rf $(SHLIB) $(STATLIB) $(OBJECTS) $(TARGET_DIR) $(CARGOTMP) $(VENDOR_DIR) \
+		./rust/.cargo ./rust/.cargo-config-vendor.toml
+
+.PHONY: all rust_clean C_clean clean

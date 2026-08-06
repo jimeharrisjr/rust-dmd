@@ -1,0 +1,14 @@
+^.*\.Rproj$
+^\.Rproj\.user$
+^\.github$
+^cran-comments\.md$
+^README\.Rmd$
+^LICENSE\.md$
+^\.DS_Store$
+# Rust build products. Only src/rust/{Cargo.toml,Cargo.lock,src,vendor.tar.xz}
+# belong in the tarball; the target directory and any extracted vendor tree do not.
+^src/rust/target$
+^src/rust/vendor$
+^src/rust/\.cargo$
+^src/\.cargo$
+^src/rust/\.cargo-config-vendor\.toml$

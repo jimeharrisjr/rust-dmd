@@ -2,6 +2,10 @@
 name = "koopman-dmd-r"
 version = "0.1.0"
 edition = "2021"
+# Matches the published koopman-dmd crate, which declares 1.85. Pinning
+# generativity 1.1.0 in Cargo.lock keeps the rest of the tree at 1.84, but our own
+# crate sets the effective floor, so SystemRequirements must say rustc (>= 1.85).
+rust-version = "1.85"
 description = "R bindings for koopman-dmd"
 license = "MIT"
 # Distributed inside the CRAN package `koopman.dmd`, not as a crates.io crate.
@@ -10,7 +14,12 @@ publish = false
 [lib]
 crate-type = ["staticlib"]
 
+[workspace]
+
 [dependencies]
 extendr-api = "0.8"
 faer = "0.22"
-koopman-dmd = { path = "../../../koopman-dmd" }
+# Registry dependency, not a path: a CRAN tarball contains only the package
+# directory, so a path escaping it cannot build. Resolved once on the maintainer's
+# machine when generating vendor.tar.xz; the submitted package builds --offline.
+koopman-dmd = "0.1"
