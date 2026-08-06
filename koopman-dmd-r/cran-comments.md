@@ -55,3 +55,12 @@ personal installs under `~/.cargo/bin`, which are often absent from `PATH` in
 non-interactive builds), verify the version, and report it into the installation
 log before compilation begins. If the toolchain is missing or too old, they emit
 installation instructions and stop; they never attempt to install anything.
+
+### `checking compiled code` note
+
+The check reports that the compiled library contains `exit`, `_exit` and `abort`.
+These come from the Rust standard library's panic and process-abort machinery,
+which is linked into every Rust static library; they are not called by this
+package's own code, and no Rust package can avoid exporting them. The R-facing
+code never terminates the R process: all fallible operations return an R
+condition through 'extendr', and the package sets no panic handler that aborts.

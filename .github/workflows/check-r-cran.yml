@@ -82,5 +82,18 @@ jobs:
           # with an error that reflects the CI image rather than the package. CRAN's
           # own machines have LaTeX and will build it there.
           args: 'c("--no-manual", "--as-cran")'
-          error-on: '"warning"'
+          # "error" rather than "warning": every Rust-backed package trips
+          # `checking compiled code ... WARNING` because the static library exports
+          # exit/abort/_exit from Rust's standard library panic machinery. That is not
+          # removable from our side, so gating on warnings would keep CI permanently
+          # red and hide real regressions. Review warnings/notes in the job output.
+          error-on: '"error"'
           upload-snapshots: true
+      # 00install.out holds the actual compiler failure; the check output only points
+      # at it, which makes install failures needlessly hard to diagnose from the log.
+      - name: Show install log on failure
+        if: failure()
+        shell: bash
+        run: |
+          f=$(find koopman-dmd-r/check -name 00install.out | head -1)
+          [ -n "$f" ] && { echo "===== $f ====="; tail -60 "$f"; } || echo "no 00install.out found"

@@ -18,11 +18,16 @@ $(STATLIB):
 	# manifest, because cargo resolves .cargo/config.toml relative to its working
 	# directory (src/), not to --manifest-path.
 	mkdir -p $(CARGOTMP)
+	# Rtools' make reports $(CURDIR) as an MSYS path (/d/a/...), but cargo is a native
+	# Windows binary and reads that as drive-relative, producing D:\d\a\... and failing
+	# with "failed to read root of directory source". cygpath -m converts to a Windows
+	# path with forward slashes, which is both correct and safe to embed in TOML.
 	export PATH="$(PATH):$(HOME)/.cargo/bin" && \
-		export CARGO_HOME=$(CARGOTMP) && \
+		export CARGO_HOME=`cygpath -m "$(CARGOTMP)" 2>/dev/null || echo "$(CARGOTMP)"` && \
 		if [ -f ./rust/vendor.tar.xz ]; then \
 			tar xf ./rust/vendor.tar.xz -C ./rust && \
-			printf '[source.crates-io]\nreplace-with = "vendored-sources"\n\n[source.vendored-sources]\ndirectory = "$(VENDOR_DIR)"\n' > $(CARGOTMP)/config.toml && \
+			VENDOR_WIN=`cygpath -m "$(VENDOR_DIR)" 2>/dev/null || echo "$(VENDOR_DIR)"` && \
+			printf '[source.crates-io]\nreplace-with = "vendored-sources"\n\n[source.vendored-sources]\ndirectory = "%s"\n' "$$VENDOR_WIN" > $(CARGOTMP)/config.toml && \
 			cargo build --target=$(TARGET) --lib --release --offline --locked -j 2 \
 				--manifest-path=./rust/Cargo.toml --target-dir $(TARGET_DIR); \
 		else \
