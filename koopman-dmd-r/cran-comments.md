@@ -16,7 +16,7 @@ This is a new submission of koopman.dmd 0.1.0.
 | Platform | Result |
 |---|---|
 | **win-builder, R devel** | **0 errors, 0 warnings, 1 note** |
-| **win-builder, R release** | *<!-- TODO: re-run before submitting. The r-release queue has only checked the pre-URL-fix tarball; expected 0 errors, 0 warnings, 1 note. -->pending re-run* |
+| **win-builder, R release** | **0 errors, 0 warnings, 1 note** |
 | Debian, R 4.6.1, x86_64 | 0 errors, 1 warning, 0 notes |
 | Debian, R 4.6.1, aarch64 | 0 errors, 1 warning, 1 note |
 | Ubuntu 24.04, R release | 0 errors, 1 warning, 0 notes |
