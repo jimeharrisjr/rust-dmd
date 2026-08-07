@@ -61,8 +61,16 @@ echo "    (memory $MEM, cpus $CPUS -- override with CRAN_CHECK_MEMORY / CRAN_CHE
 # The package directory is mounted read-only and copied inside, so the build never
 # writes into the working tree -- R CMD build would otherwise leave artefacts and
 # the Rust target directory behind.
+# The built tarball is the artefact to submit to CRAN and upload to win-builder, so
+# copy it out of the (--rm) container rather than losing it. Local `R CMD build`
+# cannot produce this: building the vignette installs the package first, which needs
+# a working compiler.
+DIST_DIR="$REPO_ROOT/dist"
+mkdir -p "$DIST_DIR"
+
 container run --rm --arch "$ARCH" --memory "$MEM" --cpus "$CPUS" \
   --volume "$REPO_ROOT/koopman-dmd-r:/src:ro" \
+  --volume "$DIST_DIR:/out" \
   "$IMAGE" bash -euo pipefail -c '
     export PATH="/root/.cargo/bin:$PATH"
     echo "== toolchain =="
@@ -80,6 +88,8 @@ container run --rm --arch "$ARCH" --memory "$MEM" --cpus "$CPUS" \
     R CMD build pkg
     TARBALL=$(ls -1 koopman.dmd_*.tar.gz | head -1)
     echo "built: $TARBALL ($(du -h "$TARBALL" | cut -f1))"
+    cp "$TARBALL" /out/
+    echo "copied to dist/$TARBALL"
     echo
 
     echo "== R CMD check --as-cran =="

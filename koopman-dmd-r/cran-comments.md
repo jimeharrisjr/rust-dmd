@@ -4,6 +4,7 @@ This is a new submission of koopman.dmd 0.1.0.
 
 ## Test environments
 
+* win-builder, R devel (x86_64-w64-mingw32)
 * Debian GNU/Linux forky/sid, R 4.6.1, x86_64 (container, full check with LaTeX)
 * Debian GNU/Linux forky/sid, R 4.6.1, aarch64 (container, full check with LaTeX)
 * Ubuntu 24.04 (GitHub Actions), R release and R devel
@@ -14,16 +15,38 @@ This is a new submission of koopman.dmd 0.1.0.
 
 | Platform | Result |
 |---|---|
-| Debian, R 4.6.1, **x86_64** | **0 errors, 1 warning, 0 notes** |
+| **win-builder, R devel** | **0 errors, 0 warnings, 1 note** (new submission) |
+| Debian, R 4.6.1, x86_64 | 0 errors, 1 warning, 0 notes |
 | Debian, R 4.6.1, aarch64 | 0 errors, 1 warning, 1 note |
 | Ubuntu 24.04, R release | 0 errors, 1 warning, 0 notes |
 | Ubuntu 24.04, R devel   | 0 errors, 1 warning, 0 notes |
 | macOS 14, R release     | Status: OK |
 | Windows Server 2022, R release | Status: OK |
 
-The warning is `checking compiled code` and is explained below. We do not believe
-it is removable from a Rust package; if you would prefer it handled differently,
-please say so and we will follow your guidance.
+The win-builder note is the standard "New submission", together with the two
+items addressed immediately below. `checking compiled code` was **OK** on
+win-builder; the warning of that name appears on Linux only and is explained
+further down. We do not believe it is removable from a Rust package; if you would
+prefer it handled differently, please say so and we will follow your guidance.
+
+### Possibly misspelled words
+
+All are correct: `Koopman`, `Hankel`, `Schmid` and `Mezic` are surnames (Bernard
+Koopman, Hermann Hankel, Peter Schmid, Igor Mezic); `eigenfunction` and
+`mesochronic` are standard terms in operator theory and dynamical systems
+respectively.
+
+### Flagged URLs
+
+Both were reported by win-builder against an earlier build and have been fixed:
+
+* `https://extendr.github.io/` returned 301; the project moved, and the vignette
+  now links to `https://extendr.rs/`.
+* `https://crates.io/crates/koopman-dmd` was reported as 404. The crate is in fact
+  published and live, but crates.io serves 404 to non-browser user agents (and 403
+  to HEAD requests), so an automated checker cannot confirm it. The vignette now
+  links to `https://docs.rs/koopman-dmd/`, which documents the same crate and
+  resolves normally.
 
 The additional note on aarch64 is `Compilation used the following non-portable
 flag(s): '-mbranch-protection=standard'`. That flag comes from R's own CFLAGS as
