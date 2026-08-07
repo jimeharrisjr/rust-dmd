@@ -4,7 +4,7 @@ This is a new submission of koopman.dmd 0.1.0.
 
 ## Test environments
 
-* win-builder, R devel (x86_64-w64-mingw32)
+* win-builder, R devel and R release (x86_64-w64-mingw32)
 * Debian GNU/Linux forky/sid, R 4.6.1, x86_64 (container, full check with LaTeX)
 * Debian GNU/Linux forky/sid, R 4.6.1, aarch64 (container, full check with LaTeX)
 * Ubuntu 24.04 (GitHub Actions), R release and R devel
@@ -15,7 +15,8 @@ This is a new submission of koopman.dmd 0.1.0.
 
 | Platform | Result |
 |---|---|
-| **win-builder, R devel** | **0 errors, 0 warnings, 1 note** (new submission) |
+| **win-builder, R devel** | **0 errors, 0 warnings, 1 note** |
+| **win-builder, R release** | **0 errors, 0 warnings, 1 note** |
 | Debian, R 4.6.1, x86_64 | 0 errors, 1 warning, 0 notes |
 | Debian, R 4.6.1, aarch64 | 0 errors, 1 warning, 1 note |
 | Ubuntu 24.04, R release | 0 errors, 1 warning, 0 notes |
@@ -23,10 +24,11 @@ This is a new submission of koopman.dmd 0.1.0.
 | macOS 14, R release     | Status: OK |
 | Windows Server 2022, R release | Status: OK |
 
-The win-builder note is the standard "New submission", together with the two
-items addressed immediately below. `checking compiled code` was **OK** on
-win-builder; the warning of that name appears on Linux only and is explained
-further down. We do not believe it is removable from a Rust package; if you would
+The win-builder note is `checking CRAN incoming feasibility`, comprising "New
+submission" and a list of possibly misspelled words; both are addressed below.
+`checking compiled code` was **OK** on win-builder, and the PDF manual built
+cleanly. The warning of that name appears on Linux only and is explained further
+down; we do not believe it is removable from a Rust package, but if you would
 prefer it handled differently, please say so and we will follow your guidance.
 
 ### Possibly misspelled words
@@ -36,17 +38,7 @@ Koopman, Hermann Hankel, Peter Schmid, Igor Mezic); `eigenfunction` and
 `mesochronic` are standard terms in operator theory and dynamical systems
 respectively.
 
-### Flagged URLs
-
-Both were reported by win-builder against an earlier build and have been fixed:
-
-* `https://extendr.github.io/` returned 301; the project moved, and the vignette
-  now links to `https://extendr.rs/`.
-* `https://crates.io/crates/koopman-dmd` was reported as 404. The crate is in fact
-  published and live, but crates.io serves 404 to non-browser user agents (and 403
-  to HEAD requests), so an automated checker cannot confirm it. The vignette now
-  links to `https://docs.rs/koopman-dmd/`, which documents the same crate and
-  resolves normally.
+### Note on aarch64 only
 
 The additional note on aarch64 is `Compilation used the following non-portable
 flag(s): '-mbranch-protection=standard'`. That flag comes from R's own CFLAGS as
@@ -98,12 +90,18 @@ installation instructions and stop; they never attempt to install anything.
 
 ### `checking compiled code` note
 
-The check reports that the compiled library contains `exit`, `_exit` and `abort`.
-These come from the Rust standard library's panic and process-abort machinery,
-which is linked into every Rust static library; they are not called by this
-package's own code, and no Rust package can avoid exporting them. The R-facing
-code never terminates the R process: all fallible operations return an R
-condition through 'extendr', and the package sets no panic handler that aborts.
+On Linux the check reports that the compiled library contains `exit`, `_exit` and
+`abort`. These symbols come from the Rust standard library's panic and
+process-abort machinery, which is linked into every Rust static library. They are
+not called by this package's own code. The same check reports OK on win-builder
+and on macOS, so the difference is in which platforms' checks surface the symbols
+rather than in what the library contains.
+
+The R-facing code never terminates the R process: all fallible operations return
+an R condition through 'extendr', and the package installs no panic handler that
+aborts. We are not aware of a way to prevent a Rust static library from carrying
+these symbols, but if you know of one, or would prefer this handled differently,
+we will follow your guidance.
 
 ### Installed size
 
