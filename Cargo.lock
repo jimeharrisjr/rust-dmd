@@ -377,35 +377,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "extendr-api"
-version = "0.8.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ea54977c6e37236839ffcbc20b5dcea58aa32ae43fbef54a81e1011dc6b19061"
-dependencies = [
- "extendr-ffi",
- "extendr-macros",
- "once_cell",
- "paste",
-]
-
-[[package]]
-name = "extendr-ffi"
-version = "0.8.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c76777174a82bdb3e66872f580687d3d0143eed1df9b9cd72b321b9596a23ca7"
-
-[[package]]
-name = "extendr-macros"
-version = "0.8.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "661cc4ae29de9c4dafe16cfcbda1dbb9f31bd2568f96ebad232cc1f9bcc8b04d"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.116",
-]
-
-[[package]]
 name = "faer"
 version = "0.22.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -710,7 +681,7 @@ dependencies = [
 
 [[package]]
 name = "koopman-dmd"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "approx",
  "criterion",
@@ -729,15 +700,6 @@ dependencies = [
  "koopman-dmd",
  "numpy",
  "pyo3",
-]
-
-[[package]]
-name = "koopman-dmd-r"
-version = "0.1.0"
-dependencies = [
- "extendr-api",
- "faer",
- "koopman-dmd",
 ]
 
 [[package]]

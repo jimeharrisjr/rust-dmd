@@ -11,11 +11,23 @@ use crate::types::{
 /// Returns per-mode information: magnitude, phase, frequency, growth rate,
 /// half-life, and stability classification.
 pub fn dmd_spectrum(result: &DmdResult, dt: f64) -> Vec<ModeInfo> {
-    let rank = result.rank;
+    spectrum_from_eigenvalues(&result.eigenvalues, Some(&result.amplitudes), dt)
+}
+
+/// Spectrum analysis over a raw eigenvalue slice (e.g. from a
+/// [`DmdcResult`](crate::DmdcResult)).
+///
+/// `amplitudes`, when absent, are reported as 0.
+pub fn spectrum_from_eigenvalues(
+    eigenvalues: &[C64],
+    amplitudes: Option<&[C64]>,
+    dt: f64,
+) -> Vec<ModeInfo> {
+    let rank = eigenvalues.len();
     let mut info = Vec::with_capacity(rank);
 
     for i in 0..rank {
-        let lambda = result.eigenvalues[i];
+        let lambda = eigenvalues[i];
         let mag = lambda.norm();
         let phase = lambda.arg();
         let frequency = phase.abs() / (2.0 * std::f64::consts::PI * dt);
@@ -32,7 +44,7 @@ pub fn dmd_spectrum(result: &DmdResult, dt: f64) -> Vec<ModeInfo> {
         };
 
         let stability = classify_eigenvalue(mag, 1e-6);
-        let amplitude = result.amplitudes[i].norm();
+        let amplitude = amplitudes.map_or(0.0, |a| a[i].norm());
 
         info.push(ModeInfo {
             index: i,
@@ -53,14 +65,18 @@ pub fn dmd_spectrum(result: &DmdResult, dt: f64) -> Vec<ModeInfo> {
 
 /// Analyze system stability.
 pub fn dmd_stability(result: &DmdResult, tol: f64) -> StabilityResult {
-    let mode_stability: Vec<Stability> = result
-        .eigenvalues
+    stability_from_eigenvalues(&result.eigenvalues, tol)
+}
+
+/// Stability analysis over a raw eigenvalue slice (e.g. from a
+/// [`DmdcResult`](crate::DmdcResult)).
+pub fn stability_from_eigenvalues(eigenvalues: &[C64], tol: f64) -> StabilityResult {
+    let mode_stability: Vec<Stability> = eigenvalues
         .iter()
         .map(|lambda| classify_eigenvalue(lambda.norm(), tol))
         .collect();
 
-    let spectral_radius = result
-        .eigenvalues
+    let spectral_radius = eigenvalues
         .iter()
         .map(|lambda| lambda.norm())
         .fold(0.0_f64, f64::max);

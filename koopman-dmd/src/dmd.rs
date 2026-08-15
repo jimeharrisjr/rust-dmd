@@ -135,14 +135,9 @@ pub fn dmd(x: &Mat<f64>, config: &DmdConfig) -> Result<DmdResult, DmdError> {
         }
     }
 
-    // Amplitudes: b = Φ⁺ x₀ (use the lifted first snapshot)
-    let lifted_first: Vec<f64> = (0..n_vars).map(|i| x_work[(i, 0)]).collect();
-    let x0: Vec<f64> = if config.center {
-        // x_work is already centered, so the first column of x_work is already centered
-        lifted_first
-    } else {
-        lifted_first
-    };
+    // Amplitudes: b = Φ⁺ x₀, taken from the working (lifted and, if enabled,
+    // centered) data so x₀ lives in the same frame as the modes.
+    let x0: Vec<f64> = (0..n_vars).map(|i| x_work[(i, 0)]).collect();
 
     let amplitudes = solve_amplitudes(&modes, &x0, n_vars, rank)?;
 
@@ -310,11 +305,12 @@ fn compute_full_a(
                 }
             }
             Err(_) => {
-                // Fallback: simple Φ^H / ||Φ||²
-                let norm_sq: f64 = (0..n_vars).map(|k| modes[k][0].norm_sqr()).sum();
-                for i in 0..rank {
-                    phi_pinv[i][col] = modes[col][i].conj() / norm_sq;
-                }
+                // A singular mode Gram matrix means Φ⁺ (and hence the full A)
+                // is not computable from these modes. Surface it — a silently
+                // mis-scaled A is far worse than an error.
+                return Err(DmdError::SolveFailed(
+                    "mode Gram matrix is singular; cannot reconstruct the full A matrix".into(),
+                ));
             }
         }
     }
@@ -426,6 +422,33 @@ mod tests {
 
         for i in 0..2 {
             assert_near(x0_recon[i].re, result.x_first[i], 0.1);
+        }
+    }
+
+    #[test]
+    fn test_dmd_centered_amplitudes_reconstruct_first_snapshot() {
+        // Offset data + centering: modes·amplitudes live in the centered
+        // frame, so adding the stored means back must reproduce x_first.
+        let mut x = make_oscillatory_data(200);
+        for j in 0..200 {
+            x[(0, j)] += 5.0;
+            x[(1, j)] += 3.0;
+        }
+        let config = DmdConfig {
+            center: true,
+            ..Default::default()
+        };
+        let result = dmd(&x, &config).unwrap();
+        let means = result.x_mean.clone().unwrap();
+
+        let mut recon = vec![C64::zero(); 2];
+        for j in 0..result.rank {
+            for i in 0..2 {
+                recon[i] += result.modes[i][j] * result.amplitudes[j];
+            }
+        }
+        for i in 0..2 {
+            assert_near(recon[i].re + means[i], result.x_first[i], 0.1);
         }
     }
 
