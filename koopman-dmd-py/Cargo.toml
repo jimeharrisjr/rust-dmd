@@ -18,7 +18,7 @@ crate-type = ["cdylib"]
 faer = "0.22"
 # `version` keeps the dependency resolvable when built from an sdist, where the
 # sibling directory may not be present; `path` takes precedence for local builds.
-koopman-dmd = { version = "0.1", path = "../koopman-dmd" }
+koopman-dmd = { version = "0.2", path = "../koopman-dmd" }
 # abi3-py39 builds a single stable-ABI wheel per platform that works on all
 # supported Python versions, instead of one wheel per Python version.
 pyo3 = { version = "0.23", features = ["extension-module", "abi3-py39"] }

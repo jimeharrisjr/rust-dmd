@@ -6,6 +6,8 @@
 //! DMD and related spectral methods:
 //!
 //! - **Core DMD** ([`dmd()`]): Standard DMD with truncated SVD, optional centering
+//! - **DMDc** ([`dmdc()`]): DMD with control, `x_{t+1} = A·x_t + B·u_t`, from
+//!   explicit snapshot pairs (Proctor, Brunton & Kutz 2016); known-B variant included
 //! - **Extended DMD** ([`lift_data`], [`LiftingConfig`]): Polynomial, trigonometric,
 //!   and delay-coordinate lifting for nonlinear systems
 //! - **Hankel-DMD** ([`hankel_dmd`]): Time-delay embedding via Krylov subspace
@@ -54,6 +56,7 @@ pub mod types;
 
 pub mod analysis;
 pub mod dmd;
+pub mod dmdc;
 pub mod gla;
 pub mod hankel;
 pub mod harmonic;
@@ -64,9 +67,11 @@ pub mod utils;
 
 pub use analysis::{
     dmd_convergence, dmd_dominant_modes, dmd_error, dmd_pseudospectrum, dmd_reconstruct,
-    dmd_residual, dmd_spectrum, dmd_stability,
+    dmd_residual, dmd_spectrum, dmd_stability, spectrum_from_eigenvalues,
+    stability_from_eigenvalues,
 };
 pub use dmd::dmd;
+pub use dmdc::{dmdc, DmdcConfig, DmdcResult};
 pub use gla::{gla, gla_predict, gla_reconstruct, GlaConfig, GlaResult};
 pub use hankel::{
     build_hankel_matrix, hankel_dmd, hankel_predict, hankel_reconstruct, HankelConfig,

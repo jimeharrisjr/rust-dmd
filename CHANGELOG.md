@@ -10,6 +10,30 @@ see their respective changelogs.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-08-14
+
+### Added
+
+- **DMDc** — Dynamic Mode Decomposition with control (`dmdc()`, Proctor,
+  Brunton & Kutz 2016): identifies `x_{t+1} = A·x_t + B·u_t` from explicit
+  snapshot-pair matrices `(X₁, X₂, U)`, so callers can concatenate and mask
+  trajectories. Includes a known-B variant (`DmdcConfig::known_b`) that solves
+  only for `A` on the input-subtracted residual, an optional reduced-order
+  output projection (`rank_output`), and real `faer::Mat<f64>` results ready
+  for stepping loops.
+- **Eigenvalue-slice analysis** — `stability_from_eigenvalues` and
+  `spectrum_from_eigenvalues` generalize `dmd_stability` / `dmd_spectrum` to
+  raw eigenvalue slices (e.g. from a `DmdcResult`).
+
+### Fixed
+
+- `compute_full_a` no longer falls back to a mis-scaled pseudo-inverse when
+  the mode Gram matrix is singular (every column was normalized by mode 0's
+  norm); it now returns `DmdError::SolveFailed`.
+- Removed the dead `if config.center` branch in the amplitude computation and
+  added a regression test that centered amplitudes plus stored means
+  reconstruct the first snapshot.
+
 ## [0.1.0] - 2026-08-05
 
 Initial release.
