@@ -20,8 +20,8 @@ methods.)
 
 | Platform | Result |
 |---|---|
-| **win-builder, R devel (r90424)** | **0 errors, 0 warnings, 1 note** (0.2.0 tarball; re-run for 0.2.1 before submitting) |
-| **win-builder, R release (R 4.6.1)** | **0 errors, 0 warnings, 1 note** (0.2.0 tarball; re-run for 0.2.1 before submitting) |
+| **win-builder, R devel (r90424)** | **0 errors, 0 warnings, 1 note** |
+| **win-builder, R release (R 4.6.1)** | **0 errors, 0 warnings, 1 note** |
 | macOS 15 (local), R 4.4.1, aarch64 | 0 errors, 0 warnings* |
 | Ubuntu 24.04, R release | 0 errors, 1 warning, 0 notes |
 | Ubuntu 24.04, R devel   | 0 errors, 1 warning, 0 notes |
