@@ -1,7 +1,7 @@
 Package: koopman.dmd
 Type: Package
 Title: Koopman Operator and Dynamic Mode Decomposition for Dynamical Systems
-Version: 0.2.0
+Version: 0.2.1
 Authors@R: c(
     person("James", "Harris", email = "jimeharrisjr@gmail.com",
            role = c("aut", "cre", "cph")),

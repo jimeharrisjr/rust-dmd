@@ -20,3 +20,4 @@ IMPLEMENTATION_PLAN.md
 
 # Built CRAN tarballs (tools/cran-check.sh)
 /dist/
+.Rproj.user

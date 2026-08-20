@@ -39,8 +39,15 @@ $(STATLIB):
 		rm -Rf $(LIBDIR)/build; \
 	fi
 
-rust_clean:
-	rm -Rf $(CARGOTMP) $(VENDOR_DIR)
+# The static archive must not survive into the checked build tree: since R
+# 4.6.0 (PR#18789), `checking compiled code` scans the symbol tables of local
+# static libraries linked into the .so, and libstd's bundled runtime objects
+# reference exit/_exit/abort even though the linker never pulls them into the
+# final .so (verified: the linked koopman.dmd.so carries no such references).
+# Deleting the archive after the link removes the false positive at its
+# source, the same way string2path does.
+rust_clean: $(SHLIB)
+	rm -Rf $(CARGOTMP) $(VENDOR_DIR) $(STATLIB)
 
 C_clean:
 	rm -Rf $(SHLIB) $(STATLIB) $(OBJECTS)
