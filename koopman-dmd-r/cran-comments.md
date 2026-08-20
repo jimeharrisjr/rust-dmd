@@ -18,7 +18,7 @@ methods.)
 | Platform | Result |
 |---|---|
 | **win-builder, R devel** | **0 errors, 0 warnings, 1 note** (0.1.0 tarball; re-run for 0.2.0 before submitting) |
-| **win-builder, R release** | **0 errors, 0 warnings, 1 note** (0.1.0 tarball; re-run for 0.2.0 before submitting) |
+| **win-builder, R release (R 4.6.1)** | **0 errors, 0 warnings, 1 note** |
 | macOS 15 (local), R 4.4.1, aarch64 | 0 errors, 0 warnings* |
 | Ubuntu 24.04, R release | 0 errors, 1 warning, 0 notes |
 | Ubuntu 24.04, R devel   | 0 errors, 1 warning, 0 notes |
@@ -30,9 +30,10 @@ time", HTML-tidy limitations of the system tidy) plus the notes discussed
 below.
 
 The win-builder note is `checking CRAN incoming feasibility`, comprising "New
-submission" and a list of possibly misspelled words; both are addressed below.
-`checking compiled code` was **OK** on win-builder, and the PDF manual built
-cleanly. The warning of that name appears on Linux only and is explained further
+submission" and a list of possibly misspelled words (`Brunton`, `Hankel`,
+`Koopman`, `Kutz`, `Mezic`, `Schmid`, `eigenfunction`, `mesochronic`); both
+are addressed below. `checking compiled code` was **OK** on win-builder, and
+the PDF and HTML manuals and the vignette all built cleanly. The warning of that name appears on Linux only and is explained further
 down; we do not believe it is removable from a Rust package, but if you would
 prefer it handled differently, please say so and we will follow your guidance.
 
