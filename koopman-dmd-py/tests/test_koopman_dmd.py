@@ -164,6 +164,156 @@ class TestDMD:
 
 
 # ============================================================================
+# DMDc tests
+# ============================================================================
+
+
+class TestDMDc:
+    """Test the DMDc class."""
+
+    A0 = np.array([[0.9, 0.1], [0.0, 0.8]])
+    B0 = np.array([[0.5], [1.0]])
+
+    @classmethod
+    def _make_forced(cls, m=120):
+        """Simulate x_{t+1} = A0 x_t + B0 u_t with a persistently exciting input."""
+        x1 = np.zeros((2, m))
+        x2 = np.zeros((2, m))
+        u = np.zeros((1, m))
+        x = np.array([1.0, -0.5])
+        for t in range(m):
+            ut = np.sin(0.7 * t) + 0.5 * np.cos(2.3 * t + 1.0)
+            x1[:, t] = x
+            u[0, t] = ut
+            x = cls.A0 @ x + cls.B0[:, 0] * ut
+            x2[:, t] = x
+        return x1, x2, u
+
+    def test_recovers_a_and_b(self):
+        x1, x2, u = self._make_forced()
+        d = koopman_dmd.DMDc(x1, x2, u, rank_input=3)
+        np.testing.assert_allclose(d.a, self.A0, atol=1e-9)
+        np.testing.assert_allclose(d.b, self.B0, atol=1e-9)
+        assert d.rank_input == 3
+        assert d.rank_output == 2
+        assert d.n_states == 2
+        assert d.n_inputs == 1
+        # Full-order default: basis is the identity and A~ = A.
+        np.testing.assert_allclose(d.basis, np.eye(2), atol=0)
+        np.testing.assert_allclose(d.a_tilde, d.a, atol=0)
+
+    def test_eigenvalues(self):
+        x1, x2, u = self._make_forced()
+        d = koopman_dmd.DMDc(x1, x2, u, rank_input=3)
+        eigs = d.eigenvalues
+        assert eigs.shape == (2, 2)
+        mags = np.sort(np.hypot(eigs[:, 0], eigs[:, 1]))
+        np.testing.assert_allclose(mags, [0.8, 0.9], atol=1e-9)
+
+    def test_known_b(self):
+        x1, x2, u = self._make_forced()
+        d = koopman_dmd.DMDc(x1, x2, u, rank_input=2, known_b=self.B0)
+        np.testing.assert_allclose(d.a, self.A0, atol=1e-9)
+        np.testing.assert_allclose(d.b, self.B0, atol=0)
+
+    def test_autonomous_pairs(self):
+        # u=None: multi-trajectory autonomous identification from pairs.
+        a0 = np.array([[0.95, 0.02], [0.0, 0.85]])
+        cols = []
+        for start in ([1.0, 0.5], [-0.3, 1.2]):
+            x = np.array(start)
+            for _ in range(40):
+                nxt = a0 @ x
+                cols.append((x.copy(), nxt.copy()))
+                x = nxt
+        x1 = np.column_stack([c[0] for c in cols])
+        x2 = np.column_stack([c[1] for c in cols])
+        d = koopman_dmd.DMDc(x1, x2, rank_input=2)
+        np.testing.assert_allclose(d.a, a0, atol=1e-9)
+        assert d.n_inputs == 0
+
+    def test_output_projection(self):
+        x1, x2, u = self._make_forced()
+        d = koopman_dmd.DMDc(x1, x2, u, rank_input=3, rank_output=2)
+        assert d.a_tilde.shape == (2, 2)
+        assert d.b_tilde.shape == (2, 1)
+        assert d.basis.shape == (2, 2)
+        # Basis columns are orthonormal.
+        np.testing.assert_allclose(d.basis.T @ d.basis, np.eye(2), atol=1e-12)
+
+    def test_singular_values(self):
+        x1, x2, u = self._make_forced()
+        d = koopman_dmd.DMDc(x1, x2, u, rank_input=3)
+        sv = d.singular_values
+        assert sv.shape == (3,)
+        assert np.all(np.diff(sv) <= 0)  # non-increasing
+
+    def test_predict_matches_simulation(self):
+        x1, x2, u = self._make_forced()
+        d = koopman_dmd.DMDc(x1, x2, u, rank_input=3)
+        # Predicting with the training inputs from the first snapshot must
+        # reproduce x2 (the model is exact for this data).
+        pred = d.predict(u=u)
+        np.testing.assert_allclose(pred, x2, atol=1e-7)
+
+    def test_predict_zero_input(self):
+        x1, x2, u = self._make_forced()
+        d = koopman_dmd.DMDc(x1, x2, u, rank_input=3)
+        x0 = np.array([1.0, 1.0])
+        pred = d.predict(x0=x0, n_ahead=5)
+        assert pred.shape == (2, 5)
+        # Zero input: pure A-dynamics.
+        expect = x0.copy()
+        for t in range(5):
+            expect = self.A0 @ expect
+            np.testing.assert_allclose(pred[:, t], expect, atol=1e-7)
+
+    def test_predict_requires_horizon(self):
+        x1, x2, u = self._make_forced()
+        d = koopman_dmd.DMDc(x1, x2, u, rank_input=3)
+        with pytest.raises(ValueError, match="either u or n_ahead"):
+            d.predict()
+
+    def test_shape_mismatch_rejected(self):
+        x1, x2, u = self._make_forced()
+        with pytest.raises(ValueError):
+            koopman_dmd.DMDc(x1, x2[:, :-1], u)
+        with pytest.raises(ValueError):
+            koopman_dmd.DMDc(x1, x2, u[:, :-1])
+        with pytest.raises(ValueError):
+            koopman_dmd.DMDc(x1, x2, u, known_b=np.zeros((3, 1)))
+
+    def test_dt_validation(self):
+        x1, x2, u = self._make_forced()
+        with pytest.raises(ValueError, match="dt"):
+            koopman_dmd.DMDc(x1, x2, u, dt=0.0)
+        d = koopman_dmd.DMDc(x1, x2, u, dt=0.1)
+        assert d.dt == 0.1
+
+    def test_stability(self):
+        x1, x2, u = self._make_forced()
+        d = koopman_dmd.DMDc(x1, x2, u, rank_input=3)
+        is_stable, is_unstable, is_marginal, spectral_radius = d.stability()
+        assert is_stable
+        assert not is_unstable
+        np.testing.assert_allclose(spectral_radius, 0.9, atol=1e-9)
+
+    def test_spectrum(self):
+        x1, x2, u = self._make_forced()
+        d = koopman_dmd.DMDc(x1, x2, u, rank_input=3)
+        spec = d.spectrum()
+        assert len(spec) == 2
+        mags = sorted(m["magnitude"] for m in spec)
+        np.testing.assert_allclose(mags, [0.8, 0.9], atol=1e-9)
+        assert all(m["amplitude"] == 0.0 for m in spec)
+
+    def test_repr(self):
+        x1, x2, u = self._make_forced()
+        d = koopman_dmd.DMDc(x1, x2, u, rank_input=3)
+        assert "DMDc" in repr(d)
+
+
+# ============================================================================
 # HankelDMD tests
 # ============================================================================
 

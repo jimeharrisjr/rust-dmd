@@ -41,6 +41,19 @@ rust_dmd_residual <- function(result_ptr, x_ptr) {
   .Call("wrap__rust_dmd_residual", result_ptr, x_ptr)
 }
 
+# DMDc
+rust_dmdc <- function(x1, x2, u, rank_input, rank_output, dt, known_b) {
+  .Call("wrap__rust_dmdc", x1, x2, u, rank_input, rank_output, dt, known_b)
+}
+
+rust_stability_from_eigenvalues <- function(eigenvalues_re, eigenvalues_im, tol) {
+  .Call("wrap__rust_stability_from_eigenvalues", eigenvalues_re, eigenvalues_im, tol)
+}
+
+rust_spectrum_from_eigenvalues <- function(eigenvalues_re, eigenvalues_im, dt) {
+  .Call("wrap__rust_spectrum_from_eigenvalues", eigenvalues_re, eigenvalues_im, dt)
+}
+
 # Hankel-DMD
 rust_hankel_dmd <- function(y, delays, rank, dt) {
   .Call("wrap__rust_hankel_dmd", y, delays, rank, dt)

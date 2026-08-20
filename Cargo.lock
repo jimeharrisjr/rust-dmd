@@ -694,7 +694,7 @@ dependencies = [
 
 [[package]]
 name = "koopman-dmd-py"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "faer",
  "koopman-dmd",

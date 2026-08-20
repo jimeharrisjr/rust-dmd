@@ -351,6 +351,141 @@ fn rust_dmd_residual(result_ptr: f64, x_ptr: f64) -> Result<List> {
 }
 
 // ============================================================================
+// DMDc
+// ============================================================================
+
+/// Perform Dynamic Mode Decomposition with control.
+/// @param x1 Numeric matrix of states at time t (n_states x n_pairs).
+/// @param x2 Numeric matrix of states at time t+1 (n_states x n_pairs).
+/// @param u Numeric matrix of control inputs (n_inputs x n_pairs), or NULL.
+/// @param rank_input Integer truncation rank for the regression-input SVD, or NULL.
+/// @param rank_output Integer rank of the output basis, or NULL.
+/// @param dt Numeric time step.
+/// @param known_b Known input matrix B (n_states x n_inputs), or NULL.
+/// @return A list containing the DMDc decomposition.
+#[extendr]
+fn rust_dmdc(
+    x1: RMatrix<f64>,
+    x2: RMatrix<f64>,
+    u: Nullable<RMatrix<f64>>,
+    rank_input: Nullable<i32>,
+    rank_output: Nullable<i32>,
+    dt: f64,
+    known_b: Nullable<RMatrix<f64>>,
+) -> Result<List> {
+    let x1_mat = rmatrix_to_faer(x1);
+    let x2_mat = rmatrix_to_faer(x2);
+    let u_mat = match u {
+        Nullable::NotNull(m) => rmatrix_to_faer(m),
+        Nullable::Null => faer::Mat::<f64>::zeros(0, x1_mat.ncols()),
+    };
+
+    let config = kdmd::DmdcConfig {
+        rank_input: match rank_input {
+            Nullable::NotNull(r) => Some(r as usize),
+            Nullable::Null => None,
+        },
+        rank_output: match rank_output {
+            Nullable::NotNull(r) => Some(r as usize),
+            Nullable::Null => None,
+        },
+        dt,
+        known_b: match known_b {
+            Nullable::NotNull(b) => Some(rmatrix_to_faer(b)),
+            Nullable::Null => None,
+        },
+    };
+
+    let result =
+        kdmd::dmdc(&x1_mat, &x2_mat, &u_mat, &config).map_err(|e| Error::Other(e.to_string()))?;
+
+    let eig_re: Vec<f64> = result.eigenvalues.iter().map(|e| e.re).collect();
+    let eig_im: Vec<f64> = result.eigenvalues.iter().map(|e| e.im).collect();
+    let x_first: Vec<f64> = (0..x1_mat.nrows()).map(|i| x1_mat[(i, 0)]).collect();
+
+    Ok(list!(
+        a = faer_to_rmatrix(&result.a),
+        b = faer_to_rmatrix(&result.b),
+        a_tilde = faer_to_rmatrix(&result.a_tilde),
+        b_tilde = faer_to_rmatrix(&result.b_tilde),
+        basis = faer_to_rmatrix(&result.basis),
+        eigenvalues_re = eig_re,
+        eigenvalues_im = eig_im,
+        singular_values = result.svd_input.s.clone(),
+        rank_input = result.rank_input as i32,
+        rank_output = result.rank_output as i32,
+        dt = result.dt,
+        n_states = result.a.nrows() as i32,
+        n_inputs = result.b.ncols() as i32,
+        x_first = x_first
+    ))
+}
+
+/// Stability analysis over a raw eigenvalue set.
+/// @param eigenvalues_re Real parts of the eigenvalues.
+/// @param eigenvalues_im Imaginary parts of the eigenvalues.
+/// @param tol Tolerance for marginal classification.
+/// @return List with stability info.
+#[extendr]
+fn rust_stability_from_eigenvalues(
+    eigenvalues_re: Vec<f64>,
+    eigenvalues_im: Vec<f64>,
+    tol: f64,
+) -> List {
+    let eigs: Vec<kdmd::C64> = eigenvalues_re
+        .iter()
+        .zip(eigenvalues_im.iter())
+        .map(|(&re, &im)| kdmd::C64::new(re, im))
+        .collect();
+    let stab = kdmd::stability_from_eigenvalues(&eigs, tol);
+    list!(
+        is_stable = stab.is_stable,
+        is_unstable = stab.is_unstable,
+        is_marginal = stab.is_marginal,
+        spectral_radius = stab.spectral_radius
+    )
+}
+
+/// Spectrum analysis over a raw eigenvalue set.
+/// @param eigenvalues_re Real parts of the eigenvalues.
+/// @param eigenvalues_im Imaginary parts of the eigenvalues.
+/// @param dt Time step.
+/// @return List of mode information (amplitudes are reported as 0).
+#[extendr]
+fn rust_spectrum_from_eigenvalues(
+    eigenvalues_re: Vec<f64>,
+    eigenvalues_im: Vec<f64>,
+    dt: f64,
+) -> List {
+    let eigs: Vec<kdmd::C64> = eigenvalues_re
+        .iter()
+        .zip(eigenvalues_im.iter())
+        .map(|(&re, &im)| kdmd::C64::new(re, im))
+        .collect();
+    let spec = kdmd::spectrum_from_eigenvalues(&eigs, None, dt);
+
+    let indices: Vec<i32> = spec.iter().map(|m| m.index as i32).collect();
+    let magnitudes: Vec<f64> = spec.iter().map(|m| m.magnitude).collect();
+    let phases: Vec<f64> = spec.iter().map(|m| m.phase).collect();
+    let frequencies: Vec<f64> = spec.iter().map(|m| m.frequency).collect();
+    let periods: Vec<f64> = spec.iter().map(|m| m.period).collect();
+    let growth_rates: Vec<f64> = spec.iter().map(|m| m.growth_rate).collect();
+    let amplitudes: Vec<f64> = spec.iter().map(|m| m.amplitude).collect();
+    let stabilities: Vec<String> = spec.iter().map(|m| m.stability.to_string()).collect();
+
+    list!(
+        index = indices,
+        magnitude = magnitudes,
+        phase = phases,
+        frequency = frequencies,
+        period = periods,
+        growth_rate = growth_rates,
+        amplitude = amplitudes,
+        stability = stabilities
+    )
+}
+
+// ============================================================================
 // Hankel-DMD
 // ============================================================================
 
@@ -747,6 +882,9 @@ extendr_module! {
     fn rust_dmd_error;
     fn rust_dmd_dominant_modes;
     fn rust_dmd_residual;
+    fn rust_dmdc;
+    fn rust_stability_from_eigenvalues;
+    fn rust_spectrum_from_eigenvalues;
     fn rust_hankel_dmd;
     fn rust_hankel_reconstruct;
     fn rust_hankel_predict;

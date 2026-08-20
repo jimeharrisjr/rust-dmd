@@ -28,6 +28,7 @@
 
     <h3>Features</h3>
     <a href="core-dmd.html">Core DMD</a>
+    <a href="dmdc.html">DMD with Control</a>
     <a href="extended-dmd.html">Extended DMD</a>
     <a href="hankel-dmd.html">Hankel-DMD</a>
     <a href="gla.html">GLA</a>
@@ -57,6 +58,7 @@
       <strong>Contents.</strong>
       <a href="#core-types">Core Types</a> --
       <a href="#dmd-functions">DMD Functions</a> --
+      <a href="#dmdc-section">DMDc</a> --
       <a href="#analysis-functions">Analysis Functions</a> --
       <a href="#lifting">Lifting</a> --
       <a href="#hankel-dmd">Hankel-DMD</a> --
@@ -466,6 +468,143 @@
 <span class="kw">let</span> forecast = <span class="fn">predict_modes</span>(&amp;result, <span class="nu">50</span>, <span class="kw">Some</span>(&amp;ic))?;</code></pre>
 
     <!-- ============================================================
+         DMDc
+         ============================================================ -->
+    <h2 id="dmdc-section">DMDc</h2>
+
+    <p>Dynamic Mode Decomposition with control (Proctor, Brunton &amp; Kutz
+    2016). Added in 0.2.0; see the <a href="dmdc.html">feature guide</a> for
+    background and worked examples. Also exposed as the
+    <a href="api-python.html">Python</a> <code>DMDc</code> class and the
+    <a href="api-r.html">R</a> <code>dmdc()</code> function.</p>
+
+    <!-- DmdcConfig -->
+    <h3>DmdcConfig</h3>
+    <p>Configuration for DMDc.</p>
+
+<pre><code><span class="kw">pub struct</span> <span class="ty">DmdcConfig</span> {
+    <span class="kw">pub</span> rank_input: <span class="ty">Option</span>&lt;<span class="ty">usize</span>&gt;,
+    <span class="kw">pub</span> rank_output: <span class="ty">Option</span>&lt;<span class="ty">usize</span>&gt;,
+    <span class="kw">pub</span> dt: <span class="ty">f64</span>,
+    <span class="kw">pub</span> known_b: <span class="ty">Option</span>&lt;<span class="ty">Mat</span>&lt;<span class="ty">f64</span>&gt;&gt;,
+}</code></pre>
+
+    <table class="param-table">
+      <thead>
+        <tr>
+          <th>Field</th>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>rank_input</code></td>
+          <td><code><span class="ty">Option</span>&lt;<span class="ty">usize</span>&gt;</code></td>
+          <td>Truncation rank for the regression-input SVD
+          (<code>[X1; U]</code>, or <code>X1</code> when <code>known_b</code>
+          is set). <code>None</code> selects 99% cumulative variance.</td>
+        </tr>
+        <tr>
+          <td><code>rank_output</code></td>
+          <td><code><span class="ty">Option</span>&lt;<span class="ty">usize</span>&gt;</code></td>
+          <td>Optional output projection rank (SVD of <code>X2</code>).
+          <code>None</code> keeps everything full-order.</td>
+        </tr>
+        <tr>
+          <td><code>dt</code></td>
+          <td><code><span class="ty">f64</span></code></td>
+          <td>Time step between snapshot pairs (default <code>1.0</code>).</td>
+        </tr>
+        <tr>
+          <td><code>known_b</code></td>
+          <td><code><span class="ty">Option</span>&lt;<span class="ty">Mat</span>&lt;<span class="ty">f64</span>&gt;&gt;</code></td>
+          <td>Known input matrix <code>B</code> (n &times; q). When set,
+          <code>B</code> is not estimated.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- DmdcResult -->
+    <h3>DmdcResult</h3>
+    <p>Result of a DMDc computation. All matrices are real
+    <code>faer::Mat&lt;f64&gt;</code>, ready for stepping loops without
+    conversion.</p>
+
+<pre><code><span class="kw">pub struct</span> <span class="ty">DmdcResult</span> {
+    <span class="kw">pub</span> a: <span class="ty">Mat</span>&lt;<span class="ty">f64</span>&gt;,          <span class="cm">// state-transition matrix A (n x n)</span>
+    <span class="kw">pub</span> b: <span class="ty">Mat</span>&lt;<span class="ty">f64</span>&gt;,          <span class="cm">// input matrix B (n x q)</span>
+    <span class="kw">pub</span> a_tilde: <span class="ty">Mat</span>&lt;<span class="ty">f64</span>&gt;,    <span class="cm">// reduced operator (r x r); = A when full-order</span>
+    <span class="kw">pub</span> b_tilde: <span class="ty">Mat</span>&lt;<span class="ty">f64</span>&gt;,    <span class="cm">// reduced input matrix (r x q)</span>
+    <span class="kw">pub</span> basis: <span class="ty">Mat</span>&lt;<span class="ty">f64</span>&gt;,      <span class="cm">// orthonormal output basis (n x r); identity when full-order</span>
+    <span class="kw">pub</span> eigenvalues: <span class="ty">Vec</span>&lt;<span class="ty">C64</span>&gt;, <span class="cm">// eigenvalues of the reduced operator</span>
+    <span class="kw">pub</span> svd_input: <span class="ty">SvdComponents</span>,
+    <span class="kw">pub</span> rank_input: <span class="ty">usize</span>,
+    <span class="kw">pub</span> rank_output: <span class="ty">usize</span>,
+    <span class="kw">pub</span> dt: <span class="ty">f64</span>,
+}</code></pre>
+
+    <!-- dmdc -->
+    <h3>dmdc</h3>
+    <p>Identify <code>A</code> (and optionally <code>B</code>) in
+    <code>x_{t+1} = A x_t + B u_t</code> from explicit snapshot pairs.
+    With <code>known_b</code> set, only <code>A</code> is estimated. With a
+    zero-row <code>u</code>, performs autonomous multi-trajectory
+    identification.</p>
+
+<pre><code><span class="kw">pub fn</span> <span class="fn">dmdc</span>(
+    x1: &amp;<span class="ty">Mat</span>&lt;<span class="ty">f64</span>&gt;,
+    x2: &amp;<span class="ty">Mat</span>&lt;<span class="ty">f64</span>&gt;,
+    u: &amp;<span class="ty">Mat</span>&lt;<span class="ty">f64</span>&gt;,
+    config: &amp;<span class="ty">DmdcConfig</span>,
+) -> <span class="ty">Result</span>&lt;<span class="ty">DmdcResult</span>, <span class="ty">DmdError</span>&gt;</code></pre>
+
+    <table class="param-table">
+      <thead>
+        <tr>
+          <th>Parameter</th>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>x1</code></td>
+          <td><code>&amp;<span class="ty">Mat</span>&lt;<span class="ty">f64</span>&gt;</code></td>
+          <td>States at time <code>t</code> (n &times; m). Columns may come
+          from many concatenated trajectories.</td>
+        </tr>
+        <tr>
+          <td><code>x2</code></td>
+          <td><code>&amp;<span class="ty">Mat</span>&lt;<span class="ty">f64</span>&gt;</code></td>
+          <td>States one step later (n &times; m).</td>
+        </tr>
+        <tr>
+          <td><code>u</code></td>
+          <td><code>&amp;<span class="ty">Mat</span>&lt;<span class="ty">f64</span>&gt;</code></td>
+          <td>Control inputs during each transition (q &times; m). May have
+          zero rows for an autonomous multi-trajectory fit.</td>
+        </tr>
+        <tr>
+          <td><code>config</code></td>
+          <td><code>&amp;<span class="ty">DmdcConfig</span></code></td>
+          <td>See <a href="#dmdc-section">DmdcConfig</a>.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p><strong>Returns:</strong> <code><span class="ty">Result</span>&lt;<span class="ty">DmdcResult</span>, <span class="ty">DmdError</span>&gt;</code>
+    -- the identified operators on success, or an error on dimension
+    mismatch, nonpositive <code>dt</code>, or a requested rank beyond the
+    numerical rank of the data.</p>
+
+<pre><code><span class="kw">use</span> koopman_dmd::{<span class="fn">dmdc</span>, <span class="ty">DmdcConfig</span>};
+
+<span class="kw">let</span> config = <span class="ty">DmdcConfig</span> { rank_input: <span class="kw">Some</span>(<span class="nu">3</span>), ..<span class="ty">Default</span>::<span class="fn">default</span>() };
+<span class="kw">let</span> result = <span class="fn">dmdc</span>(&amp;x1, &amp;x2, &amp;u, &amp;config)?;
+<span class="mc">println!</span>(<span class="st">"A: {:?}, B: {:?}"</span>, result.a, result.b);</code></pre>
+
+    <!-- ============================================================
          3. Analysis Functions
          ============================================================ -->
     <h2 id="analysis-functions">Analysis Functions</h2>
@@ -542,6 +681,67 @@
     <p><strong>Returns:</strong> <code><span class="ty">StabilityResult</span></code>
     -- lists of stable, unstable, and neutral eigenvalue indices, plus an
     overall stability classification.</p>
+
+    <!-- spectrum_from_eigenvalues -->
+    <h3>spectrum_from_eigenvalues</h3>
+    <p>Eigenvalue-slice variant of <code>dmd_spectrum</code> (added in
+    0.2.0): computes per-mode frequency, growth rate, and stability from a
+    raw slice of eigenvalues -- e.g. from a
+    <a href="#dmdc-section">DmdcResult</a> -- without requiring a full
+    <code>DmdResult</code>.</p>
+
+<pre><code><span class="kw">pub fn</span> <span class="fn">spectrum_from_eigenvalues</span>(
+    eigenvalues: &amp;[<span class="ty">C64</span>],
+    amplitudes: <span class="ty">Option</span>&lt;&amp;[<span class="ty">C64</span>]&gt;,
+    dt: <span class="ty">f64</span>,
+) -> <span class="ty">Vec</span>&lt;<span class="ty">ModeInfo</span>&gt;</code></pre>
+
+    <table class="param-table">
+      <thead>
+        <tr>
+          <th>Parameter</th>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>eigenvalues</code></td>
+          <td><code>&amp;[<span class="ty">C64</span>]</code></td>
+          <td>Discrete-time eigenvalues to analyze.</td>
+        </tr>
+        <tr>
+          <td><code>amplitudes</code></td>
+          <td><code><span class="ty">Option</span>&lt;&amp;[<span class="ty">C64</span>]&gt;</code></td>
+          <td>Optional mode amplitudes; <code>ModeInfo::amplitude</code> is
+          zero when absent.</td>
+        </tr>
+        <tr>
+          <td><code>dt</code></td>
+          <td><code><span class="ty">f64</span></code></td>
+          <td>Sampling interval used for the discrete-to-continuous
+          conversion.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p><strong>Returns:</strong> <code><span class="ty">Vec</span>&lt;<span class="ty">ModeInfo</span>&gt;</code>
+    -- one entry per eigenvalue.</p>
+
+    <!-- stability_from_eigenvalues -->
+    <h3>stability_from_eigenvalues</h3>
+    <p>Eigenvalue-slice variant of <code>dmd_stability</code> (added in
+    0.2.0): classifies a raw slice of eigenvalues relative to the unit
+    circle.</p>
+
+<pre><code><span class="kw">pub fn</span> <span class="fn">stability_from_eigenvalues</span>(
+    eigenvalues: &amp;[<span class="ty">C64</span>],
+    tol: <span class="ty">f64</span>,
+) -> <span class="ty">StabilityResult</span></code></pre>
+
+    <p><strong>Returns:</strong> <code><span class="ty">StabilityResult</span></code>
+    -- the same classification produced by <code>dmd_stability</code>,
+    including the spectral radius and per-mode stability.</p>
 
     <!-- dmd_error -->
     <h3>dmd_error</h3>

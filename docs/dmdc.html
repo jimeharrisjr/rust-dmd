@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DMD with Control - koopman-dmd</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- Top navigation -->
+<header class="topnav">
+  <a class="logo" href="index.html">koopman<span>-dmd</span></a>
+  <nav>
+    <a href="index.html">Home</a>
+    <a href="getting-started.html">Guide</a>
+    <a href="api-rust.html">API</a>
+  </nav>
+  <a class="gh-link" href="https://github.com/jimeharrisjr/rust-dmd">GitHub</a>
+</header>
+
+<div class="page-layout">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <h3>Getting Started</h3>
+    <a href="getting-started.html">Installation</a>
+
+    <h3>Features</h3>
+    <a href="core-dmd.html">Core DMD</a>
+    <a href="dmdc.html" class="active">DMD with Control</a>
+    <a href="extended-dmd.html">Extended DMD</a>
+    <a href="hankel-dmd.html">Hankel-DMD</a>
+    <a href="gla.html">GLA</a>
+    <a href="harmonic.html">Harmonic Analysis</a>
+    <a href="maps.html">Dynamical Maps</a>
+    <a href="analysis.html">Analysis Tools</a>
+
+    <h3>Examples</h3>
+    <a href="examples-r.html">R Examples</a>
+    <a href="examples-python.html">Python Examples</a>
+
+    <h3>API Reference</h3>
+    <a href="api-rust.html">Rust API</a>
+    <a href="api-python.html">Python API</a>
+    <a href="api-r.html">R API</a>
+  </aside>
+
+  <!-- Main content -->
+  <main class="content">
+    <h1>DMD with Control (DMDc)</h1>
+    <p class="subtitle">Identifying forced linear systems x&#8321;&#8330;&#8321; = A x&#8348; + B u&#8348; from snapshot pairs</p>
+
+    <div class="info-box">
+      <strong>New in 0.2.0.</strong> DMDc is available in the Rust crate, the
+      Python package (as the <code>DMDc</code> class), and the R package (as
+      <code>dmdc()</code>). See <a href="#python-and-r">Python and R</a> below.
+    </div>
+
+    <!-- ============================================================
+         1. Why DMDc
+         ============================================================ -->
+    <h2>Why DMDc</h2>
+
+    <p>Standard DMD assumes the system evolves autonomously. When the data
+    comes from a system driven by an external input -- an actuated mechanical
+    system, a circuit with an applied voltage, a neuron receiving synaptic
+    current -- fitting plain DMD folds the forcing into the identified
+    operator, producing a biased <code>A</code> that confuses the intrinsic
+    dynamics with the input response. DMDc (Proctor, Brunton &amp; Kutz 2016)
+    separates the two by identifying the forced linear system:</p>
+
+    <div class="math">x<sub>t+1</sub> = A x<sub>t</sub> + B u<sub>t</sub></div>
+
+    <p>where <code>A</code> (n &times; n) is the state-transition matrix and
+    <code>B</code> (n &times; q) maps the q-dimensional control input into the
+    state.</p>
+
+    <!-- ============================================================
+         2. Mathematical Background
+         ============================================================ -->
+    <h2>Mathematical Background</h2>
+
+    <h3>Snapshot pairs, not trajectories</h3>
+    <p>Unlike <a href="core-dmd.html">core DMD</a>, which takes one contiguous
+    trajectory and splits it internally, <code>dmdc</code> takes <strong>explicit
+    pair matrices</strong>: <code>X&#8321;</code> holds states at time
+    <code>t</code>, <code>X&#8322;</code> the states one step later, and
+    <code>U</code> the control input applied during each transition. Columns
+    may therefore come from many concatenated trajectories, and individual
+    pairs may be freely masked out by the caller.</p>
+
+    <h3>Joint identification (unknown B)</h3>
+    <p>Stack the state and input into a single regression matrix:</p>
+    <div class="math">&Omega; = [X&#8321;; U]</div>
+    <p>and solve the least-squares problem for both operators at once via the
+    truncated SVD pseudo-inverse of <code>&Omega;</code>:</p>
+    <div class="math">[A&nbsp;&nbsp;B] = X&#8322; &Omega;<sup>+</sup> = X&#8322; V &Sigma;<sup>-1</sup> U*</div>
+    <p>The first <code>n</code> columns of the solution are <code>A</code>,
+    the remaining <code>q</code> are <code>B</code>.</p>
+
+    <h3>Known-B identification</h3>
+    <p>When the input coupling is known by construction, subtract the input
+    response and solve only for <code>A</code>:</p>
+    <div class="math">A = (X&#8322; &minus; B U) X&#8321;<sup>+</sup></div>
+    <p>This uses fewer degrees of freedom and is immune to the closed-loop
+    caveat below.</p>
+
+    <h3>Optional output projection</h3>
+    <p>For high-dimensional states, <code>rank_output</code> requests a second
+    projection through the leading left singular vectors <code>&Ucirc;</code>
+    of <code>X&#8322;</code>, yielding reduced operators in an
+    <code>r</code>-dimensional basis:</p>
+    <div class="math">A&#771; = &Ucirc;* A &Ucirc;, &nbsp;&nbsp; B&#771; = &Ucirc;* B</div>
+
+    <div class="info-box warn">
+      <strong>Closed-loop data is biased.</strong> Joint identification of
+      <code>A</code> and <code>B</code> requires the input to be persistently
+      exciting and <em>exogenous</em>. If <code>u</code> is computed by state
+      feedback (<code>u = &minus;Kx</code>), the regression cannot separate
+      <code>A</code> from <code>BK</code>: the fit is non-unique and biased.
+      Use the known-B mode, or excite the system with an independent probe
+      signal.
+    </div>
+
+    <!-- ============================================================
+         3. DmdcConfig Options
+         ============================================================ -->
+    <h2>DmdcConfig Options</h2>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Field</th>
+          <th>Type</th>
+          <th>Default</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>rank_input</code></td>
+          <td><code>Option&lt;usize&gt;</code></td>
+          <td><code>None</code></td>
+          <td>Truncation rank for the regression-input SVD
+          (<code>[X&#8321;; U]</code>, or <code>X&#8321;</code> when
+          <code>known_b</code> is set). <code>None</code> selects 99&nbsp;%
+          cumulative variance. A requested rank beyond the numerical rank of
+          the data is rejected with an error.</td>
+        </tr>
+        <tr>
+          <td><code>rank_output</code></td>
+          <td><code>Option&lt;usize&gt;</code></td>
+          <td><code>None</code></td>
+          <td>Optional second projection: rank of the output basis (SVD of
+          <code>X&#8322;</code>). <code>Some(r)</code> produces the reduced
+          pair <code>(A&#771;, B&#771;)</code>; <code>None</code> keeps
+          everything full-order (the basis is the identity and
+          <code>A&#771; = A</code>).</td>
+        </tr>
+        <tr>
+          <td><code>dt</code></td>
+          <td><code>f64</code></td>
+          <td><code>1.0</code></td>
+          <td>Time step between snapshot pairs. Must be positive and finite.</td>
+        </tr>
+        <tr>
+          <td><code>known_b</code></td>
+          <td><code>Option&lt;Mat&lt;f64&gt;&gt;</code></td>
+          <td><code>None</code></td>
+          <td>Known input matrix <code>B</code> (n &times; q). When set,
+          <code>B</code> is not estimated and only <code>A</code> is solved
+          for.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- ============================================================
+         4. Basic Usage
+         ============================================================ -->
+    <h2>Basic Usage</h2>
+
+    <p>Simulate a forced two-state system, then recover <code>A</code> and
+    <code>B</code> jointly from the snapshot pairs:</p>
+
+<pre><code><span class="kw">use</span> koopman_dmd::{<span class="fn">dmdc</span>, <span class="ty">DmdcConfig</span>};
+
+<span class="cm">// Simulate x_{t+1} = A0 x_t + B0 u_t with</span>
+<span class="cm">// A0 = [[0.9, 0.1], [0.0, 0.8]], B0 = [0.5, 1.0].</span>
+<span class="kw">let</span> m = <span class="nu">120</span>;
+<span class="kw">let</span> <span class="kw">mut</span> x1 = faer::<span class="ty">Mat</span>::&lt;<span class="ty">f64</span>&gt;::<span class="fn">zeros</span>(<span class="nu">2</span>, m);
+<span class="kw">let</span> <span class="kw">mut</span> x2 = faer::<span class="ty">Mat</span>::&lt;<span class="ty">f64</span>&gt;::<span class="fn">zeros</span>(<span class="nu">2</span>, m);
+<span class="kw">let</span> <span class="kw">mut</span> u = faer::<span class="ty">Mat</span>::&lt;<span class="ty">f64</span>&gt;::<span class="fn">zeros</span>(<span class="nu">1</span>, m);
+<span class="kw">let</span> <span class="kw">mut</span> x = [<span class="nu">1.0</span>, -<span class="nu">0.5</span>];
+<span class="kw">for</span> t <span class="kw">in</span> <span class="nu">0</span>..m {
+    <span class="cm">// A persistently exciting, exogenous probe input</span>
+    <span class="kw">let</span> ut = (<span class="nu">0.7</span> * t <span class="kw">as</span> <span class="ty">f64</span>).<span class="fn">sin</span>() + <span class="nu">0.5</span> * (<span class="nu">2.3</span> * t <span class="kw">as</span> <span class="ty">f64</span> + <span class="nu">1.0</span>).<span class="fn">cos</span>();
+    x1[(<span class="nu">0</span>, t)] = x[<span class="nu">0</span>];
+    x1[(<span class="nu">1</span>, t)] = x[<span class="nu">1</span>];
+    u[(<span class="nu">0</span>, t)] = ut;
+    x = [<span class="nu">0.9</span> * x[<span class="nu">0</span>] + <span class="nu">0.1</span> * x[<span class="nu">1</span>] + <span class="nu">0.5</span> * ut, <span class="nu">0.8</span> * x[<span class="nu">1</span>] + ut];
+    x2[(<span class="nu">0</span>, t)] = x[<span class="nu">0</span>];
+    x2[(<span class="nu">1</span>, t)] = x[<span class="nu">1</span>];
+}
+
+<span class="cm">// Identify A and B jointly</span>
+<span class="kw">let</span> config = <span class="ty">DmdcConfig</span> { rank_input: <span class="kw">Some</span>(<span class="nu">3</span>), ..<span class="ty">Default</span>::<span class="fn">default</span>() };
+<span class="kw">let</span> result = <span class="fn">dmdc</span>(&amp;x1, &amp;x2, &amp;u, &amp;config).<span class="fn">unwrap</span>();
+
+<span class="cm">// A and B are recovered to machine precision</span>
+<span class="mc">println!</span>(<span class="st">"A = {:?}"</span>, result.a);   <span class="cm">// [[0.9, 0.1], [0.0, 0.8]]</span>
+<span class="mc">println!</span>(<span class="st">"B = {:?}"</span>, result.b);   <span class="cm">// [[0.5], [1.0]]</span></code></pre>
+
+    <p>All matrices in the result are real <code>faer::Mat&lt;f64&gt;</code>,
+    ready for use in stepping loops without conversion.</p>
+
+    <!-- ============================================================
+         5. Known B
+         ============================================================ -->
+    <h2>Known B</h2>
+
+    <p>When the input matrix is known by construction -- for example, a
+    physical model tells you exactly how the input enters the state -- pin it
+    and estimate only <code>A</code>:</p>
+
+<pre><code><span class="kw">let</span> <span class="kw">mut</span> b_known = faer::<span class="ty">Mat</span>::&lt;<span class="ty">f64</span>&gt;::<span class="fn">zeros</span>(<span class="nu">2</span>, <span class="nu">1</span>);
+b_known[(<span class="nu">0</span>, <span class="nu">0</span>)] = <span class="nu">0.5</span>;
+b_known[(<span class="nu">1</span>, <span class="nu">0</span>)] = <span class="nu">1.0</span>;
+
+<span class="kw">let</span> config = <span class="ty">DmdcConfig</span> {
+    rank_input: <span class="kw">Some</span>(<span class="nu">2</span>),
+    known_b: <span class="kw">Some</span>(b_known),
+    ..<span class="ty">Default</span>::<span class="fn">default</span>()
+};
+<span class="kw">let</span> result = <span class="fn">dmdc</span>(&amp;x1, &amp;x2, &amp;u, &amp;config).<span class="fn">unwrap</span>();
+<span class="cm">// result.b is a copy of known_b; only A was estimated</span></code></pre>
+
+    <!-- ============================================================
+         6. Autonomous multi-trajectory fits
+         ============================================================ -->
+    <h2>Autonomous Multi-Trajectory Fits</h2>
+
+    <p>Passing a control matrix with <strong>zero rows</strong>
+    (<code>Mat::zeros(0, m)</code>) turns <code>dmdc</code> into an autonomous
+    identifier over explicit pairs -- something <code>dmd()</code> cannot do,
+    since it requires one contiguous trajectory. This is the natural tool
+    when your data is many short trajectories from different initial
+    conditions:</p>
+
+<pre><code><span class="cm">// Concatenate pairs from any number of separate trajectories</span>
+<span class="kw">let</span> u = faer::<span class="ty">Mat</span>::&lt;<span class="ty">f64</span>&gt;::<span class="fn">zeros</span>(<span class="nu">0</span>, m);
+<span class="kw">let</span> result = <span class="fn">dmdc</span>(&amp;x1, &amp;x2, &amp;u, &amp;<span class="ty">DmdcConfig</span>::<span class="fn">default</span>()).<span class="fn">unwrap</span>();
+<span class="cm">// result.b has zero columns; result.a is the multi-trajectory fit</span></code></pre>
+
+    <!-- ============================================================
+         7. DmdcResult
+         ============================================================ -->
+    <h2>DmdcResult Fields</h2>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Field</th>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>a</code></td>
+          <td><code>Mat&lt;f64&gt;</code></td>
+          <td>State-transition matrix <code>A</code> (n &times; n).</td>
+        </tr>
+        <tr>
+          <td><code>b</code></td>
+          <td><code>Mat&lt;f64&gt;</code></td>
+          <td>Input matrix <code>B</code> (n &times; q). A copy of
+          <code>known_b</code> when that was supplied.</td>
+        </tr>
+        <tr>
+          <td><code>a_tilde</code></td>
+          <td><code>Mat&lt;f64&gt;</code></td>
+          <td>Reduced operator <code>A&#771; = &Ucirc;<sup>T</sup>A&Ucirc;</code>
+          (r &times; r); equals <code>A</code> when no output projection was
+          requested.</td>
+        </tr>
+        <tr>
+          <td><code>b_tilde</code></td>
+          <td><code>Mat&lt;f64&gt;</code></td>
+          <td>Reduced input matrix <code>B&#771; = &Ucirc;<sup>T</sup>B</code>
+          (r &times; q).</td>
+        </tr>
+        <tr>
+          <td><code>basis</code></td>
+          <td><code>Mat&lt;f64&gt;</code></td>
+          <td>Orthonormal output basis <code>&Ucirc;</code> (n &times; r);
+          identity when no output projection was requested.</td>
+        </tr>
+        <tr>
+          <td><code>eigenvalues</code></td>
+          <td><code>Vec&lt;C64&gt;</code></td>
+          <td>Eigenvalues of <code>A&#771;</code> -- the spectrum of the
+          <em>unforced</em> dynamics.</td>
+        </tr>
+        <tr>
+          <td><code>svd_input</code></td>
+          <td><code>SvdComponents</code></td>
+          <td>Truncated SVD of the regression input.</td>
+        </tr>
+        <tr>
+          <td><code>rank_input</code> / <code>rank_output</code></td>
+          <td><code>usize</code></td>
+          <td>Ranks actually used.</td>
+        </tr>
+        <tr>
+          <td><code>dt</code></td>
+          <td><code>f64</code></td>
+          <td>Time step.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- ============================================================
+         8. Analyzing the identified system
+         ============================================================ -->
+    <h2>Analyzing the Identified System</h2>
+
+    <p>Because <code>DmdcResult</code> exposes raw eigenvalues rather than a
+    full modal decomposition, 0.2.0 adds eigenvalue-slice variants of the
+    <a href="analysis.html">analysis tools</a>:
+    <code>stability_from_eigenvalues</code> and
+    <code>spectrum_from_eigenvalues</code> generalize
+    <code>dmd_stability</code> / <code>dmd_spectrum</code> to any
+    <code>&amp;[C64]</code>:</p>
+
+<pre><code><span class="kw">use</span> koopman_dmd::{<span class="fn">stability_from_eigenvalues</span>, <span class="fn">spectrum_from_eigenvalues</span>};
+
+<span class="cm">// Stability of the unforced dynamics</span>
+<span class="kw">let</span> stab = <span class="fn">stability_from_eigenvalues</span>(&amp;result.eigenvalues, <span class="nu">1e-6</span>);
+<span class="mc">println!</span>(<span class="st">"Spectral radius: {:.3}"</span>, stab.spectral_radius);
+
+<span class="cm">// Continuous-time frequencies and growth rates</span>
+<span class="kw">let</span> modes = <span class="fn">spectrum_from_eigenvalues</span>(&amp;result.eigenvalues, <span class="kw">None</span>, result.dt);
+<span class="kw">for</span> m <span class="kw">in</span> &amp;modes {
+    <span class="mc">println!</span>(<span class="st">"freq={:.3} Hz, growth={:.3}"</span>, m.frequency, m.growth_rate);
+}</code></pre>
+
+    <!-- ============================================================
+         9. Python and R
+         ============================================================ -->
+    <h2 id="python-and-r">Python and R</h2>
+
+    <p>Both bindings expose the same identification modes and add a
+    <code>predict</code> that steps the identified system
+    <code>x<sub>t+1</sub> = A x<sub>t</sub> + B u<sub>t</sub></code> under a
+    control input sequence, plus stability and spectrum analysis of the
+    identified operator.</p>
+
+    <h3>Python</h3>
+
+<pre><code><span class="kw">import</span> koopman_dmd
+
+<span class="cm"># Joint identification; known_b=B pins the input matrix instead</span>
+d = koopman_dmd.DMDc(x1, x2, u, rank_input=<span class="nu">3</span>)
+d.a, d.b                      <span class="cm"># identified matrices</span>
+d.eigenvalues                 <span class="cm"># (rank_output, 2) re/im pairs</span>
+d.stability()                 <span class="cm"># (is_stable, is_unstable, is_marginal, spectral_radius)</span>
+d.spectrum()                  <span class="cm"># per-mode frequency / growth rate / stability</span>
+
+<span class="cm"># Simulate under a new input sequence (columns set the horizon),</span>
+<span class="cm"># or the zero-input free response with n_ahead</span>
+pred = d.predict(u=u_future)
+free = d.predict(x0=x0, n_ahead=<span class="nu">10</span>)
+
+<span class="cm"># u=None fits an autonomous multi-trajectory model from the pairs</span>
+d_free = koopman_dmd.DMDc(x1, x2)</code></pre>
+
+    <h3>R</h3>
+
+<pre><code>library(koopman.dmd)
+
+<span class="cm"># Joint identification; known_B = B pins the input matrix instead</span>
+fit &lt;- dmdc(X1, X2, U, rank_input = <span class="nu">3</span>)
+fit$a; fit$b                  <span class="cm"># identified matrices</span>
+dmdc_stability(fit)           <span class="cm"># spectral radius and classification</span>
+dmdc_spectrum(fit)            <span class="cm"># data frame of per-mode information</span>
+
+<span class="cm"># Simulate under a new input sequence, or the free response</span>
+pred &lt;- predict(fit, U = U_future)
+free &lt;- predict(fit, x0 = c(<span class="nu">1</span>, <span class="nu">1</span>), n_ahead = <span class="nu">10</span>)
+
+<span class="cm"># U = NULL fits an autonomous multi-trajectory model from the pairs</span>
+fit_free &lt;- dmdc(X1, X2)</code></pre>
+
+    <!-- ============================================================
+         10. When to use which
+         ============================================================ -->
+    <h2>DMDc vs. the Other DMD Forms</h2>
+
+    <ul>
+      <li><strong>Core DMD</strong> -- one contiguous trajectory of an
+      autonomous (unforced) system.</li>
+      <li><strong>DMDc</strong> -- a forced system with a measured input, or
+      an autonomous system observed as many separate trajectories
+      (q&nbsp;=&nbsp;0 mode).</li>
+      <li><strong>Extended DMD</strong> -- nonlinear autonomous systems, via
+      dictionary lifting; composable with core DMD's pipeline.</li>
+      <li><strong>Hankel-DMD</strong> -- scalar or low-dimensional
+      measurements of a higher-dimensional system, via delay embedding.</li>
+    </ul>
+
+    <div class="info-box">
+      <strong>Example application.</strong> DMDc is the identification engine
+      behind the
+      <a href="https://github.com/jimeharrisjr/koopman-based-SNN">koopman-based-SNN</a>
+      project: a spiking neural network's sub-threshold dynamics are exactly
+      linear, and spike resets enter as control inputs, so the known-B mode
+      recovers the network's propagator to machine precision from spiking
+      trajectories.
+    </div>
+
+  </main>
+</div>
+
+<script src="js/main.js"></script>
+</body>
+</html>

@@ -28,6 +28,7 @@
 
     <h3>Features</h3>
     <a href="core-dmd.html">Core DMD</a>
+    <a href="dmdc.html">DMD with Control</a>
     <a href="extended-dmd.html">Extended DMD</a>
     <a href="hankel-dmd.html">Hankel-DMD</a>
     <a href="gla.html">GLA</a>
@@ -668,7 +669,474 @@ top <span class="op">&lt;-</span> <span class="fn">dmd_dominant_modes</span>(res
 <span class="fn">print</span>(resid<span class="op">$</span>mode_residuals)</code></pre>
 
     <!-- ============================================================
-         3. Hankel-DMD Functions
+         3. DMDc Functions
+         ============================================================ -->
+    <h2 id="dmdc-functions">DMDc Functions</h2>
+
+    <h3 id="dmdc">dmdc</h3>
+
+    <p>Perform Dynamic Mode Decomposition with control (DMDc; Proctor,
+    Brunton &amp; Kutz 2016, doi:10.1137/15M1013857). Identifies the forced
+    linear system
+    <code>x<sub>t+1</sub> = A x<sub>t</sub> + B u<sub>t</sub></code> from
+    snapshot pairs. Unlike <code>dmd()</code>, which takes one contiguous
+    trajectory, <code>dmdc()</code> takes explicit pair matrices:
+    <code>X1</code> holds states at time t, <code>X2</code> the states one
+    step later, and <code>U</code> the control input applied during each
+    transition. Columns may come from many concatenated trajectories.
+    Returns an S3 object of class <code>"dmdc"</code>.</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Argument</th>
+          <th>Type</th>
+          <th>Default</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>X1</code></td>
+          <td><code>numeric matrix</code></td>
+          <td>--</td>
+          <td>State snapshots at time t, with dimensions
+          <code>n_states x n_pairs</code>.</td>
+        </tr>
+        <tr>
+          <td><code>X2</code></td>
+          <td><code>numeric matrix</code></td>
+          <td>--</td>
+          <td>State snapshots one step later
+          (<code>n_states x n_pairs</code>). Column j is the successor of
+          column j of <code>X1</code>.</td>
+        </tr>
+        <tr>
+          <td><code>U</code></td>
+          <td><code>numeric matrix</code> or <code>NULL</code></td>
+          <td><code>NULL</code></td>
+          <td>Control input applied during each transition
+          (<code>n_inputs x n_pairs</code>). A plain vector is taken as a
+          single input row. <code>NULL</code> fits an autonomous
+          multi-trajectory model from the pairs (<code>b</code> gets zero
+          columns).</td>
+        </tr>
+        <tr>
+          <td><code>rank_input</code></td>
+          <td><code>integer</code> or <code>NULL</code></td>
+          <td><code>NULL</code></td>
+          <td>Truncation rank for the regression-input SVD
+          (<code>[X1; U]</code>, or <code>X1</code> alone when
+          <code>known_B</code> is given). <code>NULL</code> selects 99%
+          cumulative variance. A rank beyond the numerical rank of the data
+          is an error.</td>
+        </tr>
+        <tr>
+          <td><code>rank_output</code></td>
+          <td><code>integer</code> or <code>NULL</code></td>
+          <td><code>NULL</code></td>
+          <td>Optional second projection through the leading left singular
+          vectors of <code>X2</code>, producing reduced operators
+          <code>a_tilde</code> (r x r) and <code>b_tilde</code> (r x q).
+          <code>NULL</code> keeps everything full-order (the basis is the
+          identity and <code>a_tilde</code> equals <code>a</code>).</td>
+        </tr>
+        <tr>
+          <td><code>dt</code></td>
+          <td><code>numeric</code></td>
+          <td><code>1.0</code></td>
+          <td>Time step between snapshots. Must be positive and finite.</td>
+        </tr>
+        <tr>
+          <td><code>known_B</code></td>
+          <td><code>numeric matrix</code> or <code>NULL</code></td>
+          <td><code>NULL</code></td>
+          <td>Known input matrix B (<code>n_states x n_inputs</code>). When
+          given, B is not estimated and only A is solved for on the
+          input-subtracted residual. Preferred when the input coupling is
+          known by construction; required for closed-loop (state-feedback)
+          data, where joint identification is biased and non-unique.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p><strong>Return value.</strong> An S3 object of class <code>"dmdc"</code>
+    with the following components:</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Component</th>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>a</code></td>
+          <td><code>numeric matrix</code></td>
+          <td>Identified state matrix A
+          (<code>n_states x n_states</code>).</td>
+        </tr>
+        <tr>
+          <td><code>b</code></td>
+          <td><code>numeric matrix</code></td>
+          <td>Identified input matrix B (<code>n_states x n_inputs</code>);
+          a copy of <code>known_B</code> when supplied.</td>
+        </tr>
+        <tr>
+          <td><code>a_tilde</code></td>
+          <td><code>numeric matrix</code></td>
+          <td>Reduced state operator
+          (<code>rank_output x rank_output</code>); equals <code>a</code>
+          when no output projection is used.</td>
+        </tr>
+        <tr>
+          <td><code>b_tilde</code></td>
+          <td><code>numeric matrix</code></td>
+          <td>Reduced input operator
+          (<code>rank_output x n_inputs</code>).</td>
+        </tr>
+        <tr>
+          <td><code>basis</code></td>
+          <td><code>numeric matrix</code></td>
+          <td>Orthonormal output basis
+          (<code>n_states x rank_output</code>); the identity when no
+          projection is used.</td>
+        </tr>
+        <tr>
+          <td><code>eigenvalues_re</code></td>
+          <td><code>numeric vector</code></td>
+          <td>Real parts of the eigenvalues of <code>a_tilde</code> -- the
+          spectrum of the unforced dynamics.</td>
+        </tr>
+        <tr>
+          <td><code>eigenvalues_im</code></td>
+          <td><code>numeric vector</code></td>
+          <td>Imaginary parts of the eigenvalues of
+          <code>a_tilde</code>.</td>
+        </tr>
+        <tr>
+          <td><code>singular_values</code></td>
+          <td><code>numeric vector</code></td>
+          <td>Singular values of the regression-input SVD.</td>
+        </tr>
+        <tr>
+          <td><code>rank_input</code></td>
+          <td><code>integer</code></td>
+          <td>Truncation rank used for the regression-input SVD.</td>
+        </tr>
+        <tr>
+          <td><code>rank_output</code></td>
+          <td><code>integer</code></td>
+          <td>Dimension of the output projection.</td>
+        </tr>
+        <tr>
+          <td><code>dt</code></td>
+          <td><code>numeric</code></td>
+          <td>Time step between snapshots.</td>
+        </tr>
+        <tr>
+          <td><code>n_states</code></td>
+          <td><code>integer</code></td>
+          <td>Number of state variables.</td>
+        </tr>
+        <tr>
+          <td><code>n_inputs</code></td>
+          <td><code>integer</code></td>
+          <td>Number of control inputs.</td>
+        </tr>
+      </tbody>
+    </table>
+
+<pre><code><span class="kw">library</span>(koopman.dmd)
+
+<span class="cm"># Simulate a forced linear system x_{t+1} = A0 x_t + B0 u_t</span>
+A0 <span class="op">&lt;-</span> <span class="fn">matrix</span>(<span class="fn">c</span>(<span class="nu">0.9</span>, <span class="nu">0</span>, <span class="nu">0.1</span>, <span class="nu">0.8</span>), <span class="nu">2</span>, <span class="nu">2</span>)
+B0 <span class="op">&lt;-</span> <span class="fn">matrix</span>(<span class="fn">c</span>(<span class="nu">0.5</span>, <span class="nu">1</span>), <span class="nu">2</span>, <span class="nu">1</span>)
+m <span class="op">&lt;-</span> <span class="nu">120</span>
+X1 <span class="op">&lt;-</span> <span class="fn">matrix</span>(<span class="nu">0</span>, <span class="nu">2</span>, m); X2 <span class="op">&lt;-</span> <span class="fn">matrix</span>(<span class="nu">0</span>, <span class="nu">2</span>, m); U <span class="op">&lt;-</span> <span class="fn">matrix</span>(<span class="nu">0</span>, <span class="nu">1</span>, m)
+x <span class="op">&lt;-</span> <span class="fn">c</span>(<span class="nu">1</span>, <span class="op">-</span><span class="nu">0.5</span>)
+<span class="kw">for</span> (t <span class="kw">in</span> <span class="fn">seq_len</span>(m)) {
+  u_t <span class="op">&lt;-</span> <span class="fn">sin</span>(<span class="nu">0.7</span> <span class="op">*</span> (t <span class="op">-</span> <span class="nu">1</span>)) <span class="op">+</span> <span class="nu">0.5</span> <span class="op">*</span> <span class="fn">cos</span>(<span class="nu">2.3</span> <span class="op">*</span> (t <span class="op">-</span> <span class="nu">1</span>) <span class="op">+</span> <span class="nu">1</span>)
+  X1[, t] <span class="op">&lt;-</span> x
+  U[, t] <span class="op">&lt;-</span> u_t
+  x <span class="op">&lt;-</span> <span class="fn">as.numeric</span>(A0 <span class="op">%*%</span> x <span class="op">+</span> B0 <span class="op">*</span> u_t)
+  X2[, t] <span class="op">&lt;-</span> x
+}
+
+<span class="cm"># Identify A and B from the snapshot pairs</span>
+fit <span class="op">&lt;-</span> <span class="fn">dmdc</span>(X1, X2, U, rank_input = <span class="nu">3</span>)
+<span class="fn">round</span>(fit<span class="op">$</span>a, <span class="nu">6</span>)   <span class="cm"># recovers A0</span>
+<span class="fn">round</span>(fit<span class="op">$</span>b, <span class="nu">6</span>)   <span class="cm"># recovers B0</span>
+
+<span class="cm"># Known input matrix: estimate A only</span>
+fit_kb <span class="op">&lt;-</span> <span class="fn">dmdc</span>(X1, X2, U, rank_input = <span class="nu">2</span>, known_B = B0)
+
+<span class="cm"># Autonomous multi-trajectory model from the same pairs</span>
+fit_auto <span class="op">&lt;-</span> <span class="fn">dmdc</span>(X1, X2)</code></pre>
+
+    <!-- ============================================================ -->
+    <h3 id="print-dmdc">print.dmdc</h3>
+
+    <p>S3 print method for <code>"dmdc"</code> objects. Displays a concise
+    one-line summary of the system dimensions and ranks.</p>
+
+<pre><code><span class="fn">print</span>(fit)
+<span class="cm"># DMDc(n_states=2, n_inputs=1, rank_input=3, rank_output=2)</span></code></pre>
+
+    <!-- ============================================================ -->
+    <h3 id="summary-dmdc">summary.dmdc</h3>
+
+    <p>S3 summary method for <code>"dmdc"</code> objects. Prints the numbers
+    of states and inputs, the truncation ranks, the time step, the singular
+    values of the regression-input SVD, and the eigenvalue magnitudes.</p>
+
+<pre><code><span class="fn">summary</span>(fit)
+<span class="cm"># DMDc(n_states=2, n_inputs=1, rank_input=3, rank_output=2)</span>
+<span class="cm">#   dt:                    1</span>
+<span class="cm">#   Singular values:       ...</span>
+<span class="cm">#   Eigenvalue magnitudes: 0.9  0.8</span></code></pre>
+
+    <!-- ============================================================ -->
+    <h3 id="predict-dmdc">predict.dmdc</h3>
+
+    <p>S3 predict method for <code>"dmdc"</code> objects. Simulates the
+    identified system
+    <code>x<sub>t+1</sub> = A x<sub>t</sub> + B u<sub>t</sub></code> forward
+    under a supplied input sequence.</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Argument</th>
+          <th>Type</th>
+          <th>Default</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>object</code></td>
+          <td><code>dmdc</code></td>
+          <td>--</td>
+          <td>A fitted DMDc result.</td>
+        </tr>
+        <tr>
+          <td><code>U</code></td>
+          <td><code>numeric matrix</code> or <code>NULL</code></td>
+          <td><code>NULL</code></td>
+          <td>Input sequence (<code>n_inputs x n_steps</code>); its number
+          of columns sets the prediction horizon. A plain vector is taken
+          as a single input row. <code>NULL</code> applies zero input for
+          <code>n_ahead</code> steps (<code>n_ahead</code> is then
+          required).</td>
+        </tr>
+        <tr>
+          <td><code>x0</code></td>
+          <td><code>numeric vector</code> or <code>NULL</code></td>
+          <td><code>NULL</code></td>
+          <td>Initial condition. If <code>NULL</code>, uses the first
+          stored snapshot (the first column of <code>X1</code>).</td>
+        </tr>
+        <tr>
+          <td><code>n_ahead</code></td>
+          <td><code>integer</code> or <code>NULL</code></td>
+          <td><code>NULL</code></td>
+          <td>Number of steps to simulate. Required when <code>U</code> is
+          <code>NULL</code>; if both <code>U</code> and <code>n_ahead</code>
+          are given they must match.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p><strong>Return value.</strong> A numeric matrix of dimensions
+    <code>n_states x k</code> containing the predicted states
+    x<sub>1</sub>..x<sub>k</sub> -- the successors of <code>x0</code>;
+    <code>x0</code> itself is not included.</p>
+
+<pre><code><span class="cm"># Replay the training inputs -- reproduces X2</span>
+pred <span class="op">&lt;-</span> <span class="fn">predict</span>(fit, U = U)
+
+<span class="cm"># Unforced (zero-input) response from a custom initial state</span>
+free <span class="op">&lt;-</span> <span class="fn">predict</span>(fit, x0 = <span class="fn">c</span>(<span class="nu">1</span>, <span class="nu">0</span>), n_ahead = <span class="nu">20</span>)</code></pre>
+
+    <!-- ============================================================ -->
+    <h3 id="dmdc-stability">dmdc_stability</h3>
+
+    <p>Assess the stability of the identified operator from the eigenvalues
+    of <code>a_tilde</code> -- the spectrum of the unforced dynamics. The
+    result has the same shape as <code>dmd_stability()</code>.</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Argument</th>
+          <th>Type</th>
+          <th>Default</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>object</code></td>
+          <td><code>dmdc</code></td>
+          <td>--</td>
+          <td>A fitted DMDc result.</td>
+        </tr>
+        <tr>
+          <td><code>tol</code></td>
+          <td><code>numeric</code></td>
+          <td><code>1e-6</code></td>
+          <td>Tolerance for classifying the spectral radius as marginal (on
+          the unit circle).</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p><strong>Return value.</strong> A list with the following components:</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Component</th>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>is_stable</code></td>
+          <td><code>logical</code></td>
+          <td><code>TRUE</code> if all eigenvalues lie inside the unit
+          circle (within tolerance).</td>
+        </tr>
+        <tr>
+          <td><code>is_unstable</code></td>
+          <td><code>logical</code></td>
+          <td><code>TRUE</code> if any eigenvalue lies outside the unit
+          circle.</td>
+        </tr>
+        <tr>
+          <td><code>is_marginal</code></td>
+          <td><code>logical</code></td>
+          <td><code>TRUE</code> if the spectral radius is within
+          <code>tol</code> of 1.</td>
+        </tr>
+        <tr>
+          <td><code>spectral_radius</code></td>
+          <td><code>numeric</code></td>
+          <td>Maximum modulus among the eigenvalues of
+          <code>a_tilde</code>.</td>
+        </tr>
+      </tbody>
+    </table>
+
+<pre><code>stab <span class="op">&lt;-</span> <span class="fn">dmdc_stability</span>(fit)
+<span class="fn">cat</span>(<span class="st">"Spectral radius:"</span>, stab<span class="op">$</span>spectral_radius, <span class="st">"\n"</span>)
+<span class="fn">cat</span>(<span class="st">"Stable:"</span>, stab<span class="op">$</span>is_stable, <span class="st">"\n"</span>)</code></pre>
+
+    <!-- ============================================================ -->
+    <h3 id="dmdc-spectrum">dmdc_spectrum</h3>
+
+    <p>Compute per-mode frequency, growth rate, and stability for the
+    identified operator, in the same shape as <code>dmd_spectrum()</code>.
+    DMDc has no mode amplitudes, so the <code>amplitude</code> column is
+    always 0.</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Argument</th>
+          <th>Type</th>
+          <th>Default</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>object</code></td>
+          <td><code>dmdc</code></td>
+          <td>--</td>
+          <td>A fitted DMDc result.</td>
+        </tr>
+        <tr>
+          <td><code>dt</code></td>
+          <td><code>numeric</code> or <code>NULL</code></td>
+          <td><code>NULL</code></td>
+          <td>Time step used to convert eigenvalues to continuous-time
+          quantities. <code>NULL</code> uses the <code>dt</code> stored in
+          the model.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p><strong>Return value.</strong> A <code>data.frame</code> with the
+    following columns:</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Column</th>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>index</code></td>
+          <td><code>integer</code></td>
+          <td>Mode index.</td>
+        </tr>
+        <tr>
+          <td><code>magnitude</code></td>
+          <td><code>numeric</code></td>
+          <td>Modulus of the eigenvalue.</td>
+        </tr>
+        <tr>
+          <td><code>phase</code></td>
+          <td><code>numeric</code></td>
+          <td>Argument of the eigenvalue in radians.</td>
+        </tr>
+        <tr>
+          <td><code>frequency</code></td>
+          <td><code>numeric</code></td>
+          <td>Oscillation frequency of the mode per unit time.</td>
+        </tr>
+        <tr>
+          <td><code>period</code></td>
+          <td><code>numeric</code></td>
+          <td>Oscillation period of the mode.</td>
+        </tr>
+        <tr>
+          <td><code>growth_rate</code></td>
+          <td><code>numeric</code></td>
+          <td>Continuous-time growth rate (log of modulus divided by
+          dt).</td>
+        </tr>
+        <tr>
+          <td><code>amplitude</code></td>
+          <td><code>numeric</code></td>
+          <td>Always 0 -- DMDc does not compute mode amplitudes.</td>
+        </tr>
+        <tr>
+          <td><code>stability</code></td>
+          <td><code>character</code></td>
+          <td>One of <code>"stable"</code>, <code>"unstable"</code>, or
+          <code>"neutral"</code>.</td>
+        </tr>
+      </tbody>
+    </table>
+
+<pre><code><span class="cm"># Spectrum with the stored time step</span>
+spec <span class="op">&lt;-</span> <span class="fn">dmdc_spectrum</span>(fit)
+<span class="fn">print</span>(spec)
+
+<span class="cm"># Override the time step</span>
+spec <span class="op">&lt;-</span> <span class="fn">dmdc_spectrum</span>(fit, dt = <span class="nu">0.1</span>)</code></pre>
+
+    <!-- ============================================================
+         4. Hankel-DMD Functions
          ============================================================ -->
     <h2 id="hankel-dmd-functions">Hankel-DMD Functions</h2>
 
@@ -816,7 +1284,7 @@ hforecast <span class="op">&lt;-</span> <span class="fn">predict</span>(hresult,
 <span class="fn">cat</span>(<span class="st">"Reconstruction dimensions:"</span>, <span class="fn">dim</span>(hrecon), <span class="st">"\n"</span>)</code></pre>
 
     <!-- ============================================================
-         4. GLA Functions
+         5. GLA Functions
          ============================================================ -->
     <h2 id="gla-functions">GLA Functions</h2>
 
@@ -959,7 +1427,7 @@ gforecast <span class="op">&lt;-</span> <span class="fn">predict</span>(gresult,
 <span class="fn">cat</span>(<span class="st">"Reconstruction dimensions:"</span>, <span class="fn">dim</span>(grecon), <span class="st">"\n"</span>)</code></pre>
 
     <!-- ============================================================
-         5. Map Functions
+         6. Map Functions
          ============================================================ -->
     <h2 id="map-functions">Map Functions</h2>
 
@@ -1103,7 +1571,7 @@ traj <span class="op">&lt;-</span> <span class="fn">do.call</span>(generate_traj
 ))</code></pre>
 
     <!-- ============================================================
-         6. Harmonic Analysis Functions
+         7. Harmonic Analysis Functions
          ============================================================ -->
     <h2 id="harmonic-functions">Harmonic Analysis Functions</h2>
 
@@ -1533,7 +2001,7 @@ conv <span class="op">&lt;-</span> <span class="fn">hta_convergence</span>(
      type = <span class="st">"l"</span>, xlab = <span class="st">"Iteration"</span>, ylab = <span class="st">"HTA Magnitude"</span>)</code></pre>
 
     <!-- ============================================================
-         7. Examples
+         8. Examples
          ============================================================ -->
     <h2 id="examples">Examples</h2>
 

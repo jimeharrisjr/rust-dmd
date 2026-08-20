@@ -1,3 +1,18 @@
+# koopman.dmd 0.2.0
+
+* New `dmdc()`: Dynamic Mode Decomposition with control (Proctor, Brunton and
+  Kutz, 2016), identifying the forced linear system `x_{t+1} = A x_t + B u_t`
+  from snapshot pairs and control inputs. Supports joint estimation of `A` and
+  `B`, a known-B mode that estimates only `A`, an optional reduced-order output
+  projection, and autonomous multi-trajectory fits from explicit pairs
+  (`U = NULL`).
+
+* New `predict()` method for `dmdc` objects simulates the identified system
+  under a given control input sequence, or its zero-input free response.
+
+* The bundled Rust backend is updated to 'koopman-dmd' 0.2.0, which also fixes
+  the full-A fallback and centered amplitudes in core DMD.
+
 # koopman.dmd 0.1.0
 
 * Initial release.
