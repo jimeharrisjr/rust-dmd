@@ -5,6 +5,7 @@ Dynamic Mode Decomposition with Koopman operator theory extensions, implemented 
 ## Features
 
 - **Core DMD** -- Standard Dynamic Mode Decomposition with truncated SVD and optional mean centering
+- **DMDc** -- DMD with control (Proctor, Brunton & Kutz 2016): identifies `x_{t+1} = A x_t + B u_t` from explicit snapshot pairs, with a known-B variant and optional reduced-order output projection
 - **Extended DMD** -- Polynomial, trigonometric, and delay-coordinate lifting for nonlinear systems
 - **Hankel-DMD** -- Time-delay embedding via Krylov subspace for scalar or low-dimensional signals
 - **GLA** -- Generalized Laplace Analysis for direct eigenfunction computation
@@ -30,7 +31,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-koopman-dmd = "0.1"
+koopman-dmd = "0.2"
 ```
 
 Requires Rust 1.85 or later.
@@ -136,6 +137,86 @@ stab <- dmd_stability(result)
 ```
 
 ## Advanced Usage
+
+### DMD with Control (DMDc)
+
+When the system is driven by a known input, standard DMD folds the forcing
+into a biased `A`. `dmdc` identifies the forced linear system
+`x_{t+1} = A x_t + B u_t` instead (Proctor, Brunton & Kutz 2016). Unlike
+`dmd`, which takes one contiguous trajectory, `dmdc` takes explicit
+snapshot-pair matrices -- `x1` (states at time `t`), `x2` (states one step
+later), and `u` (the input applied during each transition) -- so columns may
+come from many concatenated trajectories, and pairs may be freely masked out:
+
+```rust
+use koopman_dmd::{dmdc, DmdcConfig, stability_from_eigenvalues};
+
+// Simulate a forced linear system: x_{t+1} = A0 x_t + B0 u_t
+// with A0 = [[0.9, 0.1], [0.0, 0.8]], B0 = [0.5, 1.0].
+let m = 120;
+let mut x1 = faer::Mat::<f64>::zeros(2, m);
+let mut x2 = faer::Mat::<f64>::zeros(2, m);
+let mut u = faer::Mat::<f64>::zeros(1, m);
+let mut x = [1.0, -0.5];
+for t in 0..m {
+    // The input must be persistently exciting to identify A and B jointly
+    let ut = (0.7 * t as f64).sin() + 0.5 * (2.3 * t as f64 + 1.0).cos();
+    x1[(0, t)] = x[0];
+    x1[(1, t)] = x[1];
+    u[(0, t)] = ut;
+    x = [0.9 * x[0] + 0.1 * x[1] + 0.5 * ut, 0.8 * x[1] + ut];
+    x2[(0, t)] = x[0];
+    x2[(1, t)] = x[1];
+}
+
+// Jointly recover A and B from the pairs
+let config = DmdcConfig { rank_input: Some(3), ..Default::default() };
+let result = dmdc(&x1, &x2, &u, &config).unwrap();
+assert!((result.a[(0, 0)] - 0.9).abs() < 1e-8);
+assert!((result.b[(1, 0)] - 1.0).abs() < 1e-8);
+
+// Analyze the unforced dynamics via the eigenvalues of A
+let stab = stability_from_eigenvalues(&result.eigenvalues, 1e-6);
+println!("Spectral radius: {:.3}", stab.spectral_radius);
+```
+
+Two identification modes:
+
+- **Unknown B** (default): jointly solves `[A B] = X2 Omega^+` with
+  `Omega = [X1; U]`. Requires the input to be persistently exciting and
+  *exogenous* -- fitting both `A` and `B` from closed-loop (state-feedback)
+  data is biased and non-unique.
+- **Known B** (`DmdcConfig { known_b: Some(b), .. }`): subtracts the known
+  input response and solves only `A = (X2 - B U) X1^+`. Preferred whenever
+  the input coupling is known by construction; immune to the closed-loop
+  caveat.
+
+With zero control rows (`u` of shape `0 x m`), `dmdc` performs autonomous
+multi-trajectory identification from explicit pairs -- something `dmd` cannot
+do. `DmdcConfig::rank_output` optionally projects the result onto the leading
+SVD basis of `X2`, giving reduced operators `(A~, B~)` for model reduction.
+The companions `stability_from_eigenvalues` and `spectrum_from_eigenvalues`
+apply the standard analysis tools to the eigenvalues of the identified `A`.
+
+The same functionality is exposed in the Python and R bindings:
+
+```python
+import koopman_dmd
+
+d = koopman_dmd.DMDc(x1, x2, u, rank_input=3)   # or known_b=B to pin B
+d.a, d.b                    # identified matrices
+d.stability()               # (is_stable, is_unstable, is_marginal, spectral_radius)
+pred = d.predict(u=u_new)   # simulate under a new input sequence
+```
+
+```r
+library(koopman.dmd)
+
+fit <- dmdc(X1, X2, U, rank_input = 3)   # or known_B = B to pin B
+fit$a; fit$b                             # identified matrices
+dmdc_stability(fit)
+pred <- predict(fit, U = U_new)          # simulate under a new input sequence
+```
 
 ### Extended DMD with Lifting
 

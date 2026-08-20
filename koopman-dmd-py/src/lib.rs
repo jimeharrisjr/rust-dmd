@@ -313,6 +313,294 @@ impl DMD {
 }
 
 // ============================================================================
+// DMDc class
+// ============================================================================
+
+/// Dynamic Mode Decomposition with control (DMDc) result.
+///
+/// Identifies the forced linear system `x_{t+1} = A x_t + B u_t` from
+/// snapshot pairs `(x1, x2)` and control inputs `u`.
+#[pyclass]
+#[derive(Clone)]
+struct DMDc {
+    result: kdmd::DmdcResult,
+    x_first: Vec<f64>,
+}
+
+#[pymethods]
+impl DMDc {
+    /// Compute a DMDc decomposition.
+    ///
+    /// Parameters
+    /// ----------
+    /// x1 : numpy.ndarray
+    ///     States at time t (n_states x n_pairs).
+    /// x2 : numpy.ndarray
+    ///     States at time t+1 (n_states x n_pairs).
+    /// u : numpy.ndarray, optional
+    ///     Control inputs during each transition (n_inputs x n_pairs).
+    ///     None fits an autonomous multi-trajectory model from the pairs.
+    /// rank_input : int, optional
+    ///     Truncation rank for the regression-input SVD. None for automatic
+    ///     (99% cumulative variance).
+    /// rank_output : int, optional
+    ///     Rank of the output basis (SVD of x2). None keeps everything
+    ///     full-order.
+    /// dt : float
+    ///     Time step between snapshot pairs.
+    /// known_b : numpy.ndarray, optional
+    ///     Known input matrix B (n_states x n_inputs). When given, B is not
+    ///     estimated and only A is solved for.
+    #[new]
+    #[pyo3(signature = (x1, x2, u=None, rank_input=None, rank_output=None, dt=1.0, known_b=None))]
+    fn new(
+        x1: PyReadonlyArray2<f64>,
+        x2: PyReadonlyArray2<f64>,
+        u: Option<PyReadonlyArray2<f64>>,
+        rank_input: Option<usize>,
+        rank_output: Option<usize>,
+        dt: f64,
+        known_b: Option<PyReadonlyArray2<f64>>,
+    ) -> PyResult<Self> {
+        let x1_arr = x1.as_array().to_owned();
+        let x1_mat = mat_to_faer(&x1_arr);
+        let x2_mat = mat_to_faer(&x2.as_array().to_owned());
+        let u_mat = match &u {
+            Some(a) => mat_to_faer(&a.as_array().to_owned()),
+            None => faer::Mat::<f64>::zeros(0, x1_mat.ncols()),
+        };
+
+        let config = kdmd::DmdcConfig {
+            rank_input,
+            rank_output,
+            dt,
+            known_b: known_b.map(|b| mat_to_faer(&b.as_array().to_owned())),
+        };
+
+        let result = kdmd::dmdc(&x1_mat, &x2_mat, &u_mat, &config).map_err(dmd_err_to_py)?;
+        let x_first: Vec<f64> = (0..x1_mat.nrows()).map(|i| x1_mat[(i, 0)]).collect();
+        Ok(DMDc { result, x_first })
+    }
+
+    /// State-transition matrix A (n_states x n_states).
+    #[getter]
+    fn a<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray2<f64>> {
+        faer_to_array2(&self.result.a).into_pyarray(py)
+    }
+
+    /// Input matrix B (n_states x n_inputs).
+    #[getter]
+    fn b<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray2<f64>> {
+        faer_to_array2(&self.result.b).into_pyarray(py)
+    }
+
+    /// Reduced operator A~ (rank_output x rank_output); equals A when no
+    /// output projection was requested.
+    #[getter]
+    fn a_tilde<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray2<f64>> {
+        faer_to_array2(&self.result.a_tilde).into_pyarray(py)
+    }
+
+    /// Reduced input matrix B~ (rank_output x n_inputs).
+    #[getter]
+    fn b_tilde<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray2<f64>> {
+        faer_to_array2(&self.result.b_tilde).into_pyarray(py)
+    }
+
+    /// Orthonormal output basis (n_states x rank_output); identity when no
+    /// output projection was requested.
+    #[getter]
+    fn basis<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray2<f64>> {
+        faer_to_array2(&self.result.basis).into_pyarray(py)
+    }
+
+    /// Eigenvalues of A~ as complex pairs (re, im).
+    #[getter]
+    fn eigenvalues<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray2<f64>> {
+        let n = self.result.eigenvalues.len();
+        let arr = Array2::from_shape_fn((n, 2), |(i, j)| {
+            if j == 0 {
+                self.result.eigenvalues[i].re
+            } else {
+                self.result.eigenvalues[i].im
+            }
+        });
+        arr.into_pyarray(py)
+    }
+
+    /// Singular values of the regression-input SVD.
+    #[getter]
+    fn singular_values<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray1<f64>> {
+        Array1::from(self.result.svd_input.s.clone()).into_pyarray(py)
+    }
+
+    /// Rank used for the regression-input SVD.
+    #[getter]
+    fn rank_input(&self) -> usize {
+        self.result.rank_input
+    }
+
+    /// Rank of the output basis (n_states when no projection was requested).
+    #[getter]
+    fn rank_output(&self) -> usize {
+        self.result.rank_output
+    }
+
+    /// Time step.
+    #[getter]
+    fn dt(&self) -> f64 {
+        self.result.dt
+    }
+
+    /// Number of state variables.
+    #[getter]
+    fn n_states(&self) -> usize {
+        self.result.a.nrows()
+    }
+
+    /// Number of control inputs.
+    #[getter]
+    fn n_inputs(&self) -> usize {
+        self.result.b.ncols()
+    }
+
+    /// Simulate the identified system x_{t+1} = A x_t + B u_t.
+    ///
+    /// Parameters
+    /// ----------
+    /// u : numpy.ndarray, optional
+    ///     Control inputs (n_inputs x n_steps). The number of columns sets
+    ///     the prediction horizon. None applies zero input for n_ahead steps.
+    /// x0 : numpy.ndarray, optional
+    ///     Initial state. If None, uses the first column of x1.
+    /// n_ahead : int, optional
+    ///     Number of steps when u is None. Ignored (must match) when u is
+    ///     given.
+    ///
+    /// Returns
+    /// -------
+    /// numpy.ndarray
+    ///     Predicted states x_1..x_k (n_states x k).
+    #[pyo3(signature = (u=None, x0=None, n_ahead=None))]
+    fn predict<'py>(
+        &self,
+        py: Python<'py>,
+        u: Option<PyReadonlyArray2<f64>>,
+        x0: Option<PyReadonlyArray1<f64>>,
+        n_ahead: Option<usize>,
+    ) -> PyResult<Bound<'py, PyArray2<f64>>> {
+        let n = self.result.a.nrows();
+        let q = self.result.b.ncols();
+
+        let u_mat = match &u {
+            Some(a) => {
+                let m = mat_to_faer(&a.as_array().to_owned());
+                if m.nrows() != q {
+                    return Err(PyValueError::new_err(format!(
+                        "u has {} rows, expected {q} to match the fitted input matrix",
+                        m.nrows()
+                    )));
+                }
+                if let Some(k) = n_ahead {
+                    if k != m.ncols() {
+                        return Err(PyValueError::new_err(format!(
+                            "n_ahead ({k}) does not match the {} columns of u",
+                            m.ncols()
+                        )));
+                    }
+                }
+                m
+            }
+            None => {
+                let k = n_ahead
+                    .ok_or_else(|| PyValueError::new_err("either u or n_ahead must be given"))?;
+                faer::Mat::<f64>::zeros(q, k)
+            }
+        };
+        let k = u_mat.ncols();
+        if k == 0 {
+            return Err(PyValueError::new_err("prediction horizon must be positive"));
+        }
+
+        let x0_vec: Vec<f64> = match &x0 {
+            Some(a) => a.as_array().to_vec(),
+            None => self.x_first.clone(),
+        };
+        if x0_vec.len() != n {
+            return Err(PyValueError::new_err(format!(
+                "x0 has length {}, expected {n}",
+                x0_vec.len()
+            )));
+        }
+
+        let mut pred = faer::Mat::<f64>::zeros(n, k);
+        let mut x = x0_vec;
+        for t in 0..k {
+            let mut next = vec![0.0; n];
+            for i in 0..n {
+                let mut acc = 0.0;
+                for j in 0..n {
+                    acc += self.result.a[(i, j)] * x[j];
+                }
+                for j in 0..q {
+                    acc += self.result.b[(i, j)] * u_mat[(j, t)];
+                }
+                next[i] = acc;
+            }
+            for i in 0..n {
+                pred[(i, t)] = next[i];
+            }
+            x = next;
+        }
+
+        Ok(faer_to_array2(&pred).into_pyarray(py))
+    }
+
+    /// Analyze the eigenvalue spectrum of the identified operator.
+    ///
+    /// Returns a list of dicts with mode information. DMDc has no mode
+    /// amplitudes, so `amplitude` is reported as 0.
+    fn spectrum(&self, py: Python<'_>) -> PyResult<PyObject> {
+        let spec = kdmd::spectrum_from_eigenvalues(&self.result.eigenvalues, None, self.result.dt);
+        let list = pyo3::types::PyList::empty(py);
+        for m in &spec {
+            let dict = pyo3::types::PyDict::new(py);
+            dict.set_item("index", m.index)?;
+            dict.set_item("magnitude", m.magnitude)?;
+            dict.set_item("phase", m.phase)?;
+            dict.set_item("frequency", m.frequency)?;
+            dict.set_item("period", m.period)?;
+            dict.set_item("growth_rate", m.growth_rate)?;
+            dict.set_item("amplitude", m.amplitude)?;
+            dict.set_item("stability", m.stability.to_string())?;
+            list.append(dict)?;
+        }
+        Ok(list.into_any().unbind())
+    }
+
+    /// Analyze stability of the identified operator.
+    fn stability(&self) -> PyResult<(bool, bool, bool, f64)> {
+        let stab = kdmd::stability_from_eigenvalues(&self.result.eigenvalues, 1e-6);
+        Ok((
+            stab.is_stable,
+            stab.is_unstable,
+            stab.is_marginal,
+            stab.spectral_radius,
+        ))
+    }
+
+    fn __repr__(&self) -> String {
+        format!(
+            "DMDc(n_states={}, n_inputs={}, rank_input={}, rank_output={})",
+            self.result.a.nrows(),
+            self.result.b.ncols(),
+            self.result.rank_input,
+            self.result.rank_output
+        )
+    }
+}
+
+// ============================================================================
 // HankelDMD class
 // ============================================================================
 
@@ -878,6 +1166,7 @@ fn make_map<'py>(
 /// Classes
 /// -------
 /// DMD : Standard DMD decomposition
+/// DMDc : DMD with control (forced linear systems)
 /// HankelDMD : Hankel (time-delay embedding) DMD
 /// GLA : Generalized Laplace Analysis
 ///
@@ -891,6 +1180,7 @@ fn make_map<'py>(
 #[pymodule]
 fn koopman_dmd(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<DMD>()?;
+    m.add_class::<DMDc>()?;
     m.add_class::<HankelDMD>()?;
     m.add_class::<GLA>()?;
     m.add_function(wrap_pyfunction!(generate_trajectory, m)?)?;

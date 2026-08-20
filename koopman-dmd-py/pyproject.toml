@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "koopman-dmd"
-version = "0.1.0"
+version = "0.2.0"
 description = "Dynamic Mode Decomposition with Koopman operator theory, powered by Rust"
 readme = "README.md"
 # PEP 639: an SPDX expression plus explicit license-files. Do not use the legacy

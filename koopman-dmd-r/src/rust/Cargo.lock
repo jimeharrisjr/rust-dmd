@@ -498,9 +498,9 @@ dependencies = [
 
 [[package]]
 name = "koopman-dmd"
-version = "0.1.0"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bd0b168a6228d820fbba6df50154050a8ed686d778926be380af153d04662fb1"
+checksum = "6557f08d160b6accde30d3730730371636ecfd1f74afa5bbedcf9611fc76abe9"
 dependencies = [
  "faer",
  "num-complex",
@@ -511,7 +511,7 @@ dependencies = [
 
 [[package]]
 name = "koopman-dmd-r"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "extendr-api",
  "faer",

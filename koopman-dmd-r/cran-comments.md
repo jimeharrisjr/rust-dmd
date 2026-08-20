@@ -1,12 +1,14 @@
 ## Submission
 
-This is a new submission of koopman.dmd 0.1.0.
+This is a new submission of koopman.dmd 0.2.0. (An earlier 0.1.0 was prepared
+but never published on CRAN; 0.2.0 additionally provides Dynamic Mode
+Decomposition with control, `dmdc()`, and its analysis and prediction
+methods.)
 
 ## Test environments
 
 * win-builder, R devel and R release (x86_64-w64-mingw32)
-* Debian GNU/Linux forky/sid, R 4.6.1, x86_64 (container, full check with LaTeX)
-* Debian GNU/Linux forky/sid, R 4.6.1, aarch64 (container, full check with LaTeX)
+* macOS 15 (local), R 4.4.1, aarch64
 * Ubuntu 24.04 (GitHub Actions), R release and R devel
 * macOS 14 (GitHub Actions), R release
 * Windows Server 2022 (GitHub Actions), R release
@@ -15,14 +17,17 @@ This is a new submission of koopman.dmd 0.1.0.
 
 | Platform | Result |
 |---|---|
-| **win-builder, R devel** | **0 errors, 0 warnings, 1 note** |
-| **win-builder, R release** | **0 errors, 0 warnings, 1 note** |
-| Debian, R 4.6.1, x86_64 | 0 errors, 1 warning, 0 notes |
-| Debian, R 4.6.1, aarch64 | 0 errors, 1 warning, 1 note |
+| **win-builder, R devel** | **0 errors, 0 warnings, 1 note** (0.1.0 tarball; re-run for 0.2.0 before submitting) |
+| **win-builder, R release** | **0 errors, 0 warnings, 1 note** (0.1.0 tarball; re-run for 0.2.0 before submitting) |
+| macOS 15 (local), R 4.4.1, aarch64 | 0 errors, 0 warnings* |
 | Ubuntu 24.04, R release | 0 errors, 1 warning, 0 notes |
 | Ubuntu 24.04, R devel   | 0 errors, 1 warning, 0 notes |
 | macOS 14, R release     | Status: OK |
 | Windows Server 2022, R release | Status: OK |
+
+*The local macOS run reports only environment notes ("unable to verify current
+time", HTML-tidy limitations of the system tidy) plus the notes discussed
+below.
 
 The win-builder note is `checking CRAN incoming feasibility`, comprising "New
 submission" and a list of possibly misspelled words; both are addressed below.
@@ -33,10 +38,12 @@ prefer it handled differently, please say so and we will follow your guidance.
 
 ### Possibly misspelled words
 
-All are correct: `Koopman`, `Hankel`, `Schmid` and `Mezic` are surnames (Bernard
-Koopman, Hermann Hankel, Peter Schmid, Igor Mezic); `eigenfunction` and
-`mesochronic` are standard terms in operator theory and dynamical systems
-respectively.
+All are correct: `Koopman`, `Hankel`, `Schmid`, `Mezic`, `Proctor`, `Brunton`
+and `Kutz` are surnames (Bernard Koopman, Hermann Hankel, Peter Schmid, Igor
+Mezic, and the authors of the DMDc paper); `eigenfunction` and `mesochronic`
+are standard terms in operator theory and dynamical systems respectively;
+`DMDc` is the standard abbreviation for Dynamic Mode Decomposition with
+control.
 
 ### Note on aarch64 only
 
@@ -66,7 +73,7 @@ MSVC toolchains) are reduced to stubs. `tools/check-vendor.sh` in the source
 repository verifies that the pruned tree still builds offline.
 
 Authorship and licensing for every bundled crate is recorded in `inst/AUTHORS`,
-and `Authors@R` credits them collectively with a `ctb` role. All 133 bundled
+and `Authors@R` credits them collectively with a `ctb` role. All 134 bundled
 crates carry permissive licences (MIT, Apache-2.0, BSD-2-Clause, Zlib,
 Unlicense, Unicode-3.0), each compatible with this package's MIT licence.
 

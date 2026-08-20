@@ -8,7 +8,7 @@ without network access, as required by the CRAN policy on Rust.
 Every crate below is redistributed under its own terms. The licences that
 appear are all permissive and compatible with this package's MIT licence:
 
-    66  MIT OR Apache-2.0
+    67  MIT OR Apache-2.0
     47  MIT
      5  MIT/Apache-2.0
      4  Unlicense OR MIT
@@ -20,7 +20,7 @@ appear are all permissive and compatible with this package's MIT licence:
      1  Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT
      1  BSD-2-Clause
 
-Total bundled crates: 133
+Total bundled crates: 134
 
 Crate  Version  Licence  Authors
 -------------------------------------------------------------------------
@@ -99,15 +99,15 @@ equator-macro 0.2.1
 equator-macro 0.4.2
     Licence: MIT
     Authors: sarah <>
-extendr-api 0.8.2
+extendr-api 0.9.0
     Licence: MIT
-    Authors: andy-thomason <andy@andythomason.com>; Thomas Down; Mossa Merhi Reimert <mossa@sund.ku.dk>; Josiah Parry <josiah.parry@gmail.com>; Claus O. Wilke <wilke@austin.utexas.edu>; Hiroaki Yutani; Ilia A. Kosenkov <ilia.kosenkov@outlook.com>; Michael Milton <michael.r.milton@gmail.com>
-extendr-ffi 0.8.2
+    Authors: (no authors listed in crate metadata)
+extendr-ffi 0.9.0
     Licence: MIT
-    Authors: andy-thomason <andy@andythomason.com>; Thomas Down; Mossa Merhi Reimert <mossa@sund.ku.dk>; Josiah Parry <josiah.parry@gmail.com>; Claus O. Wilke <wilke@austin.utexas.edu>; Hiroaki Yutani; Ilia A. Kosenkov <ilia.kosenkov@outlook.com>; Michael Milton <michael.r.milton@gmail.com>
-extendr-macros 0.8.2
+    Authors: (no authors listed in crate metadata)
+extendr-macros 0.9.0
     Licence: MIT
-    Authors: andy-thomason <andy@andythomason.com>; Thomas Down; Mossa Merhi Reimert <mossa@sund.ku.dk>; Josiah Parry <josiah.parry@gmail.com>; Claus O. Wilke <wilke@austin.utexas.edu>; Hiroaki Yutani; Ilia A. Kosenkov <ilia.kosenkov@outlook.com>; Michael Milton <michael.r.milton@gmail.com>
+    Authors: (no authors listed in crate metadata)
 faer 0.22.6
     Licence: MIT
     Authors: sarah quiñones <sarah@veganb.tw>
@@ -141,7 +141,7 @@ gemm-f32 0.18.2
 gemm-f64 0.18.2
     Licence: MIT
     Authors: sarah <>
-generativity 1.1.0
+generativity 1.2.1
     Licence: MIT OR Apache-2.0
     Authors: (no authors listed in crate metadata)
 generator 0.8.9
@@ -162,7 +162,7 @@ hermit-abi 0.5.2
 interpol 0.2.1
     Licence: MIT
     Authors: Hideyuki Tanaka <tanaka.hideyuki@gmail.com>
-koopman-dmd 0.1.0
+koopman-dmd 0.2.0
     Licence: MIT
     Authors: James Harris <jimeharrisjr@gmail.com>
 lazy_static 1.5.0
@@ -291,6 +291,9 @@ rayon 1.12.0
 rayon-core 1.13.0
     Licence: MIT OR Apache-2.0
     Authors: (no authors listed in crate metadata)
+readonly 0.2.14
+    Licence: MIT OR Apache-2.0
+    Authors: David Tolnay <dtolnay@gmail.com>
 reborrow 0.5.5
     Licence: MIT
     Authors: sarah <>

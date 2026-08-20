@@ -85,6 +85,47 @@ Extended DMD and accepts `"polynomial"`, `"polynomial_cross"`, `"trigonometric"`
 d = koopman_dmd.DMD(x, lifting="polynomial", lifting_param=2)
 ```
 
+## `DMDc`
+
+DMD with control (Proctor, Brunton & Kutz 2016) — identifies the forced linear system
+`x_{t+1} = A x_t + B u_t` from snapshot pairs and control inputs.
+
+```python
+koopman_dmd.DMDc(x1, x2, u=None, rank_input=None, rank_output=None, dt=1.0, known_b=None)
+```
+
+Unlike `DMD`, which takes one contiguous trajectory, `DMDc` takes explicit pair
+matrices: `x1` holds states at time `t`, `x2` the states one step later, and `u` the
+input applied during each transition, so columns may come from many concatenated
+trajectories. `u=None` fits an autonomous multi-trajectory model from the pairs.
+Passing `known_b` pins the input matrix and estimates only `A` — preferred whenever the
+input coupling is known by construction, and required for closed-loop (state-feedback)
+data, where joint identification is biased. `rank_output` optionally projects onto the
+leading SVD basis of `x2`, giving reduced operators `a_tilde`, `b_tilde` for model
+reduction.
+
+**Properties:** `a`, `b`, `a_tilde`, `b_tilde`, `basis`, `eigenvalues`,
+`singular_values`, `rank_input`, `rank_output`, `dt`, `n_states`, `n_inputs`
+
+**Methods:**
+
+| Method | Returns |
+|---|---|
+| `predict(u=None, x0=None, n_ahead=None)` | states from stepping `x_{t+1} = A x_t + B u_t`; the columns of `u` set the horizon, or `n_ahead` steps of zero input |
+| `spectrum()` | per-mode frequency, growth rate, stability of the identified operator |
+| `stability()` | `(is_stable, is_unstable, is_marginal, spectral_radius)` |
+
+```python
+# Recover A and B from a forced linear system driven by a probe input
+d = koopman_dmd.DMDc(x1, x2, u, rank_input=3)
+print(d.a)                     # state-transition matrix
+print(d.b)                     # input matrix
+pred = d.predict(u=u_future)   # simulate under a new input sequence
+```
+
+The input must be persistently exciting (and not pure state feedback) for the joint
+identification to be well-posed.
+
 ## `HankelDMD`
 
 Time-delay embedding, for scalar signals or systems with few measured variables.

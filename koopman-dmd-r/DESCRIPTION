@@ -1,7 +1,7 @@
 Package: koopman.dmd
 Type: Package
 Title: Koopman Operator and Dynamic Mode Decomposition for Dynamical Systems
-Version: 0.1.0
+Version: 0.2.0
 Authors@R: c(
     person("James", "Harris", email = "jimeharrisjr@gmail.com",
            role = c("aut", "cre", "cph")),
@@ -9,7 +9,9 @@ Authors@R: c(
            comment = "see inst/AUTHORS file for details"))
 Description: Dynamic Mode Decomposition (DMD) with Koopman operator theory
     extensions, powered by a Rust backend via 'extendr'. Provides standard DMD
-    (Schmid, 2010, <doi:10.1017/S0022112010001217>), Extended DMD with lifting
+    (Schmid, 2010, <doi:10.1017/S0022112010001217>), DMD with control for
+    forced linear systems (Proctor, Brunton, and Kutz, 2016,
+    <doi:10.1137/15M1013857>), Extended DMD with lifting
     functions, Hankel-DMD via time-delay embedding, Generalized Laplace Analysis
     for direct eigenfunction computation, harmonic time averages, and mesochronic
     harmonic plots for phase space analysis (Mezic, 2020,

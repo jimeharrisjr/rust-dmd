@@ -17,6 +17,7 @@ BLAS/LAPACK installation is required.
 ## Features
 
 - **Core DMD** — standard DMD with truncated SVD and optional mean centering
+- **DMDc** — DMD with control (Proctor, Brunton & Kutz 2016): identifies `x_{t+1} = A x_t + B u_t` from explicit snapshot pairs, with a known-B variant and optional reduced-order output projection
 - **Extended DMD** — polynomial, trigonometric, and delay-coordinate lifting for nonlinear systems
 - **Hankel-DMD** — time-delay embedding via Krylov subspace, for scalar or low-dimensional signals
 - **GLA** — Generalized Laplace Analysis for direct Koopman eigenfunction computation
@@ -30,7 +31,7 @@ BLAS/LAPACK installation is required.
 
 ```toml
 [dependencies]
-koopman-dmd = "0.1"
+koopman-dmd = "0.2"
 ```
 
 Requires Rust 1.85 or later.
@@ -60,6 +61,55 @@ for m in &dmd_spectrum(&result, 0.1) {
 // Forecast 10 steps ahead
 let pred = predict_modes(&result, 10, None).unwrap();
 ```
+
+## DMD with control (DMDc)
+
+When the system is driven by a known input, plain DMD folds the forcing into a biased
+`A`. `dmdc` identifies the forced system `x_{t+1} = A x_t + B u_t` instead. It takes
+explicit snapshot-pair matrices — `x1` (states at time `t`), `x2` (one step later), and
+`u` (the input during each transition) — so columns may come from many concatenated
+trajectories:
+
+```rust
+use koopman_dmd::{dmdc, DmdcConfig, stability_from_eigenvalues};
+
+// Simulate x_{t+1} = A0 x_t + B0 u_t with
+// A0 = [[0.9, 0.1], [0.0, 0.8]], B0 = [0.5, 1.0]
+let m = 120;
+let mut x1 = faer::Mat::<f64>::zeros(2, m);
+let mut x2 = faer::Mat::<f64>::zeros(2, m);
+let mut u = faer::Mat::<f64>::zeros(1, m);
+let mut x = [1.0, -0.5];
+for t in 0..m {
+    // The input must be persistently exciting to identify A and B jointly
+    let ut = (0.7 * t as f64).sin() + 0.5 * (2.3 * t as f64 + 1.0).cos();
+    x1[(0, t)] = x[0];
+    x1[(1, t)] = x[1];
+    u[(0, t)] = ut;
+    x = [0.9 * x[0] + 0.1 * x[1] + 0.5 * ut, 0.8 * x[1] + ut];
+    x2[(0, t)] = x[0];
+    x2[(1, t)] = x[1];
+}
+
+// Jointly recover A and B from the pairs
+let config = DmdcConfig { rank_input: Some(3), ..Default::default() };
+let result = dmdc(&x1, &x2, &u, &config).unwrap();
+assert!((result.a[(0, 0)] - 0.9).abs() < 1e-8);
+assert!((result.b[(1, 0)] - 1.0).abs() < 1e-8);
+
+// Analyze the unforced dynamics via the eigenvalues of A
+let stab = stability_from_eigenvalues(&result.eigenvalues, 1e-6);
+assert!(stab.is_stable);
+```
+
+When the input coupling is known by construction, pin it with
+`DmdcConfig { known_b: Some(b), .. }` and only `A` is estimated — this also avoids the
+bias inherent in jointly fitting `A` and `B` from closed-loop (state-feedback) data.
+With a zero-row `u`, `dmdc` performs autonomous multi-trajectory identification from
+explicit pairs, which `dmd` cannot do. `DmdcConfig::rank_output` optionally projects
+onto the leading SVD basis of `x2` for model reduction, and
+`spectrum_from_eigenvalues` / `stability_from_eigenvalues` apply the standard analysis
+tools to the identified spectrum.
 
 ## Extended DMD with lifting
 

@@ -28,6 +28,7 @@
 
     <h3>Features</h3>
     <a href="core-dmd.html">Core DMD</a>
+    <a href="dmdc.html">DMD with Control</a>
     <a href="extended-dmd.html">Extended DMD</a>
     <a href="hankel-dmd.html">Hankel-DMD</a>
     <a href="gla.html">GLA</a>
@@ -123,9 +124,57 @@ err <span class="op">&lt;-</span> <span class="fn">dmd_error</span>(result)
     achieves near-zero reconstruction error.</p>
 
     <!-- ============================================================
-         Section 4: Extended DMD with Polynomial Lifting
+         Section 4: DMD with Control (DMDc)
          ============================================================ -->
-    <h2 id="extended-dmd-lifting">4. Extended DMD with Polynomial Lifting</h2>
+    <h2 id="dmdc-identification">4. DMD with Control (DMDc)</h2>
+
+    <p>When an external input drives the system, standard DMD conflates the
+    intrinsic dynamics with the forcing. DMDc identifies the forced linear
+    system <code>x<sub>t+1</sub> = A x<sub>t</sub> + B u<sub>t</sub></code>
+    from snapshot pairs, separating the unforced dynamics <code>A</code>
+    from the input coupling <code>B</code>.</p>
+
+<pre><code><span class="cm"># Simulate a forced linear system x_{t+1} = A0 x_t + B0 u_t</span>
+A0 <span class="op">&lt;-</span> <span class="fn">matrix</span>(<span class="fn">c</span>(<span class="nu">0.9</span>, <span class="nu">0</span>, <span class="nu">0.1</span>, <span class="nu">0.8</span>), <span class="nu">2</span>, <span class="nu">2</span>)
+B0 <span class="op">&lt;-</span> <span class="fn">matrix</span>(<span class="fn">c</span>(<span class="nu">0.5</span>, <span class="nu">1</span>), <span class="nu">2</span>, <span class="nu">1</span>)
+m <span class="op">&lt;-</span> <span class="nu">120</span>
+X1 <span class="op">&lt;-</span> <span class="fn">matrix</span>(<span class="nu">0</span>, <span class="nu">2</span>, m); X2 <span class="op">&lt;-</span> <span class="fn">matrix</span>(<span class="nu">0</span>, <span class="nu">2</span>, m); U <span class="op">&lt;-</span> <span class="fn">matrix</span>(<span class="nu">0</span>, <span class="nu">1</span>, m)
+x <span class="op">&lt;-</span> <span class="fn">c</span>(<span class="nu">1</span>, <span class="op">-</span><span class="nu">0.5</span>)
+<span class="kw">for</span> (t <span class="kw">in</span> <span class="fn">seq_len</span>(m)) {
+  u_t <span class="op">&lt;-</span> <span class="fn">sin</span>(<span class="nu">0.7</span> <span class="op">*</span> (t <span class="op">-</span> <span class="nu">1</span>)) <span class="op">+</span> <span class="nu">0.5</span> <span class="op">*</span> <span class="fn">cos</span>(<span class="nu">2.3</span> <span class="op">*</span> (t <span class="op">-</span> <span class="nu">1</span>) <span class="op">+</span> <span class="nu">1</span>)
+  X1[, t] <span class="op">&lt;-</span> x
+  U[, t] <span class="op">&lt;-</span> u_t
+  x <span class="op">&lt;-</span> <span class="fn">as.numeric</span>(A0 <span class="op">%*%</span> x <span class="op">+</span> B0 <span class="op">*</span> u_t)
+  X2[, t] <span class="op">&lt;-</span> x
+}
+
+<span class="cm"># Identify A and B from the snapshot pairs</span>
+fit <span class="op">&lt;-</span> <span class="fn">dmdc</span>(X1, X2, U, rank_input <span class="op">=</span> <span class="nu">3</span>)
+<span class="fn">round</span>(fit<span class="op">$</span>a, <span class="nu">6</span>)   <span class="cm"># recovers A0</span>
+<span class="fn">round</span>(fit<span class="op">$</span>b, <span class="nu">6</span>)   <span class="cm"># recovers B0</span>
+
+<span class="cm"># Stability of the unforced dynamics</span>
+<span class="fn">dmdc_stability</span>(fit)
+
+<span class="cm"># Replaying the training inputs reproduces X2</span>
+pred <span class="op">&lt;-</span> <span class="fn">predict</span>(fit, U <span class="op">=</span> U)
+
+<span class="cm"># Variants: known input matrix, and autonomous pairs</span>
+fit_kb <span class="op">&lt;-</span> <span class="fn">dmdc</span>(X1, X2, U, rank_input <span class="op">=</span> <span class="nu">2</span>, known_B <span class="op">=</span> B0)
+fit_auto <span class="op">&lt;-</span> <span class="fn">dmdc</span>(X1, X2)</code></pre>
+
+    <p>With a persistently exciting input, DMDc recovers <code>A0</code> and
+    <code>B0</code> to numerical precision, and replaying the training inputs
+    through <code>predict()</code> reproduces <code>X2</code>. Supplying
+    <code>known_B</code> fits only <code>A</code> -- the preferred form when
+    the input coupling is known by construction, and required for closed-loop
+    (state-feedback) data. Omitting <code>U</code> fits an autonomous
+    multi-trajectory model from the same snapshot pairs.</p>
+
+    <!-- ============================================================
+         Section 5: Extended DMD with Polynomial Lifting
+         ============================================================ -->
+    <h2 id="extended-dmd-lifting">5. Extended DMD with Polynomial Lifting</h2>
 
     <p>When the dynamics are nonlinear, polynomial lifting maps the data
     into a higher-dimensional space where DMD can better approximate the
@@ -151,9 +200,9 @@ res_lift <span class="op">&lt;-</span> <span class="fn">dmd</span>(X3, lifting <
     DMD can better approximate the dynamics.</p>
 
     <!-- ============================================================
-         Section 5: Hankel-DMD for Scalar Time Series
+         Section 6: Hankel-DMD for Scalar Time Series
          ============================================================ -->
-    <h2 id="hankel-dmd-prediction">5. Hankel-DMD for Scalar Time Series</h2>
+    <h2 id="hankel-dmd-prediction">6. Hankel-DMD for Scalar Time Series</h2>
 
     <p>Hankel-DMD augments a scalar measurement with time-delay embeddings,
     enabling DMD to recover multiple frequencies from a single observable.</p>
@@ -180,9 +229,9 @@ eig_freq <span class="op">&lt;-</span> <span class="fn">abs</span>(<span class="
     a scalar measurement via time-delay embedding.</p>
 
     <!-- ============================================================
-         Section 6: GLA Reconstruction and Prediction
+         Section 7: GLA Reconstruction and Prediction
          ============================================================ -->
-    <h2 id="gla-prediction">6. GLA Reconstruction and Prediction</h2>
+    <h2 id="gla-prediction">7. GLA Reconstruction and Prediction</h2>
 
     <p>Generalized Laplace Analysis (GLA) directly computes Koopman
     eigenfunctions from trajectory data using an iterative algorithm.</p>
@@ -202,9 +251,9 @@ gpred <span class="op">&lt;-</span> <span class="fn">predict</span>(gresult, n_a
     it achieves exact reconstruction and accurate extrapolation.</p>
 
     <!-- ============================================================
-         Section 7: Dynamical Map Phase Portraits
+         Section 8: Dynamical Map Phase Portraits
          ============================================================ -->
-    <h2 id="dynamical-maps">7. Dynamical Map Phase Portraits</h2>
+    <h2 id="dynamical-maps">8. Dynamical Map Phase Portraits</h2>
 
     <p>The library includes several classic dynamical systems for
     generating trajectories and studying phase space structure.</p>
@@ -227,9 +276,9 @@ traj_log <span class="op">&lt;-</span> <span class="fn">generate_trajectory</spa
     chaotic time evolution.</p>
 
     <!-- ============================================================
-         Section 8: HTA Convergence
+         Section 9: HTA Convergence
          ============================================================ -->
-    <h2 id="hta-convergence">8. HTA Convergence</h2>
+    <h2 id="hta-convergence">9. HTA Convergence</h2>
 
     <p>The harmonic time average (HTA) converges differently for regular
     and chaotic orbits, providing a diagnostic for orbit classification.</p>
@@ -251,9 +300,9 @@ conv_chaos <span class="op">&lt;-</span> <span class="fn">hta_convergence</span>
     orbits (no persistent periodicity).</p>
 
     <!-- ============================================================
-         Section 9: Mesochronic Harmonic Plot
+         Section 10: Mesochronic Harmonic Plot
          ============================================================ -->
-    <h2 id="mesochronic-plot">9. Mesochronic Harmonic Plot</h2>
+    <h2 id="mesochronic-plot">10. Mesochronic Harmonic Plot</h2>
 
     <p>The mesochronic plot computes the HTA over a grid of initial
     conditions, revealing the phase space structure of a dynamical system.</p>
@@ -275,9 +324,9 @@ conv_chaos <span class="op">&lt;-</span> <span class="fn">hta_convergence</span>
     with the test frequency. Dark regions indicate chaotic motion.</p>
 
     <!-- ============================================================
-         Section 10: Method Comparison
+         Section 11: Method Comparison
          ============================================================ -->
-    <h2 id="method-comparison">10. Method Comparison</h2>
+    <h2 id="method-comparison">11. Method Comparison</h2>
 
     <p>This example applies all three decomposition methods to the same
     multi-frequency signal and compares their out-of-sample prediction

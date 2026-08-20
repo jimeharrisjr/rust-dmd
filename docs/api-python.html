@@ -31,6 +31,7 @@
 
     <h3>Features</h3>
     <a href="core-dmd.html">Core DMD</a>
+    <a href="dmdc.html">DMD with Control</a>
     <a href="extended-dmd.html">Extended DMD</a>
     <a href="hankel-dmd.html">Hankel-DMD</a>
     <a href="gla.html">GLA</a>
@@ -602,6 +603,397 @@ forecast = dmd.<span class="fn">predict</span>(<span class="nu">50</span>, x0=x0
 <span class="fn">print</span>(<span class="st">"Modes shape:"</span>, dmd.modes.shape)
 <span class="fn">print</span>(<span class="st">"Amplitudes: "</span>, dmd.amplitudes)
 <span class="fn">print</span>(<span class="st">"Rank:       "</span>, dmd.rank)</code></pre>
+
+    <!-- ============================================================
+         DMDc Class
+         ============================================================ -->
+    <h2 id="dmdc">DMDc</h2>
+
+    <p>Dynamic Mode Decomposition with control (Proctor, Brunton &amp; Kutz 2016).
+    Identifies the forced linear system
+    <code>x<sub>t+1</sub> = A x<sub>t</sub> + B u<sub>t</sub></code> from snapshot
+    pairs of states and the inputs applied between them.</p>
+
+    <h3 id="dmdc-constructor">Constructor</h3>
+
+<pre><code><span class="kw">class</span> <span class="fn">DMDc</span>(x1, x2, u=<span class="kw">None</span>, rank_input=<span class="kw">None</span>, rank_output=<span class="kw">None</span>, dt=<span class="nu">1.0</span>, known_b=<span class="kw">None</span>)</code></pre>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Parameter</th>
+          <th>Type</th>
+          <th>Default</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>x1</code></td>
+          <td><code>numpy.ndarray</code></td>
+          <td></td>
+          <td>States at time <code>t</code>, shape <code>(n_states, n_pairs)</code>.
+          Each column is a snapshot.</td>
+        </tr>
+        <tr>
+          <td><code>x2</code></td>
+          <td><code>numpy.ndarray</code></td>
+          <td></td>
+          <td>States at time <code>t+1</code>, shape <code>(n_states, n_pairs)</code>.</td>
+        </tr>
+        <tr>
+          <td><code>u</code></td>
+          <td><code>numpy.ndarray | None</code></td>
+          <td><code>None</code></td>
+          <td>Inputs applied between the snapshot pairs, shape
+          <code>(n_inputs, n_pairs)</code>. <code>None</code> fits an autonomous
+          multi-trajectory model from the pairs (<code>B</code> gets zero columns).
+          Columns may come from many concatenated trajectories.</td>
+        </tr>
+        <tr>
+          <td><code>rank_input</code></td>
+          <td><code>int | None</code></td>
+          <td><code>None</code></td>
+          <td>Truncation rank for the regression-input SVD (<code>[X1; U]</code>,
+          or <code>X1</code> when <code>known_b</code> is set). <code>None</code>
+          selects 99% cumulative variance. A requested rank beyond the numerical
+          rank of the data raises <code>ValueError</code>.</td>
+        </tr>
+        <tr>
+          <td><code>rank_output</code></td>
+          <td><code>int | None</code></td>
+          <td><code>None</code></td>
+          <td>Optional second projection through the leading left singular vectors
+          of <code>x2</code>, producing reduced operators <code>a_tilde</code> of
+          shape <code>(rank_output, rank_output)</code> and <code>b_tilde</code> of
+          shape <code>(rank_output, n_inputs)</code> in a reduced basis.
+          <code>None</code> keeps everything full-order (<code>basis</code> is the
+          identity, <code>a_tilde == a</code>).</td>
+        </tr>
+        <tr>
+          <td><code>dt</code></td>
+          <td><code>float</code></td>
+          <td><code>1.0</code></td>
+          <td>Time step between snapshots. Must be positive and finite
+          (<code>ValueError</code> otherwise).</td>
+        </tr>
+        <tr>
+          <td><code>known_b</code></td>
+          <td><code>numpy.ndarray | None</code></td>
+          <td><code>None</code></td>
+          <td>Known input matrix of shape <code>(n_states, n_inputs)</code>. When
+          given, <code>B</code> is not estimated: only <code>A</code> is solved for
+          on the input-subtracted residual
+          (<code>A = (X2 - B U) X1<sup>+</sup></code>). Preferred when the input
+          coupling is known by construction; required for closed-loop
+          (state-feedback) data, where joint identification of <code>A</code> and
+          <code>B</code> is biased and non-unique.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p>All validation errors are raised as <code>ValueError</code> (shape
+    mismatches, invalid <code>dt</code>, requested rank beyond the numerical
+    rank of the data).</p>
+
+<pre><code><span class="kw">from</span> koopman_dmd <span class="kw">import</span> DMDc
+
+<span class="cm"># Joint identification of A and B</span>
+d = <span class="fn">DMDc</span>(x1, x2, u, rank_input=<span class="nu">3</span>)
+
+<span class="cm"># Known input matrix: only A is estimated</span>
+d = <span class="fn">DMDc</span>(x1, x2, u, known_b=b0)
+
+<span class="cm"># Autonomous multi-trajectory model (no input)</span>
+d = <span class="fn">DMDc</span>(x1, x2)</code></pre>
+
+    <!-- DMDc Methods -->
+    <h3 id="dmdc-methods">Methods</h3>
+
+    <h4 id="dmdc-predict"><code>predict(u=None, x0=None, n_ahead=None)</code></h4>
+
+    <p>Simulate the identified system
+    <code>x<sub>t+1</sub> = A x<sub>t</sub> + B u<sub>t</sub></code> forward from
+    an initial state.</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Parameter</th>
+          <th>Type</th>
+          <th>Default</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>u</code></td>
+          <td><code>numpy.ndarray | None</code></td>
+          <td><code>None</code></td>
+          <td>Input sequence of shape <code>(n_inputs, k)</code>; its number of
+          columns sets the prediction horizon. <code>None</code> applies zero
+          input for <code>n_ahead</code> steps. If both <code>u</code> and
+          <code>n_ahead</code> are given they must agree.</td>
+        </tr>
+        <tr>
+          <td><code>x0</code></td>
+          <td><code>numpy.ndarray | None</code></td>
+          <td><code>None</code></td>
+          <td>Initial state vector. If <code>None</code>, uses the first column
+          of <code>x1</code>.</td>
+        </tr>
+        <tr>
+          <td><code>n_ahead</code></td>
+          <td><code>int | None</code></td>
+          <td><code>None</code></td>
+          <td>Number of steps to simulate under zero input. Required when
+          <code>u</code> is <code>None</code>; omitting both raises
+          <code>ValueError</code> ("either u or n_ahead must be given").</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p><strong>Returns:</strong> <code>numpy.ndarray</code> of shape
+    <code>(n_states, k)</code> -- the predicted states
+    <code>x<sub>1</sub> .. x<sub>k</sub></code> (successors of <code>x0</code>;
+    <code>x0</code> itself is not included).</p>
+
+<pre><code><span class="cm"># Replay the training inputs</span>
+pred = d.<span class="fn">predict</span>(u=u)
+
+<span class="cm"># Zero-input (free) response for 50 steps</span>
+free = d.<span class="fn">predict</span>(n_ahead=<span class="nu">50</span>)
+
+<span class="cm"># Custom initial state</span>
+x0 = np.<span class="fn">array</span>([<span class="nu">1.0</span>, <span class="nu">-0.5</span>])
+pred = d.<span class="fn">predict</span>(u=u, x0=x0)</code></pre>
+
+    <h4 id="dmdc-spectrum"><code>spectrum()</code></h4>
+
+    <p>Compute the spectral properties of the identified operator (the spectrum
+    of the unforced dynamics). Uses the <code>dt</code> given at construction.
+    The output has the same shape as <code>DMD.spectrum()</code>.</p>
+
+    <p><strong>Returns:</strong> <code>list[dict]</code> -- one dictionary per eigenvalue with keys:</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Key</th>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>index</code></td>
+          <td><code>int</code></td>
+          <td>Position of the eigenvalue in the spectrum.</td>
+        </tr>
+        <tr>
+          <td><code>magnitude</code></td>
+          <td><code>float</code></td>
+          <td>Absolute value of the discrete-time eigenvalue.</td>
+        </tr>
+        <tr>
+          <td><code>phase</code></td>
+          <td><code>float</code></td>
+          <td>Phase angle of the eigenvalue (radians).</td>
+        </tr>
+        <tr>
+          <td><code>frequency</code></td>
+          <td><code>float</code></td>
+          <td>Oscillation frequency (Hz).</td>
+        </tr>
+        <tr>
+          <td><code>period</code></td>
+          <td><code>float</code></td>
+          <td>Oscillation period.</td>
+        </tr>
+        <tr>
+          <td><code>growth_rate</code></td>
+          <td><code>float</code></td>
+          <td>Continuous-time growth rate (positive = growing, negative = decaying).</td>
+        </tr>
+        <tr>
+          <td><code>amplitude</code></td>
+          <td><code>float</code></td>
+          <td>Mode amplitude. DMDc has no mode amplitudes, so this is reported
+          as 0.</td>
+        </tr>
+        <tr>
+          <td><code>stability</code></td>
+          <td><code>str</code></td>
+          <td>One of <code>"stable"</code>, <code>"unstable"</code>, or <code>"neutral"</code>.</td>
+        </tr>
+      </tbody>
+    </table>
+
+<pre><code>spec = d.<span class="fn">spectrum</span>()
+<span class="kw">for</span> mode <span class="kw">in</span> spec:
+    <span class="fn">print</span>(<span class="st">f"freq=</span>{mode[<span class="st">'frequency'</span>]:<span class="nu">.4f</span>}<span class="st"> Hz, growth=</span>{mode[<span class="st">'growth_rate'</span>]:<span class="nu">.4f</span>}<span class="st">, </span>{mode[<span class="st">'stability'</span>]}<span class="st">"</span>)</code></pre>
+
+    <h4 id="dmdc-stability"><code>stability()</code></h4>
+
+    <p>Classify the eigenvalues of the identified operator at tolerance
+    <code>1e-6</code> (the same classification as <code>DMD.stability()</code>).</p>
+
+    <p><strong>Returns:</strong> <code>tuple</code> of
+    <code>(is_stable, is_unstable, is_marginal, spectral_radius)</code>:</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Element</th>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>is_stable</code></td>
+          <td><code>bool</code></td>
+          <td><code>True</code> if all eigenvalue magnitudes are at most <code>1 + tol</code>.</td>
+        </tr>
+        <tr>
+          <td><code>is_unstable</code></td>
+          <td><code>bool</code></td>
+          <td><code>True</code> if any eigenvalue magnitude exceeds <code>1 + tol</code>.</td>
+        </tr>
+        <tr>
+          <td><code>is_marginal</code></td>
+          <td><code>bool</code></td>
+          <td><code>True</code> if the largest eigenvalue magnitude lies within
+          <code>tol</code> of the unit circle.</td>
+        </tr>
+        <tr>
+          <td><code>spectral_radius</code></td>
+          <td><code>float</code></td>
+          <td>Maximum eigenvalue magnitude.</td>
+        </tr>
+      </tbody>
+    </table>
+
+<pre><code>is_stable, is_unstable, is_marginal, radius = d.<span class="fn">stability</span>()
+<span class="fn">print</span>(<span class="st">f"Stable: </span>{is_stable}<span class="st">, spectral radius: </span>{radius:<span class="nu">.6f</span>}<span class="st">"</span>)</code></pre>
+
+    <h4 id="dmdc-repr"><code>__repr__()</code></h4>
+
+    <p>String representation of the fitted model:
+    <code>DMDc(n_states=..., n_inputs=..., rank_input=..., rank_output=...)</code>.</p>
+
+    <!-- DMDc Properties -->
+    <h3 id="dmdc-properties">Properties</h3>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Property</th>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>a</code></td>
+          <td><code>numpy.ndarray</code></td>
+          <td>State-transition matrix <code>A</code>, shape <code>(n_states, n_states)</code>.</td>
+        </tr>
+        <tr>
+          <td><code>b</code></td>
+          <td><code>numpy.ndarray</code></td>
+          <td>Input matrix <code>B</code>, shape <code>(n_states, n_inputs)</code>.
+          A copy of <code>known_b</code> when it was supplied.</td>
+        </tr>
+        <tr>
+          <td><code>a_tilde</code></td>
+          <td><code>numpy.ndarray</code></td>
+          <td>Reduced operator, shape <code>(rank_output, rank_output)</code>.
+          Equals <code>a</code> when no output projection was requested.</td>
+        </tr>
+        <tr>
+          <td><code>b_tilde</code></td>
+          <td><code>numpy.ndarray</code></td>
+          <td>Reduced input operator, shape <code>(rank_output, n_inputs)</code>.</td>
+        </tr>
+        <tr>
+          <td><code>basis</code></td>
+          <td><code>numpy.ndarray</code></td>
+          <td>Orthonormal output basis, shape <code>(n_states, rank_output)</code>.
+          The identity when no projection was requested.</td>
+        </tr>
+        <tr>
+          <td><code>eigenvalues</code></td>
+          <td><code>numpy.ndarray</code></td>
+          <td>Eigenvalues of <code>a_tilde</code> (the spectrum of the unforced
+          dynamics) as <code>[re, im]</code> pairs, shape
+          <code>(rank_output, 2)</code>. Same convention as
+          <code>DMD.eigenvalues</code>.</td>
+        </tr>
+        <tr>
+          <td><code>singular_values</code></td>
+          <td><code>numpy.ndarray</code></td>
+          <td>Singular values of the regression-input SVD (1-D).</td>
+        </tr>
+        <tr>
+          <td><code>rank_input</code></td>
+          <td><code>int</code></td>
+          <td>Rank actually used for the regression-input SVD.</td>
+        </tr>
+        <tr>
+          <td><code>rank_output</code></td>
+          <td><code>int</code></td>
+          <td>Rank of the output basis (<code>n_states</code> when no projection
+          was requested).</td>
+        </tr>
+        <tr>
+          <td><code>dt</code></td>
+          <td><code>float</code></td>
+          <td>Time step given at construction.</td>
+        </tr>
+        <tr>
+          <td><code>n_states</code></td>
+          <td><code>int</code></td>
+          <td>Number of state variables.</td>
+        </tr>
+        <tr>
+          <td><code>n_inputs</code></td>
+          <td><code>int</code></td>
+          <td>Number of input channels.</td>
+        </tr>
+      </tbody>
+    </table>
+
+<pre><code><span class="kw">import</span> numpy <span class="kw">as</span> np
+<span class="kw">from</span> koopman_dmd <span class="kw">import</span> DMDc
+
+<span class="cm"># Simulate x[t+1] = A0 x[t] + B0 u[t] with a persistently exciting input</span>
+a0 = np.<span class="fn">array</span>([[<span class="nu">0.9</span>, <span class="nu">0.1</span>], [<span class="nu">0.0</span>, <span class="nu">0.8</span>]])
+b0 = np.<span class="fn">array</span>([[<span class="nu">0.5</span>], [<span class="nu">1.0</span>]])
+n_pairs = <span class="nu">120</span>
+t = np.<span class="fn">arange</span>(n_pairs)
+u = (np.<span class="fn">sin</span>(<span class="nu">0.7</span> * t) + <span class="nu">0.5</span> * np.<span class="fn">cos</span>(<span class="nu">2.3</span> * t + <span class="nu">1</span>)).<span class="fn">reshape</span>(<span class="nu">1</span>, <span class="nu">-1</span>)
+
+x = np.<span class="fn">zeros</span>((<span class="nu">2</span>, n_pairs + <span class="nu">1</span>))
+x[:, <span class="nu">0</span>] = [<span class="nu">1.0</span>, <span class="nu">-0.5</span>]
+<span class="kw">for</span> k <span class="kw">in</span> <span class="fn">range</span>(n_pairs):
+    x[:, k + <span class="nu">1</span>] = a0 @ x[:, k] + b0 @ u[:, k]
+x1, x2 = x[:, :<span class="nu">-1</span>], x[:, <span class="nu">1</span>:]
+
+<span class="cm"># Identify A and B from the snapshot pairs</span>
+d = <span class="fn">DMDc</span>(x1, x2, u, rank_input=<span class="nu">3</span>)
+
+<span class="fn">print</span>(d)  <span class="cm"># DMDc(n_states=2, n_inputs=1, rank_input=3, rank_output=2)</span>
+<span class="fn">print</span>(<span class="st">"A error:"</span>, np.<span class="fn">max</span>(np.<span class="fn">abs</span>(d.a - a0)))  <span class="cm"># ~1e-15</span>
+<span class="fn">print</span>(<span class="st">"B error:"</span>, np.<span class="fn">max</span>(np.<span class="fn">abs</span>(d.b - b0)))  <span class="cm"># ~1e-15</span>
+
+<span class="cm"># Stability of the unforced dynamics</span>
+is_stable, is_unstable, is_marginal, radius = d.<span class="fn">stability</span>()
+<span class="fn">print</span>(<span class="st">f"Stable: </span>{is_stable}<span class="st">, spectral radius: </span>{radius:<span class="nu">.4f</span>}<span class="st">"</span>)
+
+<span class="cm"># Replaying the training input reproduces x2</span>
+pred = d.<span class="fn">predict</span>(u=u)
+<span class="fn">print</span>(<span class="st">"Prediction error:"</span>, np.<span class="fn">max</span>(np.<span class="fn">abs</span>(pred - x2)))</code></pre>
 
     <!-- ============================================================
          HankelDMD Class
