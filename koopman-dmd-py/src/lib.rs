@@ -512,9 +512,8 @@ impl DMDc {
                 m
             }
             None => {
-                let k = n_ahead.ok_or_else(|| {
-                    PyValueError::new_err("either u or n_ahead must be given")
-                })?;
+                let k = n_ahead
+                    .ok_or_else(|| PyValueError::new_err("either u or n_ahead must be given"))?;
                 faer::Mat::<f64>::zeros(q, k)
             }
         };
@@ -562,8 +561,7 @@ impl DMDc {
     /// Returns a list of dicts with mode information. DMDc has no mode
     /// amplitudes, so `amplitude` is reported as 0.
     fn spectrum(&self, py: Python<'_>) -> PyResult<PyObject> {
-        let spec =
-            kdmd::spectrum_from_eigenvalues(&self.result.eigenvalues, None, self.result.dt);
+        let spec = kdmd::spectrum_from_eigenvalues(&self.result.eigenvalues, None, self.result.dt);
         let list = pyo3::types::PyList::empty(py);
         for m in &spec {
             let dict = pyo3::types::PyDict::new(py);
