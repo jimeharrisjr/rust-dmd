@@ -1,3 +1,12 @@
+# koopman.dmd 0.2.1
+
+* The Rust static archive is now removed from the build tree once the shared
+  library is linked. R (>= 4.6.0) scans the symbol tables of linked static
+  libraries, and the Rust standard library's bundled runtime objects reference
+  `exit`/`abort` entry points that are never linked into the final shared
+  library; leaving the archive behind produced a spurious `checking compiled
+  code` warning on CRAN's Linux checks.
+
 # koopman.dmd 0.2.0
 
 * New `dmdc()`: Dynamic Mode Decomposition with control (Proctor, Brunton and

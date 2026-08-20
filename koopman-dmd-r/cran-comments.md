@@ -1,8 +1,11 @@
 ## Submission
 
-This is a new submission of koopman.dmd 0.2.0. (An earlier 0.1.0 was prepared
-but never published on CRAN; 0.2.0 additionally provides Dynamic Mode
-Decomposition with control, `dmdc()`, and its analysis and prediction
+This is a new submission of koopman.dmd 0.2.1, resubmitted after the 0.2.0
+pretest. The Debian pretest of 0.2.0 warned in `checking compiled code`
+(`exit`, `_exit`, `abort`); 0.2.1 fixes the cause (see "checking compiled
+code", below) rather than asking for an exception. (An earlier 0.1.0 was
+prepared but never published on CRAN; 0.2.x additionally provides Dynamic
+Mode Decomposition with control, `dmdc()`, and its analysis and prediction
 methods.)
 
 ## Test environments
@@ -17,8 +20,8 @@ methods.)
 
 | Platform | Result |
 |---|---|
-| **win-builder, R devel (r90424)** | **0 errors, 0 warnings, 1 note** |
-| **win-builder, R release (R 4.6.1)** | **0 errors, 0 warnings, 1 note** |
+| **win-builder, R devel (r90424)** | **0 errors, 0 warnings, 1 note** (0.2.0 tarball; re-run for 0.2.1 before submitting) |
+| **win-builder, R release (R 4.6.1)** | **0 errors, 0 warnings, 1 note** (0.2.0 tarball; re-run for 0.2.1 before submitting) |
 | macOS 15 (local), R 4.4.1, aarch64 | 0 errors, 0 warnings* |
 | Ubuntu 24.04, R release | 0 errors, 1 warning, 0 notes |
 | Ubuntu 24.04, R devel   | 0 errors, 1 warning, 0 notes |
@@ -32,10 +35,9 @@ below.
 The win-builder note is `checking CRAN incoming feasibility`, comprising "New
 submission" and a list of possibly misspelled words (`Brunton`, `Hankel`,
 `Koopman`, `Kutz`, `Mezic`, `Schmid`, `eigenfunction`, `mesochronic`); both
-are addressed below. `checking compiled code` was **OK** on win-builder, and
-the PDF and HTML manuals and the vignette all built cleanly. The warning of that name appears on Linux only and is explained further
-down; we do not believe it is removable from a Rust package, but if you would
-prefer it handled differently, please say so and we will follow your guidance.
+are addressed below. The PDF and HTML manuals and the vignette all built
+cleanly on win-builder. The `checking compiled code` warning that the 0.2.0
+Debian pretest reported is fixed in 0.2.1 — see the section below.
 
 ### Possibly misspelled words
 
@@ -96,20 +98,24 @@ non-interactive builds), verify the version, and report it into the installation
 log before compilation begins. If the toolchain is missing or too old, they emit
 installation instructions and stop; they never attempt to install anything.
 
-### `checking compiled code` note
+### `checking compiled code` (fixed in 0.2.1)
 
-On Linux the check reports that the compiled library contains `exit`, `_exit` and
-`abort`. These symbols come from the Rust standard library's panic and
-process-abort machinery, which is linked into every Rust static library. They are
-not called by this package's own code. The same check reports OK on win-builder
-and on macOS, so the difference is in which platforms' checks surface the symbols
-rather than in what the library contains.
+The 0.2.0 Debian pretest warned that the compiled code contains `exit`,
+`_exit` and `abort`, attributed to `rust/target/release/libkoopman_dmd_r.a`.
+We traced this to the intermediate static archive, not the shared library:
+the Rust standard library bundles process-termination and panic runtime
+objects into every static archive, but the linker never pulls them into
+`koopman.dmd.so` (verified with `nm -D -u` on x86_64 Linux builds under both
+rustc 1.95.0 — the pretest machine's toolchain — and current stable: the
+linked library references none of these entry points). The warning appeared
+because the archive itself was left in the build tree, where
+`checking compiled code` now scans the symbol tables of linked static
+libraries (PR#18789).
 
-The R-facing code never terminates the R process: all fallible operations return
-an R condition through 'extendr', and the package installs no panic handler that
-aborts. We are not aware of a way to prevent a Rust static library from carrying
-these symbols, but if you know of one, or would prefer this handled differently,
-we will follow your guidance.
+0.2.1 removes the static archive as soon as the shared library has been
+linked, following the same pattern as the 'string2path' package cited in
+"Using Rust in CRAN packages". The R-facing code never terminates the R
+process: all fallible operations return an R condition through 'extendr'.
 
 ### Installed size
 

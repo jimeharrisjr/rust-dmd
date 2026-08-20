@@ -39,8 +39,12 @@ $(STATLIB):
 		rm -Rf $(LIBDIR)/build; \
 	fi
 
-rust_clean:
-	rm -Rf $(CARGOTMP) $(VENDOR_DIR)
+# Remove the static archive after the link: R >= 4.6.0 scans symbol tables of
+# linked local static libraries (PR#18789), and libstd's runtime objects
+# reference exit/abort even though they are never linked into the final DLL.
+# See src/Makevars for the full rationale.
+rust_clean: $(SHLIB)
+	rm -Rf $(CARGOTMP) $(VENDOR_DIR) $(STATLIB)
 
 C_clean:
 	rm -Rf $(SHLIB) $(STATLIB) $(OBJECTS)
