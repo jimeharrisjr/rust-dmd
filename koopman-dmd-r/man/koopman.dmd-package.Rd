@@ -6,7 +6,7 @@
 \alias{koopman.dmd-package}
 \title{koopman.dmd: Koopman Operator and Dynamic Mode Decomposition for Dynamical Systems}
 \description{
-Dynamic Mode Decomposition (DMD) with Koopman operator theory extensions, powered by a Rust backend via 'extendr'. Provides standard DMD (Schmid, 2010, \doi{10.1017/S0022112010001217}), DMD with control for forced linear systems (Proctor, Brunton, and Kutz, 2016, \doi{10.1137/15M1013857}), Extended DMD with lifting functions, Hankel-DMD via time-delay embedding, Generalized Laplace Analysis for direct eigenfunction computation, harmonic time averages, and mesochronic harmonic plots for phase space analysis (Mezic, 2020, \doi{10.48550/arXiv.2009.05883}). Includes built-in area-preserving and chaotic maps for experimentation.
+Dynamic Mode Decomposition (DMD) with Koopman operator theory extensions, powered by a Rust backend via 'extendr'. Provides standard DMD as described in Schmid (2010) \doi{10.1017/S0022112010001217}, DMD with control for forced linear systems following Proctor, Brunton, and Kutz (2016) \doi{10.1137/15M1013857}, Extended DMD with lifting functions, Hankel-DMD via time-delay embedding, Generalized Laplace Analysis for direct eigenfunction computation, and harmonic time averages and mesochronic harmonic plots for phase space analysis as developed in Mezic (2020) \doi{10.48550/arXiv.2009.05883}. Includes built-in area-preserving and chaotic maps for experimentation.
 }
 \seealso{
 Useful links:

@@ -1,3 +1,9 @@
+# koopman.dmd 0.2.2
+
+* References in the `Description` field now use the CRAN-required
+  `authors (year) <doi:...>` form, as requested in manual review. No code
+  changes.
+
 # koopman.dmd 0.2.1
 
 * The Rust static archive is now removed from the build tree once the shared
