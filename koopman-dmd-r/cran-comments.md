@@ -1,12 +1,14 @@
 ## Submission
 
-This is a new submission of koopman.dmd 0.2.1, resubmitted after the 0.2.0
-pretest. The Debian pretest of 0.2.0 warned in `checking compiled code`
-(`exit`, `_exit`, `abort`); 0.2.1 fixes the cause (see "checking compiled
-code", below) rather than asking for an exception. (An earlier 0.1.0 was
-prepared but never published on CRAN; 0.2.x additionally provides Dynamic
-Mode Decomposition with control, `dmdc()`, and its analysis and prediction
-methods.)
+This is a new submission of koopman.dmd 0.2.2, resubmitted after manual
+review of 0.2.1. As requested by Leonore Hochhauser, the references in the
+`Description` field now use the `authors (year) <doi:...>` form with the
+years in parentheses. This is the only change from 0.2.1 — no code was
+touched — so the check results below, obtained for 0.2.1, carry over.
+
+Earlier history: the Debian pretest of 0.2.0 warned in `checking compiled
+code` (`exit`, `_exit`, `abort`); 0.2.1 fixed the cause (see "checking
+compiled code", below), and its pretest passed with 1 note on both flavors.
 
 ## Test environments
 
