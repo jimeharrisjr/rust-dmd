@@ -53,13 +53,16 @@ maturin develop --release
 
 ### R
 
-Requires Rust toolchain:
+From CRAN:
 
 ```r
-install.packages("koopman-dmd-r", repos = NULL, type = "source")
+install.packages("koopman.dmd")
 ```
 
-Or from the repository:
+On Windows and macOS, CRAN provides prebuilt binaries. Installing from source
+(Linux, or `type = "source"` elsewhere) compiles the bundled Rust sources
+locally and requires a Rust toolchain (`rustc` >= 1.85). To install from a
+checkout of this repository:
 
 ```bash
 R CMD INSTALL koopman-dmd-r

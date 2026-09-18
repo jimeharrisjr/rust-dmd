@@ -57,9 +57,15 @@
     <h2 id="installation">Installation</h2>
 
     <p>The <code>koopman.dmd</code> package is an R wrapper around the Rust
-    <code>koopman-dmd</code> library. Building from source requires a working Rust
-    toolchain (<code>cargo</code> and <code>rustc</code>) in addition to the
-    standard R development tools.</p>
+    <code>koopman-dmd</code> library, available on CRAN:</p>
+
+<pre><code><span class="fn">install.packages</span>(<span class="st">"koopman.dmd"</span>)</code></pre>
+
+    <p>CRAN provides prebuilt binaries for Windows and macOS. Installing from
+    source compiles the bundled Rust dependency tree locally, which requires a
+    working Rust toolchain (<code>cargo</code> and <code>rustc</code> &gt;= 1.85)
+    in addition to the standard R development tools. To install from a checkout
+    of the repository:</p>
 
 <pre><code><span class="cm"># Install from the local source directory</span>
 R CMD INSTALL koopman-dmd-r</code></pre>

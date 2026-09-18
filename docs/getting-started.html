@@ -132,15 +132,17 @@ maturin develop --release</code></pre>
       <!-- ============================================================ -->
       <h2 id="install-r">R Installation</h2>
 
-      <p>The R package wraps the Rust core through compiled native code. Install it with <code>R CMD INSTALL</code>:</p>
+      <p>The R package wraps the Rust core through compiled native code and is available on CRAN:</p>
+
+<pre><code><span class="fn">install.packages</span>(<span class="st">"koopman.dmd"</span>)</code></pre>
+
+      <p>CRAN provides prebuilt binaries for Windows and macOS. Source installs compile the bundled Rust sources with Cargo, so <code>cargo</code> and <code>rustc</code> (&gt;= 1.85) must be available on your system <code>PATH</code>. To install from a checkout of the repository instead:</p>
 
 <pre><code>R CMD INSTALL koopman-dmd-r</code></pre>
 
-      <p>This will invoke Cargo internally to compile the Rust library, then install the resulting R package. Both <code>cargo</code> and <code>rustc</code> must be available on your system <code>PATH</code>.</p>
-
       <p>Once installed, load the package in R:</p>
 
-<pre><code><span class="fn">library</span>(koopmandmd)</code></pre>
+<pre><code><span class="fn">library</span>(koopman.dmd)</code></pre>
 
       <!-- ============================================================ -->
       <h2 id="quick-start">Quick Start</h2>
